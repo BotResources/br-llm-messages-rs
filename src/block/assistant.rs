@@ -66,28 +66,40 @@ impl AssistantBlock {
     pub fn as_text(&self) -> Option<&Text> {
         match self {
             AssistantBlock::Text { text } => Some(text),
-            _ => None,
+            AssistantBlock::Thinking(_)
+            | AssistantBlock::RedactedThinking(_)
+            | AssistantBlock::Structured { .. }
+            | AssistantBlock::ToolCall(_) => None,
         }
     }
 
     pub fn as_thinking(&self) -> Option<&Thinking> {
         match self {
             AssistantBlock::Thinking(thinking) => Some(thinking),
-            _ => None,
+            AssistantBlock::Text { .. }
+            | AssistantBlock::RedactedThinking(_)
+            | AssistantBlock::Structured { .. }
+            | AssistantBlock::ToolCall(_) => None,
         }
     }
 
     pub fn as_structured(&self) -> Option<&Value> {
         match self {
             AssistantBlock::Structured { value } => Some(value),
-            _ => None,
+            AssistantBlock::Text { .. }
+            | AssistantBlock::Thinking(_)
+            | AssistantBlock::RedactedThinking(_)
+            | AssistantBlock::ToolCall(_) => None,
         }
     }
 
     pub fn as_tool_call(&self) -> Option<&ToolCall> {
         match self {
             AssistantBlock::ToolCall(call) => Some(call),
-            _ => None,
+            AssistantBlock::Text { .. }
+            | AssistantBlock::Thinking(_)
+            | AssistantBlock::RedactedThinking(_)
+            | AssistantBlock::Structured { .. } => None,
         }
     }
 
@@ -193,5 +205,11 @@ mod tests {
             block
         );
         assert!(block.is_tool_call());
+    }
+
+    #[test]
+    fn given_unknown_type_tag_when_deserialized_then_refused() {
+        let json = serde_json::json!({ "type": "nonsense", "text": "x" });
+        assert!(serde_json::from_value::<AssistantBlock>(json).is_err());
     }
 }

@@ -114,7 +114,7 @@ impl Conversation {
     pub fn turn(&self, turn_id: &TurnId) -> Option<&Turn> {
         self.entries.iter().find_map(|entry| match entry {
             Entry::Turn(turn) if turn.id() == turn_id => Some(turn),
-            _ => None,
+            Entry::Turn(_) | Entry::UserInput(_) => None,
         })
     }
 
@@ -125,7 +125,7 @@ impl Conversation {
             {
                 Some(turn)
             }
-            _ => None,
+            Entry::Turn(_) | Entry::UserInput(_) => None,
         })
     }
 

@@ -133,7 +133,10 @@ impl StepDraft {
                 text.push_str(fragment);
                 Ok(())
             }
-            _ => Err(MessageError::BlockKindMismatch { index }),
+            DraftBlock::Thinking { .. }
+            | DraftBlock::RedactedThinking { .. }
+            | DraftBlock::Structured { .. }
+            | DraftBlock::ToolCall { .. } => Err(MessageError::BlockKindMismatch { index }),
         }
     }
 
@@ -143,7 +146,10 @@ impl StepDraft {
                 text.push_str(fragment);
                 Ok(())
             }
-            _ => Err(MessageError::BlockKindMismatch { index }),
+            DraftBlock::Text { .. }
+            | DraftBlock::RedactedThinking { .. }
+            | DraftBlock::Structured { .. }
+            | DraftBlock::ToolCall { .. } => Err(MessageError::BlockKindMismatch { index }),
         }
     }
 
@@ -153,7 +159,10 @@ impl StepDraft {
                 signature.get_or_insert_with(String::new).push_str(fragment);
                 Ok(())
             }
-            _ => Err(MessageError::BlockKindMismatch { index }),
+            DraftBlock::Text { .. }
+            | DraftBlock::RedactedThinking { .. }
+            | DraftBlock::Structured { .. }
+            | DraftBlock::ToolCall { .. } => Err(MessageError::BlockKindMismatch { index }),
         }
     }
 
@@ -163,7 +172,10 @@ impl StepDraft {
                 data.push_str(fragment);
                 Ok(())
             }
-            _ => Err(MessageError::BlockKindMismatch { index }),
+            DraftBlock::Text { .. }
+            | DraftBlock::Thinking { .. }
+            | DraftBlock::Structured { .. }
+            | DraftBlock::ToolCall { .. } => Err(MessageError::BlockKindMismatch { index }),
         }
     }
 
@@ -173,7 +185,10 @@ impl StepDraft {
                 json.push_str(fragment);
                 Ok(())
             }
-            _ => Err(MessageError::BlockKindMismatch { index }),
+            DraftBlock::Text { .. }
+            | DraftBlock::Thinking { .. }
+            | DraftBlock::RedactedThinking { .. }
+            | DraftBlock::ToolCall { .. } => Err(MessageError::BlockKindMismatch { index }),
         }
     }
 
@@ -183,7 +198,10 @@ impl StepDraft {
                 arguments.push_str(fragment);
                 Ok(())
             }
-            _ => Err(MessageError::BlockKindMismatch { index }),
+            DraftBlock::Text { .. }
+            | DraftBlock::Thinking { .. }
+            | DraftBlock::RedactedThinking { .. }
+            | DraftBlock::Structured { .. } => Err(MessageError::BlockKindMismatch { index }),
         }
     }
 
