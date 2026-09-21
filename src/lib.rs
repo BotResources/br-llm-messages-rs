@@ -1,6 +1,7 @@
 pub mod block;
 pub mod conversation;
 pub mod error;
+pub mod render;
 pub mod step;
 pub mod stop_reason;
 pub mod stream;
@@ -18,6 +19,7 @@ pub use block::{
 };
 pub use conversation::{Conversation, Entry};
 pub use error::{MessageError, TurnStateLabel};
+pub use render::{Perspective, WireMessage, WireUserBlock, render};
 pub use step::Step;
 pub use stop_reason::StopReason;
 pub use stream::{BlockKind, StepDraft, StreamEvent};

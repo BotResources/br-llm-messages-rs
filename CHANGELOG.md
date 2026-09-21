@@ -18,5 +18,17 @@ form to decide whether a version ships.
   shellcheck, and trufflehog secret scan.
 - CD (`release-tags.yml`): auto-tag and release the crate version on merge to
   `main`, inert while the version is the `0.0.0` scaffold.
-
-No model code.
+- Conversation model (`SCHEMA_VERSION` `br-llm-messages/1`): validated value
+  objects (`Text`, `ToolCallId`, `ToolName`, `Signature`, `Author`, `ModelId`,
+  `TurnId`, `Base64Data`, `ImageMime`); content blocks (`UserBlock`,
+  `AssistantBlock` with thinking/redacted-thinking/structured/tool-call,
+  `ToolResultBlock`, `Image`, `ToolCall`, `ToolResult`); messages (`UserInput`
+  with `UserSource`, `Step` with its four invariants, `ToolResults`);
+  incremental `Turn` (`TurnItem`, `TurnState`) and `Conversation` (`Entry`,
+  parallel open turns) with the same invariants re-checked on load.
+- Streaming (`StreamEvent`, `BlockKind`, `StepDraft`): fold provider deltas into
+  a `Step` through the domain constructor.
+- Perspective render (`render`, `Perspective`, `WireMessage`, `WireUserBlock`):
+  provider-neutral wire messages for one agent, own turns verbatim, every other
+  entry framed as XML, consecutive user messages merged.
+- `MessageError`: one crate-owned error type, one variant per refused rule.
