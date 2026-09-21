@@ -241,6 +241,42 @@ fn given_consecutive_steps_without_results_when_loaded_then_refused() {
 }
 
 #[test]
+fn given_partial_results_then_step_when_loaded_then_refused() {
+    let json = serde_json::json!({
+        "id": "t",
+        "items": [
+            {
+                "type": "step",
+                "content": [
+                    { "type": "tool_call", "id": "a", "name": "search", "arguments": {} },
+                    { "type": "tool_call", "id": "b", "name": "search", "arguments": {} }
+                ],
+                "stop_reason": { "type": "awaiting_tool_results" }
+            },
+            {
+                "type": "tool_results",
+                "results": [
+                    { "tool_call_id": "a", "tool_name": "search", "content": [], "is_error": false }
+                ]
+            },
+            {
+                "type": "step",
+                "content": [ { "type": "text", "text": "done" } ],
+                "stop_reason": { "type": "end_turn" }
+            }
+        ]
+    });
+    let outcome = serde_json::from_value::<Turn>(json);
+    assert!(outcome.is_err());
+    assert!(
+        outcome
+            .unwrap_err()
+            .to_string()
+            .contains("does not await a step")
+    );
+}
+
+#[test]
 fn given_each_turn_state_when_round_tripped_then_identical() {
     for state in [
         TurnState::AwaitingToolResults {

@@ -1,8 +1,11 @@
 use super::test_helpers::*;
 use super::*;
 
+use crate::block::{AssistantBlock, Thinking, ToolCall};
+use crate::step::Step;
+use crate::stop_reason::StopReason;
 use crate::user_input::{UserInput, UserSource};
-use crate::value::{Base64Data, ImageMime, TurnId};
+use crate::value::{Base64Data, ImageMime, ToolCallId, ToolName, TurnId};
 
 #[test]
 fn given_own_turn_when_rendered_then_steps_verbatim() {
@@ -109,6 +112,52 @@ fn given_other_agent_turn_mid_flight_when_rendered_then_framed_dropping_calls() 
     let framed = frame_text(&wire[0]);
     assert!(framed.contains("role=\"agent\""));
     assert!(framed.contains("author=\"agent-b\""));
+    assert!(framed.contains("calling a tool"));
+    assert!(!framed.contains("reasoning"));
+    assert!(!framed.contains("search"));
+}
+
+#[test]
+fn given_other_agent_structured_block_when_rendered_then_json_in_frame_dropping_thinking_and_calls()
+{
+    let step = Step::new(
+        vec![
+            AssistantBlock::Thinking(Thinking {
+                text: "reasoning".to_owned(),
+                signature: None,
+            }),
+            AssistantBlock::Text {
+                text: Text::new("calling a tool").unwrap(),
+            },
+            AssistantBlock::Structured {
+                value: serde_json::json!({ "answer": 42 }),
+            },
+            AssistantBlock::ToolCall(ToolCall {
+                id: ToolCallId::new("c9").unwrap(),
+                name: ToolName::new("search").unwrap(),
+                arguments: serde_json::json!({}),
+            }),
+        ],
+        StopReason::AwaitingToolResults,
+        None,
+        None,
+    )
+    .unwrap();
+    let turn = Turn::new(
+        TurnId::new("t2").unwrap(),
+        Some(Author::new("agent-b").unwrap()),
+        step,
+    );
+
+    let mut conversation = Conversation::new();
+    conversation.push_input(human("hi"));
+    conversation.push_turn(turn).unwrap();
+
+    let wire = render(&conversation, &perspective()).unwrap();
+    let framed = frame_text(&wire[0]);
+    assert!(framed.contains("role=\"agent\""));
+    assert!(framed.contains("author=\"agent-b\""));
+    assert!(framed.contains("{\"answer\":42}"));
     assert!(framed.contains("calling a tool"));
     assert!(!framed.contains("reasoning"));
     assert!(!framed.contains("search"));

@@ -165,5 +165,9 @@ mod test_helpers;
 mod frame_tests;
 
 #[cfg(test)]
+#[path = "engine_own_turn_tests.rs"]
+mod own_turn_tests;
+
+#[cfg(test)]
 #[path = "engine_relay_tests.rs"]
 mod relay_tests;

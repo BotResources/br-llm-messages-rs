@@ -72,3 +72,20 @@ form to decide whether a version ships.
   variants serde round-trip.
 - `engine_relay_tests` match arms over `WireMessage` enumerate every variant
   instead of a wildcard `_`.
+- Perspective render, own turns: two of the agent's own turns adjacent in the
+  conversation render as two verbatim, adjacent `Assistant` messages (one per
+  step). Coalescing consecutive same-role assistant messages — and honouring the
+  provider's in-message block order (Anthropic's thinking-first rule and its
+  thinking/signature pairing) — is the adapter's job, not the render's, since the
+  correct merge varies by provider (design record §9). An own step carrying a
+  `RedactedThinking` block and a `Structured` block renders byte-for-byte into
+  its `Assistant` message, freezing the Anthropic redacted-thinking replay path.
+- Perspective render, frames: another agent's `Structured` block renders as its
+  JSON text inside the XML frame while thinking and tool calls are dropped; an
+  intervening other-agent turn left mid-flight (`AwaitingToolResults`) folds into
+  the trailing `Relay` with its unanswered tool calls dropped.
+- `Turn` load refuses a partial tool-results item followed by a step
+  (`TurnNotAwaitingStep`), matching the incremental `push_*` invariants.
+- Split `draft_assembly_tests` into happy-path and error-path files to keep each
+  test file within the file-size budget; the new own-turn render cases live in a
+  dedicated `engine_own_turn_tests` file.

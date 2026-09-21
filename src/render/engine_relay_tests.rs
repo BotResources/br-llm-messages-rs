@@ -141,6 +141,43 @@ fn given_other_agent_turn_arriving_during_own_open_turn_when_rendered_then_folde
 }
 
 #[test]
+fn given_other_agent_mid_flight_during_own_open_turn_when_rendered_then_calls_dropped_from_relay() {
+    let mut own = Turn::new(TurnId::new("t1").unwrap(), Some(agent()), call_step("c1"));
+    own.push_result(result("c1")).unwrap();
+
+    let other = Turn::new(
+        TurnId::new("t2").unwrap(),
+        Some(Author::new("agent-b").unwrap()),
+        call_step("c9"),
+    );
+    assert!(matches!(
+        other.state(),
+        TurnState::AwaitingToolResults { .. }
+    ));
+
+    let mut conversation = Conversation::new();
+    conversation.push_input(human("q"));
+    conversation.push_turn(own).unwrap();
+    conversation.push_turn(other).unwrap();
+
+    let wire = render(&conversation, &perspective()).unwrap();
+    match wire.last().unwrap() {
+        WireMessage::Relay { content } => {
+            assert_eq!(content.len(), 1);
+            let framed = content[0].as_str();
+            assert!(framed.contains("role=\"agent\""));
+            assert!(framed.contains("author=\"agent-b\""));
+            assert!(framed.contains("calling a tool"));
+            assert!(!framed.contains("reasoning"));
+            assert!(!framed.contains("search"));
+        }
+        WireMessage::User { .. } | WireMessage::Assistant { .. } => {
+            panic!("expected the intervening mid-flight agent turn folded into a relay")
+        }
+    }
+}
+
+#[test]
 fn given_trailing_input_after_finished_own_turn_when_rendered_then_opens_user_not_relay() {
     let mut conversation = Conversation::new();
     conversation.push_input(human("question"));
