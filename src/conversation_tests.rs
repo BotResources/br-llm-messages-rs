@@ -130,6 +130,38 @@ fn given_wrong_schema_when_deserialized_then_refused() {
 }
 
 #[test]
+fn given_two_turns_with_same_id_when_deserialized_then_refused() {
+    let json = serde_json::json!({
+        "schema": crate::SCHEMA_VERSION,
+        "entries": [
+            {
+                "type": "turn",
+                "id": "t1",
+                "items": [
+                    {
+                        "type": "step",
+                        "content": [ { "type": "text", "text": "one" } ],
+                        "stop_reason": { "type": "end_turn" }
+                    }
+                ]
+            },
+            {
+                "type": "turn",
+                "id": "t1",
+                "items": [
+                    {
+                        "type": "step",
+                        "content": [ { "type": "text", "text": "two" } ],
+                        "stop_reason": { "type": "end_turn" }
+                    }
+                ]
+            }
+        ]
+    });
+    assert!(serde_json::from_value::<Conversation>(json).is_err());
+}
+
+#[test]
 fn given_conversation_when_round_tripped_then_identical() {
     let mut conversation = Conversation::new();
     conversation.push_input(input("hello"));

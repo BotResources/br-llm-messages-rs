@@ -219,6 +219,85 @@ fn given_invalid_structured_fragment_when_finish_then_invalid_json() {
 }
 
 #[test]
+fn given_invalid_tool_arguments_fragment_when_finish_then_invalid_json() {
+    let mut draft = draft();
+    draft
+        .apply(StreamEvent::ToolCallStart {
+            index: 0,
+            id: ToolCallId::new("call_1").unwrap(),
+            name: ToolName::new("search").unwrap(),
+        })
+        .unwrap();
+    draft
+        .apply(StreamEvent::ToolCallArgumentsDelta {
+            index: 0,
+            json_fragment: "{not json".to_owned(),
+        })
+        .unwrap();
+    draft.apply(StreamEvent::BlockEnd { index: 0 }).unwrap();
+    draft
+        .apply(StreamEvent::Finish {
+            stop_reason: StopReason::AwaitingToolResults,
+            usage: None,
+        })
+        .unwrap();
+    assert!(matches!(
+        draft.finish(None),
+        Err(MessageError::InvalidJson {
+            field: "tool_arguments",
+            ..
+        })
+    ));
+}
+
+#[test]
+fn given_finish_with_no_blocks_when_finish_then_empty_step() {
+    let mut draft = draft();
+    draft
+        .apply(StreamEvent::Finish {
+            stop_reason: StopReason::EndTurn,
+            usage: None,
+        })
+        .unwrap();
+    assert!(matches!(draft.finish(None), Err(MessageError::EmptyStep)));
+}
+
+#[test]
+fn given_valid_structured_stream_when_finish_then_value_parsed() {
+    let mut draft = draft();
+    draft
+        .apply(StreamEvent::BlockStart {
+            index: 0,
+            kind: BlockKind::Structured,
+        })
+        .unwrap();
+    draft
+        .apply(StreamEvent::StructuredDelta {
+            index: 0,
+            json_fragment: "{\"a\":".to_owned(),
+        })
+        .unwrap();
+    draft
+        .apply(StreamEvent::StructuredDelta {
+            index: 0,
+            json_fragment: "1}".to_owned(),
+        })
+        .unwrap();
+    draft.apply(StreamEvent::BlockEnd { index: 0 }).unwrap();
+    draft
+        .apply(StreamEvent::Finish {
+            stop_reason: StopReason::EndTurn,
+            usage: None,
+        })
+        .unwrap();
+    let step = draft.finish(None).unwrap();
+    assert_eq!(
+        step.structured().next().unwrap(),
+        &serde_json::json!({ "a": 1 })
+    );
+}
+
+#[test]
 fn given_tool_call_without_arguments_when_finish_then_empty_object() {
     let mut draft = draft();
     draft

@@ -51,4 +51,10 @@ mod tests {
         let json = serde_json::json!({ "type": "text", "text": "  " });
         assert!(serde_json::from_value::<UserBlock>(json).is_err());
     }
+
+    #[test]
+    fn given_unknown_type_tag_when_deserialized_then_refused() {
+        let json = serde_json::json!({ "type": "nonsense", "text": "x" });
+        assert!(serde_json::from_value::<UserBlock>(json).is_err());
+    }
 }

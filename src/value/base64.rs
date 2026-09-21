@@ -114,6 +114,21 @@ mod tests {
     }
 
     #[test]
+    fn given_char_outside_alphabet_json_when_deserialized_then_refused() {
+        assert!(serde_json::from_str::<Base64Data>("\"aGV*bG8=\"").is_err());
+    }
+
+    #[test]
+    fn given_padding_in_the_middle_json_when_deserialized_then_refused() {
+        assert!(serde_json::from_str::<Base64Data>("\"aG=lbG8=\"").is_err());
+    }
+
+    #[test]
+    fn given_more_than_two_padding_chars_json_when_deserialized_then_refused() {
+        assert!(serde_json::from_str::<Base64Data>("\"aGVs====\"").is_err());
+    }
+
+    #[test]
     fn given_valid_value_when_round_tripped_then_identical() {
         let data = Base64Data::new("aGVsbG8=").unwrap();
         let json = serde_json::to_string(&data).unwrap();

@@ -139,6 +139,42 @@ fn given_partial_results_item_when_push_results_batch_stops_at_first_refusal() {
 }
 
 #[test]
+fn given_tool_call_id_reused_across_steps_when_pushed_then_accepted() {
+    let mut turn = turn(&["a"]);
+    turn.push_result(result("a")).unwrap();
+    turn.push_step(step_await(&["a"])).unwrap();
+    assert!(matches!(
+        turn.state(),
+        TurnState::AwaitingToolResults { .. }
+    ));
+    turn.push_result(result("a")).unwrap();
+    assert_eq!(turn.state(), TurnState::AwaitingStep);
+}
+
+#[test]
+fn given_empty_results_item_when_loaded_then_dropped_deterministically() {
+    let json = serde_json::json!({
+        "id": "t",
+        "items": [
+            {
+                "type": "step",
+                "content": [
+                    { "type": "tool_call", "id": "a", "name": "search", "arguments": {} }
+                ],
+                "stop_reason": { "type": "awaiting_tool_results" }
+            },
+            { "type": "tool_results", "results": [] }
+        ]
+    });
+    let turn = serde_json::from_value::<Turn>(json).unwrap();
+    assert_eq!(turn.items().len(), 1);
+    assert!(matches!(
+        turn.state(),
+        TurnState::AwaitingToolResults { .. }
+    ));
+}
+
+#[test]
 fn given_complete_turn_when_round_tripped_then_identical() {
     let mut turn = turn(&["a", "b"]);
     turn.push_result(result("a")).unwrap();
