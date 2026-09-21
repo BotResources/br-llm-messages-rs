@@ -8,9 +8,11 @@ form to decide whether a version ships.
 
 ## Unreleased
 
+## 0.1.0 - 2026-09-21
+
 ### Added
 
-- Repository scaffold: crate manifest at `0.0.0`, governance files (LICENSE,
+- Repository scaffold: crate manifest, governance files (LICENSE,
   CONTRIBUTING, SECURITY, SUPPORT, PR template, issue-template config),
   `.gitignore`, and `deny.toml`.
 - CI (`ci.yml`): fmt + clippy + test, MSRV 1.89 build, `cargo-deny`,
