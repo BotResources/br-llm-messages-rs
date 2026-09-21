@@ -1,6 +1,6 @@
 [package]
 name = "br-llm-messages"
-version = "0.0.0"
+version = "0.1.0"
 description = "Provider-neutral Rust model of an LLM conversation: messages, content blocks, thinking replay, tool calls and results"
 edition = "2024"
 rust-version = "1.89"
