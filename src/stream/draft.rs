@@ -288,3 +288,7 @@ mod protocol_tests;
 #[cfg(test)]
 #[path = "draft_assembly_tests.rs"]
 mod assembly_tests;
+
+#[cfg(test)]
+#[path = "draft_assembly_error_tests.rs"]
+mod assembly_error_tests;
