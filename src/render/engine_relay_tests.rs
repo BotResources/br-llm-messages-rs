@@ -22,14 +22,18 @@ fn given_trailing_input_after_open_turn_when_rendered_then_relay_after_results()
         WireMessage::User { content } => {
             assert!(matches!(content.as_slice(), [WireUserBlock::ToolResult(_)]));
         }
-        _ => panic!("expected the tool-results user message"),
+        WireMessage::Assistant { .. } | WireMessage::Relay { .. } => {
+            panic!("expected the tool-results user message")
+        }
     }
     match &wire[3] {
         WireMessage::Relay { content } => {
             assert_eq!(content.len(), 1);
             assert!(content[0].as_str().contains("meanwhile"));
         }
-        _ => panic!("expected a relay message"),
+        WireMessage::User { .. } | WireMessage::Assistant { .. } => {
+            panic!("expected a relay message")
+        }
     }
 }
 
@@ -56,7 +60,7 @@ fn given_several_trailing_inputs_after_open_turn_when_rendered_then_single_relay
             assert!(content[0].as_str().contains("first meanwhile"));
             assert!(content[1].as_str().contains("second meanwhile"));
         }
-        _ => unreachable!(),
+        WireMessage::User { .. } | WireMessage::Assistant { .. } => unreachable!(),
     }
 }
 
@@ -87,14 +91,18 @@ fn given_relayed_input_with_image_when_rendered_then_image_on_preceding_user() {
             assert!(matches!(content[0], WireUserBlock::ToolResult(_)));
             assert!(matches!(content[1], WireUserBlock::Image(_)));
         }
-        _ => panic!("expected the tool-results user message with the appended image"),
+        WireMessage::Assistant { .. } | WireMessage::Relay { .. } => {
+            panic!("expected the tool-results user message with the appended image")
+        }
     }
     match &wire[3] {
         WireMessage::Relay { content } => {
             assert_eq!(content.len(), 1);
             assert!(content[0].as_str().contains("look here"));
         }
-        _ => panic!("expected a relay message"),
+        WireMessage::User { .. } | WireMessage::Assistant { .. } => {
+            panic!("expected a relay message")
+        }
     }
 }
 
@@ -126,7 +134,9 @@ fn given_other_agent_turn_arriving_during_own_open_turn_when_rendered_then_folde
             assert!(framed.contains("author=\"agent-b\""));
             assert!(framed.contains("the answer"));
         }
-        _ => panic!("expected the intervening agent turn folded into a relay"),
+        WireMessage::User { .. } | WireMessage::Assistant { .. } => {
+            panic!("expected the intervening agent turn folded into a relay")
+        }
     }
 }
 

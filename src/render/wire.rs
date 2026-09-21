@@ -70,6 +70,35 @@ mod tests {
     }
 
     #[test]
+    fn given_relay_message_when_round_tripped_then_identical() {
+        let message = WireMessage::Relay {
+            content: vec![
+                Text::new("new input arrived: hi").unwrap(),
+                Text::new("and another one").unwrap(),
+            ],
+        };
+        let json = serde_json::to_value(&message).unwrap();
+        assert_eq!(
+            serde_json::from_value::<WireMessage>(json).unwrap(),
+            message
+        );
+    }
+
+    #[test]
+    fn given_assistant_message_when_round_tripped_then_identical() {
+        let message = WireMessage::Assistant {
+            content: vec![AssistantBlock::Text {
+                text: Text::new("the answer").unwrap(),
+            }],
+        };
+        let json = serde_json::to_value(&message).unwrap();
+        assert_eq!(
+            serde_json::from_value::<WireMessage>(json).unwrap(),
+            message
+        );
+    }
+
+    #[test]
     fn given_perspective_when_round_tripped_then_identical() {
         let perspective = Perspective::new(Author::new("agent-a").unwrap());
         let json = serde_json::to_value(&perspective).unwrap();

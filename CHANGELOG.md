@@ -57,3 +57,18 @@ form to decide whether a version ships.
   own turn is still open folds into the trailing `Relay`.
 - Split `draft_tests` (protocol vs assembly) and `engine_tests` (frame vs relay,
   shared helpers) to keep each test file within the file-size budget.
+- Perspective render: the mainline mid-turn continuation (the agent's own
+  `AwaitingStep` turn as the last entry with no trailing input) ends the wire on
+  its tool-results user message and emits no `Relay`; a non-perspective agent's
+  turn left mid-flight (`AwaitingToolResults`) renders as an XML frame that drops
+  its tool calls and thinking.
+- Streaming draft: an empty `Structured` block fails closed with
+  `InvalidJson { field: "structured" }` (contrast with an empty tool-argument
+  fragment, which yields `{}`), an empty `Text` block fails closed with
+  `Blank { field: "text" }`, and `finish()` re-runs the step invariants —
+  `ToolCallsWithoutAwaiting` and `ToolCallNotAtTail` surface through the
+  streaming path.
+- `WireMessage::Relay`, `WireMessage::Assistant` and the three `TurnState`
+  variants serde round-trip.
+- `engine_relay_tests` match arms over `WireMessage` enumerate every variant
+  instead of a wildcard `_`.

@@ -278,3 +278,109 @@ fn given_folded_step_when_round_tripped_then_identical() {
     let json = serde_json::to_value(&step).unwrap();
     assert_eq!(serde_json::from_value::<Step>(json).unwrap(), step);
 }
+
+#[test]
+fn given_empty_structured_block_when_finish_then_invalid_json() {
+    let mut draft = draft();
+    draft
+        .apply(StreamEvent::BlockStart {
+            index: 0,
+            kind: BlockKind::Structured,
+        })
+        .unwrap();
+    draft.apply(StreamEvent::BlockEnd { index: 0 }).unwrap();
+    draft
+        .apply(StreamEvent::Finish {
+            stop_reason: StopReason::EndTurn,
+            usage: None,
+        })
+        .unwrap();
+    assert!(matches!(
+        draft.finish(None),
+        Err(MessageError::InvalidJson {
+            field: "structured",
+            ..
+        })
+    ));
+}
+
+#[test]
+fn given_empty_text_block_when_finish_then_blank_text() {
+    let mut draft = draft();
+    draft
+        .apply(StreamEvent::BlockStart {
+            index: 0,
+            kind: BlockKind::Text,
+        })
+        .unwrap();
+    draft.apply(StreamEvent::BlockEnd { index: 0 }).unwrap();
+    draft
+        .apply(StreamEvent::Finish {
+            stop_reason: StopReason::EndTurn,
+            usage: None,
+        })
+        .unwrap();
+    assert!(matches!(
+        draft.finish(None),
+        Err(MessageError::Blank { field: "text" })
+    ));
+}
+
+#[test]
+fn given_tool_call_with_non_awaiting_finish_when_finish_then_tool_calls_without_awaiting() {
+    let mut draft = draft();
+    draft
+        .apply(StreamEvent::ToolCallStart {
+            index: 0,
+            id: ToolCallId::new("call_1").unwrap(),
+            name: ToolName::new("search").unwrap(),
+        })
+        .unwrap();
+    draft.apply(StreamEvent::BlockEnd { index: 0 }).unwrap();
+    draft
+        .apply(StreamEvent::Finish {
+            stop_reason: StopReason::EndTurn,
+            usage: None,
+        })
+        .unwrap();
+    assert!(matches!(
+        draft.finish(None),
+        Err(MessageError::ToolCallsWithoutAwaiting)
+    ));
+}
+
+#[test]
+fn given_tool_call_before_text_block_when_finish_then_tool_call_not_at_tail() {
+    let mut draft = draft();
+    draft
+        .apply(StreamEvent::ToolCallStart {
+            index: 0,
+            id: ToolCallId::new("call_1").unwrap(),
+            name: ToolName::new("search").unwrap(),
+        })
+        .unwrap();
+    draft.apply(StreamEvent::BlockEnd { index: 0 }).unwrap();
+    draft
+        .apply(StreamEvent::BlockStart {
+            index: 1,
+            kind: BlockKind::Text,
+        })
+        .unwrap();
+    draft
+        .apply(StreamEvent::TextDelta {
+            index: 1,
+            text: "trailing".to_owned(),
+        })
+        .unwrap();
+    draft.apply(StreamEvent::BlockEnd { index: 1 }).unwrap();
+    draft
+        .apply(StreamEvent::Finish {
+            stop_reason: StopReason::AwaitingToolResults,
+            usage: None,
+        })
+        .unwrap();
+    assert!(matches!(
+        draft.finish(None),
+        Err(MessageError::ToolCallNotAtTail)
+    ));
+}

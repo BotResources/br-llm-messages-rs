@@ -37,6 +37,33 @@ fn given_own_turn_when_rendered_then_steps_verbatim() {
 }
 
 #[test]
+fn given_own_turn_awaiting_step_as_last_entry_when_rendered_then_ends_with_tool_results() {
+    let mut turn = Turn::new(TurnId::new("t1").unwrap(), Some(agent()), call_step("c1"));
+    turn.push_result(result("c1")).unwrap();
+
+    let mut conversation = Conversation::new();
+    conversation.push_input(human("question"));
+    conversation.push_turn(turn).unwrap();
+
+    let wire = render(&conversation, &perspective()).unwrap();
+    assert_eq!(wire.len(), 3);
+    assert!(matches!(wire[0], WireMessage::User { .. }));
+    assert!(matches!(wire[1], WireMessage::Assistant { .. }));
+    assert!(
+        wire.iter()
+            .all(|message| !matches!(message, WireMessage::Relay { .. }))
+    );
+    match wire.last().unwrap() {
+        WireMessage::User { content } => {
+            assert!(matches!(content.as_slice(), [WireUserBlock::ToolResult(_)]));
+        }
+        WireMessage::Assistant { .. } | WireMessage::Relay { .. } => {
+            panic!("expected the tool-results user message at the tail")
+        }
+    }
+}
+
+#[test]
 fn given_other_agent_turn_when_rendered_then_framed_as_agent_dropping_thinking_and_calls() {
     let mut turn = Turn::new(
         TurnId::new("t2").unwrap(),
@@ -57,6 +84,32 @@ fn given_other_agent_turn_when_rendered_then_framed_as_agent_dropping_thinking_a
     assert!(framed.contains("author=\"agent-b\""));
     assert!(framed.contains("calling a tool"));
     assert!(framed.contains("the answer"));
+    assert!(!framed.contains("reasoning"));
+    assert!(!framed.contains("search"));
+}
+
+#[test]
+fn given_other_agent_turn_mid_flight_when_rendered_then_framed_dropping_calls() {
+    let turn = Turn::new(
+        TurnId::new("t2").unwrap(),
+        Some(Author::new("agent-b").unwrap()),
+        call_step("c9"),
+    );
+    assert!(matches!(
+        turn.state(),
+        TurnState::AwaitingToolResults { .. }
+    ));
+
+    let mut conversation = Conversation::new();
+    conversation.push_input(human("hi"));
+    conversation.push_turn(turn).unwrap();
+
+    let wire = render(&conversation, &perspective()).unwrap();
+    assert_eq!(wire.len(), 1);
+    let framed = frame_text(&wire[0]);
+    assert!(framed.contains("role=\"agent\""));
+    assert!(framed.contains("author=\"agent-b\""));
+    assert!(framed.contains("calling a tool"));
     assert!(!framed.contains("reasoning"));
     assert!(!framed.contains("search"));
 }

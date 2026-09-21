@@ -239,3 +239,19 @@ fn given_consecutive_steps_without_results_when_loaded_then_refused() {
     });
     assert!(serde_json::from_value::<Turn>(json).is_err());
 }
+
+#[test]
+fn given_each_turn_state_when_round_tripped_then_identical() {
+    for state in [
+        TurnState::AwaitingToolResults {
+            pending: vec![ToolCallId::new("a").unwrap(), ToolCallId::new("b").unwrap()],
+        },
+        TurnState::AwaitingStep,
+        TurnState::Finished {
+            stop_reason: StopReason::EndTurn,
+        },
+    ] {
+        let json = serde_json::to_value(&state).unwrap();
+        assert_eq!(serde_json::from_value::<TurnState>(json).unwrap(), state);
+    }
+}
