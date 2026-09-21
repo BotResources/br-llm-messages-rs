@@ -68,101 +68,44 @@ fn given_full_stream_when_folded_then_step_built_in_order() {
 }
 
 #[test]
-fn given_delta_with_no_open_block_when_applied_then_no_open_block() {
-    let mut draft = draft();
-    assert!(matches!(
-        draft.apply(StreamEvent::TextDelta {
-            index: 0,
-            text: "hi".to_owned()
-        }),
-        Err(MessageError::NoOpenBlock { index: 0 })
-    ));
-}
-
-#[test]
-fn given_open_block_when_start_again_then_block_still_open() {
+fn given_redacted_thinking_stream_when_finished_then_data_preserved() {
     let mut draft = draft();
     draft
         .apply(StreamEvent::BlockStart {
             index: 0,
-            kind: BlockKind::Text,
+            kind: BlockKind::RedactedThinking,
         })
         .unwrap();
-    assert!(matches!(
-        draft.apply(StreamEvent::BlockStart {
-            index: 1,
-            kind: BlockKind::Text
-        }),
-        Err(MessageError::BlockStillOpen { index: 0 })
-    ));
-}
-
-#[test]
-fn given_wrong_kind_delta_when_applied_then_kind_mismatch() {
-    let mut draft = draft();
     draft
-        .apply(StreamEvent::BlockStart {
+        .apply(StreamEvent::RedactedThinkingData {
             index: 0,
-            kind: BlockKind::Thinking,
+            data: "enc==".to_owned(),
         })
         .unwrap();
-    assert!(matches!(
-        draft.apply(StreamEvent::TextDelta {
-            index: 0,
-            text: "hi".to_owned()
-        }),
-        Err(MessageError::BlockKindMismatch { index: 0 })
-    ));
-}
-
-#[test]
-fn given_unexpected_index_when_start_then_refused() {
-    let mut draft = draft();
-    assert!(matches!(
-        draft.apply(StreamEvent::BlockStart {
-            index: 5,
-            kind: BlockKind::Text
-        }),
-        Err(MessageError::UnexpectedBlockIndex {
-            expected: 0,
-            given: 5
-        })
-    ));
-}
-
-#[test]
-fn given_block_start_tool_call_kind_when_applied_then_needs_start() {
-    let mut draft = draft();
-    assert!(matches!(
-        draft.apply(StreamEvent::BlockStart {
-            index: 0,
-            kind: BlockKind::ToolCall
-        }),
-        Err(MessageError::ToolCallNeedsStart)
-    ));
-}
-
-#[test]
-fn given_open_block_when_finish_then_block_still_open() {
-    let mut draft = draft();
+    draft.apply(StreamEvent::BlockEnd { index: 0 }).unwrap();
     draft
-        .apply(StreamEvent::BlockStart {
-            index: 0,
-            kind: BlockKind::Text,
-        })
-        .unwrap();
-    assert!(matches!(
-        draft.apply(StreamEvent::Finish {
+        .apply(StreamEvent::Finish {
             stop_reason: StopReason::EndTurn,
-            usage: None
-        }),
-        Err(MessageError::BlockStillOpen { index: 0 })
+            usage: None,
+        })
+        .unwrap();
+    let step = draft.finish(None).unwrap();
+    assert!(matches!(
+        step.content(),
+        [AssistantBlock::RedactedThinking(redacted)] if redacted.data() == "enc=="
     ));
 }
 
 #[test]
-fn given_finished_draft_when_more_events_then_event_after_finish() {
+fn given_redacted_thinking_stream_without_data_when_finished_then_blank() {
     let mut draft = draft();
+    draft
+        .apply(StreamEvent::BlockStart {
+            index: 0,
+            kind: BlockKind::RedactedThinking,
+        })
+        .unwrap();
+    draft.apply(StreamEvent::BlockEnd { index: 0 }).unwrap();
     draft
         .apply(StreamEvent::Finish {
             stop_reason: StopReason::EndTurn,
@@ -170,20 +113,10 @@ fn given_finished_draft_when_more_events_then_event_after_finish() {
         })
         .unwrap();
     assert!(matches!(
-        draft.apply(StreamEvent::Finish {
-            stop_reason: StopReason::EndTurn,
-            usage: None
-        }),
-        Err(MessageError::EventAfterFinish)
-    ));
-}
-
-#[test]
-fn given_draft_without_finish_event_when_finish_then_missing_finish() {
-    let draft = draft();
-    assert!(matches!(
         draft.finish(None),
-        Err(MessageError::MissingFinish)
+        Err(MessageError::Blank {
+            field: "redacted_thinking_data"
+        })
     ));
 }
 

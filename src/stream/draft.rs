@@ -282,5 +282,9 @@ fn parse_arguments(fragment: &str) -> Result<Value, MessageError> {
 }
 
 #[cfg(test)]
-#[path = "draft_tests.rs"]
-mod tests;
+#[path = "draft_protocol_tests.rs"]
+mod protocol_tests;
+
+#[cfg(test)]
+#[path = "draft_assembly_tests.rs"]
+mod assembly_tests;

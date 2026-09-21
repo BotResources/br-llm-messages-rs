@@ -103,7 +103,7 @@ impl Turn {
     fn trailing_results(&self) -> Option<&ToolResults> {
         match self.items.last() {
             Some(TurnItem::ToolResults(results)) => Some(results),
-            _ => None,
+            Some(TurnItem::Step(_)) | None => None,
         }
     }
 
@@ -138,7 +138,7 @@ impl Turn {
         if pending.contains(id) {
             match self.items.last_mut() {
                 Some(TurnItem::ToolResults(results)) => results.push(result),
-                _ => {
+                Some(TurnItem::Step(_)) | None => {
                     let mut results = ToolResults::empty();
                     results.push(result)?;
                     self.items.push(TurnItem::ToolResults(results));

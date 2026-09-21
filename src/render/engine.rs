@@ -133,7 +133,9 @@ fn merge_user_messages(messages: Vec<WireMessage>) -> Vec<WireMessage> {
                 content: mut incoming,
             } => match merged.last_mut() {
                 Some(WireMessage::User { content }) => content.append(&mut incoming),
-                _ => merged.push(WireMessage::User { content: incoming }),
+                Some(WireMessage::Assistant { .. } | WireMessage::Relay { .. }) | None => {
+                    merged.push(WireMessage::User { content: incoming })
+                }
             },
             other @ (WireMessage::Assistant { .. } | WireMessage::Relay { .. }) => {
                 merged.push(other)
@@ -155,5 +157,13 @@ fn merge_user_messages(messages: Vec<WireMessage>) -> Vec<WireMessage> {
 }
 
 #[cfg(test)]
-#[path = "engine_tests.rs"]
-mod tests;
+#[path = "engine_test_helpers.rs"]
+mod test_helpers;
+
+#[cfg(test)]
+#[path = "engine_frame_tests.rs"]
+mod frame_tests;
+
+#[cfg(test)]
+#[path = "engine_relay_tests.rs"]
+mod relay_tests;

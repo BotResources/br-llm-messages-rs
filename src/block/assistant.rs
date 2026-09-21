@@ -144,6 +144,20 @@ mod tests {
     }
 
     #[test]
+    fn given_redacted_thinking_when_valid_then_round_trips() {
+        let block = AssistantBlock::RedactedThinking(RedactedThinking::new("abc").unwrap());
+        let json = serde_json::to_value(&block).unwrap();
+        assert_eq!(
+            json,
+            serde_json::json!({ "type": "redacted_thinking", "data": "abc" })
+        );
+        assert_eq!(
+            serde_json::from_value::<AssistantBlock>(json).unwrap(),
+            block
+        );
+    }
+
+    #[test]
     fn given_redacted_thinking_when_empty_data_then_refused_both_ways() {
         assert!(matches!(
             RedactedThinking::new(""),

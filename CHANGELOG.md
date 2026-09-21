@@ -41,3 +41,19 @@ form to decide whether a version ships.
 
 - Perspective render refuses (`TurnAwaitingResults`) when *any* of the agent's
   own turns still awaits tool results, not only the last one.
+- Match arms over the `TurnItem` and `WireMessage` crate enums enumerate every
+  variant instead of a wildcard `_`, so a new variant breaks the build.
+
+### Tests
+
+- Streaming draft: redacted-thinking assembly (`BlockStart` → `RedactedThinkingData`
+  → `BlockEnd` → `Finish` preserves the data; an empty redacted block fails closed
+  with `Blank`), `BlockEnd` refusals (no open block, wrong index), and a
+  wrong-kind-delta table (`SignatureDelta`/`ThinkingDelta`/`RedactedThinkingData`
+  on `Text`, `ToolCallArgumentsDelta` on `Structured`, `TextDelta` on
+  `RedactedThinking`, `StructuredDelta` on a tool-call block).
+- `AssistantBlock::RedactedThinking` valid serde round-trip.
+- Perspective render: an intervening other-agent turn arriving while the agent's
+  own turn is still open folds into the trailing `Relay`.
+- Split `draft_tests` (protocol vs assembly) and `engine_tests` (frame vs relay,
+  shared helpers) to keep each test file within the file-size budget.
