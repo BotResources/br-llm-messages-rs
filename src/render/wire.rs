@@ -6,6 +6,7 @@ use crate::value::{Author, Text};
 pub enum WireMessage {
     User { content: Vec<WireUserBlock> },
     Assistant { content: Vec<AssistantBlock> },
+    Relay { content: Vec<Text> },
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]

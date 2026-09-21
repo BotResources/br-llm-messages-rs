@@ -31,4 +31,13 @@ form to decide whether a version ships.
 - Perspective render (`render`, `Perspective`, `WireMessage`, `WireUserBlock`):
   provider-neutral wire messages for one agent, own turns verbatim, every other
   entry framed as XML, consecutive user messages merged.
+- Perspective render `WireMessage::Relay`: inputs that arrive after the last step
+  of the agent's own open turn coalesce into a single provider-neutral relay
+  message placed after that step's tool-results user message; a relayed input's
+  images append to the preceding user-role message, never to the relay.
 - `MessageError`: one crate-owned error type, one variant per refused rule.
+
+### Changed
+
+- Perspective render refuses (`TurnAwaitingResults`) when *any* of the agent's
+  own turns still awaits tool results, not only the last one.

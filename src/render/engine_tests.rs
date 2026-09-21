@@ -84,8 +84,13 @@ fn frame_text(message: &WireMessage) -> String {
             .iter()
             .filter_map(|block| match block {
                 WireUserBlock::Text { text } => Some(text.as_str().to_owned()),
-                _ => None,
+                WireUserBlock::Image(_) | WireUserBlock::ToolResult(_) => None,
             })
+            .collect::<Vec<_>>()
+            .join(" | "),
+        WireMessage::Relay { content } => content
+            .iter()
+            .map(|text| text.as_str().to_owned())
             .collect::<Vec<_>>()
             .join(" | "),
         WireMessage::Assistant { .. } => String::new(),
@@ -181,7 +186,7 @@ fn given_consecutive_inputs_when_rendered_then_merged_into_one_user_message() {
 }
 
 #[test]
-fn given_trailing_input_after_results_when_rendered_then_results_first_then_text() {
+fn given_trailing_input_after_open_turn_when_rendered_then_relay_after_results() {
     let mut turn = Turn::new(TurnId::new("t1").unwrap(), Some(agent()), call_step("c1"));
     turn.push_result(result("c1")).unwrap();
 
@@ -191,15 +196,120 @@ fn given_trailing_input_after_results_when_rendered_then_results_first_then_text
     conversation.push_input(human("meanwhile"));
 
     let wire = render(&conversation, &perspective()).unwrap();
-    let last = wire.last().unwrap();
-    match last {
+    assert_eq!(wire.len(), 4);
+    assert!(matches!(wire[0], WireMessage::User { .. }));
+    assert!(matches!(wire[1], WireMessage::Assistant { .. }));
+    match &wire[2] {
+        WireMessage::User { content } => {
+            assert!(matches!(content.as_slice(), [WireUserBlock::ToolResult(_)]));
+        }
+        _ => panic!("expected the tool-results user message"),
+    }
+    match &wire[3] {
+        WireMessage::Relay { content } => {
+            assert_eq!(content.len(), 1);
+            assert!(content[0].as_str().contains("meanwhile"));
+        }
+        _ => panic!("expected a relay message"),
+    }
+}
+
+#[test]
+fn given_several_trailing_inputs_after_open_turn_when_rendered_then_single_relay() {
+    let mut turn = Turn::new(TurnId::new("t1").unwrap(), Some(agent()), call_step("c1"));
+    turn.push_result(result("c1")).unwrap();
+
+    let mut conversation = Conversation::new();
+    conversation.push_input(human("question"));
+    conversation.push_turn(turn).unwrap();
+    conversation.push_input(human("first meanwhile"));
+    conversation.push_input(human("second meanwhile"));
+
+    let wire = render(&conversation, &perspective()).unwrap();
+    let relays: Vec<&WireMessage> = wire
+        .iter()
+        .filter(|message| matches!(message, WireMessage::Relay { .. }))
+        .collect();
+    assert_eq!(relays.len(), 1);
+    match relays[0] {
+        WireMessage::Relay { content } => {
+            assert_eq!(content.len(), 2);
+            assert!(content[0].as_str().contains("first meanwhile"));
+            assert!(content[1].as_str().contains("second meanwhile"));
+        }
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn given_relayed_input_with_image_when_rendered_then_image_on_preceding_user() {
+    let mut turn = Turn::new(TurnId::new("t1").unwrap(), Some(agent()), call_step("c1"));
+    turn.push_result(result("c1")).unwrap();
+
+    let relayed = UserInput::new(
+        UserSource::Human,
+        None,
+        vec![
+            crate::block::UserBlock::text(Text::new("look here").unwrap()),
+            crate::block::UserBlock::image(ImageMime::Png, Base64Data::new("aGVsbG8=").unwrap()),
+        ],
+    )
+    .unwrap();
+
+    let mut conversation = Conversation::new();
+    conversation.push_input(human("question"));
+    conversation.push_turn(turn).unwrap();
+    conversation.push_input(relayed);
+
+    let wire = render(&conversation, &perspective()).unwrap();
+    assert_eq!(wire.len(), 4);
+    match &wire[2] {
         WireMessage::User { content } => {
             assert!(matches!(content[0], WireUserBlock::ToolResult(_)));
-            assert!(matches!(content[1], WireUserBlock::Text { .. }));
-            assert!(frame_text(last).contains("meanwhile"));
+            assert!(matches!(content[1], WireUserBlock::Image(_)));
         }
-        WireMessage::Assistant { .. } => panic!("expected a user message"),
+        _ => panic!("expected the tool-results user message with the appended image"),
     }
+    match &wire[3] {
+        WireMessage::Relay { content } => {
+            assert_eq!(content.len(), 1);
+            assert!(content[0].as_str().contains("look here"));
+        }
+        _ => panic!("expected a relay message"),
+    }
+}
+
+#[test]
+fn given_trailing_input_after_finished_own_turn_when_rendered_then_opens_user_not_relay() {
+    let mut conversation = Conversation::new();
+    conversation.push_input(human("question"));
+    conversation.push_turn(own_turn_finished()).unwrap();
+    conversation.push_input(human("afterwards"));
+
+    let wire = render(&conversation, &perspective()).unwrap();
+    assert!(
+        wire.iter()
+            .all(|message| !matches!(message, WireMessage::Relay { .. }))
+    );
+    let last = wire.last().unwrap();
+    assert!(matches!(last, WireMessage::User { .. }));
+    assert!(frame_text(last).contains("afterwards"));
+}
+
+#[test]
+fn given_earlier_own_turn_awaiting_results_when_rendered_then_refused() {
+    let awaiting = Turn::new(TurnId::new("t1").unwrap(), Some(agent()), call_step("c1"));
+    let finished = Turn::new(TurnId::new("t2").unwrap(), Some(agent()), end_step());
+
+    let mut conversation = Conversation::new();
+    conversation.push_input(human("q"));
+    conversation.push_turn(awaiting).unwrap();
+    conversation.push_turn(finished).unwrap();
+
+    assert!(matches!(
+        render(&conversation, &perspective()),
+        Err(MessageError::TurnAwaitingResults)
+    ));
 }
 
 #[test]
@@ -255,7 +365,9 @@ fn given_input_with_image_when_rendered_then_image_after_frame() {
             assert!(matches!(content[0], WireUserBlock::Text { .. }));
             assert!(matches!(content[1], WireUserBlock::Image(_)));
         }
-        WireMessage::Assistant { .. } => panic!("expected a user message"),
+        WireMessage::Assistant { .. } | WireMessage::Relay { .. } => {
+            panic!("expected a user message")
+        }
     }
 }
 

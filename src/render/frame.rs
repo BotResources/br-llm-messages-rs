@@ -1,4 +1,4 @@
-use crate::block::{AssistantBlock, UserBlock};
+use crate::block::{AssistantBlock, Image, UserBlock};
 use crate::error::MessageError;
 use crate::turn::{Turn, TurnItem};
 use crate::user_input::{UserInput, UserSource};
@@ -7,6 +7,17 @@ use crate::value::Text;
 use super::wire::{WireMessage, WireUserBlock};
 
 pub(super) fn render_user_frame(input: &UserInput) -> Result<WireMessage, MessageError> {
+    let (framed, images) = user_frame_parts(input);
+    let mut content = vec![WireUserBlock::Text {
+        text: Text::new(framed)?,
+    }];
+    for image in images {
+        content.push(WireUserBlock::Image(image));
+    }
+    Ok(WireMessage::User { content })
+}
+
+pub(super) fn user_frame_parts(input: &UserInput) -> (String, Vec<Image>) {
     let (role, kind) = match input.source() {
         UserSource::Human => ("user", None),
         UserSource::Runtime { kind } => ("runtime", Some(kind.as_str())),
@@ -22,17 +33,18 @@ pub(super) fn render_user_frame(input: &UserInput) -> Result<WireMessage, Messag
         }
     }
 
-    let framed = frame(author, role, kind, &texts.join("\n\n"));
-    let mut content = vec![WireUserBlock::Text {
-        text: Text::new(framed)?,
-    }];
-    for image in images {
-        content.push(WireUserBlock::Image(image));
-    }
-    Ok(WireMessage::User { content })
+    (frame(author, role, kind, &texts.join("\n\n")), images)
 }
 
 pub(super) fn render_agent_frame(turn: &Turn) -> Result<WireMessage, MessageError> {
+    Ok(WireMessage::User {
+        content: vec![WireUserBlock::Text {
+            text: Text::new(agent_frame_text(turn))?,
+        }],
+    })
+}
+
+pub(super) fn agent_frame_text(turn: &Turn) -> String {
     let author = turn.author().map(|author| author.as_str());
     let mut parts = Vec::new();
     for item in turn.items() {
@@ -48,12 +60,7 @@ pub(super) fn render_agent_frame(turn: &Turn) -> Result<WireMessage, MessageErro
             }
         }
     }
-    let framed = frame(author, "agent", None, &parts.join("\n\n"));
-    Ok(WireMessage::User {
-        content: vec![WireUserBlock::Text {
-            text: Text::new(framed)?,
-        }],
-    })
+    frame(author, "agent", None, &parts.join("\n\n"))
 }
 
 fn frame(author: Option<&str>, role: &str, kind: Option<&str>, body: &str) -> String {
