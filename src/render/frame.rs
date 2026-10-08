@@ -73,16 +73,13 @@ fn frame(author: Option<&str>, role: &str, kind: Option<&str>, body: &str) -> St
         opening.push_str(&format!(" kind=\"{}\"", escape_attr(kind)));
     }
     opening.push('>');
-    format!("{opening}{}</message>", escape_text(body))
+    format!("{opening}{body}</message>")
 }
 
-fn escape_text(input: &str) -> String {
+fn escape_attr(input: &str) -> String {
     input
         .replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")
-}
-
-fn escape_attr(input: &str) -> String {
-    escape_text(input).replace('"', "&quot;")
+        .replace('"', "&quot;")
 }

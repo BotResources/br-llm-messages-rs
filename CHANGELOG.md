@@ -8,6 +8,15 @@ form to decide whether a version ships.
 
 ## Unreleased
 
+## 0.2.0 - 2026-10-08
+
+### Changed
+
+- Perspective render: the body of an XML frame is inserted verbatim. Markup,
+  `<`, `>` and `&` in a framed input or in another agent's turn reach the model
+  as written; they are no longer escaped. Frame attributes (`author`, `kind`)
+  are still escaped.
+
 ## 0.1.0 - 2026-09-21
 
 ### Added
