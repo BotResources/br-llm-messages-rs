@@ -8,6 +8,17 @@ form to decide whether a version ships.
 
 ## Unreleased
 
+## 0.2.0 - 2026-10-08
+
+### Changed
+
+- Perspective render: nothing in a `<message>` frame is escaped any more. The
+  body (a framed input or another agent's turn) and the `author` and `kind`
+  attributes reach the model as written, markup, `<`, `>`, `&` and `"`
+  included. The frame is a prompt convention marking message boundaries for
+  the model, not an XML document; callers that frame untrusted text sanitize
+  it themselves.
+
 ## 0.1.0 - 2026-09-21
 
 ### Added

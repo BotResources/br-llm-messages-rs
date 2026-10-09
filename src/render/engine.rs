@@ -171,3 +171,7 @@ mod own_turn_tests;
 #[cfg(test)]
 #[path = "engine_relay_tests.rs"]
 mod relay_tests;
+
+#[cfg(test)]
+#[path = "engine_verbatim_tests.rs"]
+mod verbatim_tests;
