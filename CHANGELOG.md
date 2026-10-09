@@ -12,10 +12,12 @@ form to decide whether a version ships.
 
 ### Changed
 
-- Perspective render: the body of an XML frame is inserted verbatim. Markup,
-  `<`, `>` and `&` in a framed input or in another agent's turn reach the model
-  as written; they are no longer escaped. Frame attributes (`author`, `kind`)
-  are still escaped.
+- Perspective render: nothing in a `<message>` frame is escaped any more. The
+  body (a framed input or another agent's turn) and the `author` and `kind`
+  attributes reach the model as written, markup, `<`, `>`, `&` and `"`
+  included. The frame is a prompt convention marking message boundaries for
+  the model, not an XML document; callers that frame untrusted text sanitize
+  it themselves.
 
 ## 0.1.0 - 2026-09-21
 

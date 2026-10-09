@@ -48,7 +48,7 @@ fn given_markup_in_other_agent_turn_when_rendered_then_body_inserted_verbatim() 
 }
 
 #[test]
-fn given_markup_in_author_and_kind_when_rendered_then_attributes_escaped() {
+fn given_markup_in_author_and_kind_when_rendered_then_attributes_inserted_verbatim() {
     let input = UserInput::new(
         UserSource::runtime("a\"b").unwrap(),
         Some(Author::new("x<y&\"z\"").unwrap()),
@@ -61,6 +61,6 @@ fn given_markup_in_author_and_kind_when_rendered_then_attributes_escaped() {
     let wire = render(&conversation, &perspective()).unwrap();
     assert_eq!(
         frame_text(&wire[0]),
-        "<message author=\"x&lt;y&amp;&quot;z&quot;\" role=\"runtime\" kind=\"a&quot;b\">body</message>"
+        "<message author=\"x<y&\"z\"\" role=\"runtime\" kind=\"a\"b\">body</message>"
     );
 }
