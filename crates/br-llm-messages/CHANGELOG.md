@@ -1,12 +1,24 @@
 # Changelog
 
-All notable changes to `br-llm-messages` are documented here. A single git tag
-`v{version}` releases the crate. Format follows
+All notable changes to `br-llm-messages` are documented here. The git tag
+`br-llm-messages/v{version}` releases the crate; versions up to 0.2.0 were
+released under the tag `v{version}`. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow semver.
 Release headings are plain `## X.Y.Z` — the release pipeline greps that exact
 form to decide whether a version ships.
 
 ## Unreleased
+
+### Changed
+
+- Repository is a Cargo workspace: the crate lives in `crates/br-llm-messages/`.
+  The package name, version and public API are unchanged.
+- CI/CD: the libraries registry gate on pull requests, the release-line law
+  (`main` and `release/<crate>-<major>.<minor>` are the only publishing
+  branches), and a release chain that checks the registry target, computes the
+  API listing, the API diff against the registry baseline and the
+  dependencies, tags `br-llm-messages/v{version}`, creates the release and
+  records it in the registry. Offline tests cover the wiring.
 
 ## 0.2.0 - 2026-10-08
 
