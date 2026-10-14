@@ -51,6 +51,19 @@ impl Step {
         })
     }
 
+    /// A finished (`end_turn`) step without usage or model id, for content the
+    /// caller guarantees holds at least one block and no tool call: the two
+    /// Step rules that `end_turn` content could break.
+    pub(crate) fn finished(content: Vec<AssistantBlock>) -> Self {
+        debug_assert!(Self::check(&content, &StopReason::EndTurn).is_ok());
+        Self {
+            content,
+            stop_reason: StopReason::EndTurn,
+            usage: None,
+            model: None,
+        }
+    }
+
     fn check(content: &[AssistantBlock], stop_reason: &StopReason) -> Result<(), MessageError> {
         if content.is_empty() {
             return Err(MessageError::EmptyStep);

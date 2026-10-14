@@ -4,10 +4,10 @@ use crate::block::{AssistantBlock, Thinking, ToolCall, ToolResult};
 use crate::step::Step;
 use crate::stop_reason::StopReason;
 use crate::user_input::{UserInput, UserSource};
-use crate::value::{ToolCallId, ToolName, TurnId};
+use crate::value::{Author, ToolCallId, ToolName, TurnId};
 
 pub(super) fn agent() -> Author {
-    Author::new("agent-a").unwrap()
+    Author::new("id-agent-a", "agent-a").unwrap()
 }
 
 pub(super) fn perspective() -> Perspective {

@@ -147,7 +147,7 @@ mod tests {
     fn given_input_with_author_when_round_tripped_then_identical() {
         let input = UserInput::new(
             UserSource::runtime("task notification").unwrap(),
-            Some(Author::new("scheduler").unwrap()),
+            Some(Author::new("id-scheduler", "scheduler").unwrap()),
             vec![text("wake up")],
         )
         .unwrap();

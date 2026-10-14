@@ -22,7 +22,7 @@ pub(super) fn user_frame_parts(input: &UserInput) -> (String, Vec<Image>) {
         UserSource::Human => ("user", None),
         UserSource::Runtime { kind } => ("runtime", Some(kind.as_str())),
     };
-    let author = input.author().map(|author| author.as_str());
+    let author = input.author().map(|author| author.name().as_str());
 
     let mut texts = Vec::new();
     let mut images = Vec::new();
@@ -45,7 +45,7 @@ pub(super) fn render_agent_frame(turn: &Turn) -> Result<WireMessage, MessageErro
 }
 
 pub(super) fn agent_frame_text(turn: &Turn) -> String {
-    let author = turn.author().map(|author| author.as_str());
+    let author = turn.author().map(|author| author.name().as_str());
     let mut parts = Vec::new();
     for item in turn.items() {
         if let TurnItem::Step(step) = item {

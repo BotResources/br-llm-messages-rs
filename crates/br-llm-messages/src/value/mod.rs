@@ -40,14 +40,16 @@ macro_rules! nonempty_string_newtype {
     };
 }
 
+mod author;
 mod base64;
 mod identifiers;
 mod mime;
 mod signature;
 mod text;
 
+pub use author::Author;
 pub use base64::Base64Data;
-pub use identifiers::{Author, ModelId, ToolCallId, ToolName, TurnId};
+pub use identifiers::{AuthorId, AuthorName, ModelId, ToolCallId, ToolName, TurnId};
 pub use mime::ImageMime;
 pub use signature::Signature;
 pub use text::Text;

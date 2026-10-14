@@ -72,6 +72,12 @@ impl Conversation {
         }
     }
 
+    /// Entries taken from a conversation, kept in order with their turn ids:
+    /// turn ids are already unique.
+    pub(crate) fn from_entries(entries: Vec<Entry>) -> Self {
+        Self { entries }
+    }
+
     pub fn push_input(&mut self, input: UserInput) {
         self.entries.push(Entry::UserInput(input));
     }

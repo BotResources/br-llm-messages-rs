@@ -2,7 +2,7 @@ use super::test_helpers::*;
 use super::*;
 
 use crate::user_input::{UserInput, UserSource};
-use crate::value::{Base64Data, ImageMime, TurnId};
+use crate::value::{Author, Base64Data, ImageMime, TurnId};
 
 #[test]
 fn given_trailing_input_after_open_turn_when_rendered_then_relay_after_results() {
@@ -113,7 +113,7 @@ fn given_other_agent_turn_arriving_during_own_open_turn_when_rendered_then_folde
 
     let mut other = Turn::new(
         TurnId::new("t2").unwrap(),
-        Some(Author::new("agent-b").unwrap()),
+        Some(Author::new("id-agent-b", "agent-b").unwrap()),
         call_step("c9"),
     );
     other.push_result(result("c9")).unwrap();
@@ -147,7 +147,7 @@ fn given_other_agent_mid_flight_during_own_open_turn_when_rendered_then_calls_dr
 
     let other = Turn::new(
         TurnId::new("t2").unwrap(),
-        Some(Author::new("agent-b").unwrap()),
+        Some(Author::new("id-agent-b", "agent-b").unwrap()),
         call_step("c9"),
     );
     assert!(matches!(

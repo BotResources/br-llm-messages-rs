@@ -1,4 +1,5 @@
 use crate::block::{AssistantBlock, Image, ToolResult};
+use crate::turn::Turn;
 use crate::value::{Author, Text};
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -25,6 +26,12 @@ pub struct Perspective {
 impl Perspective {
     pub fn new(agent: Author) -> Self {
         Self { agent }
+    }
+
+    /// A turn is the agent's own when its author is the agent, by id. A turn
+    /// without author is never the agent's own.
+    pub(crate) fn owns(&self, turn: &Turn) -> bool {
+        turn.author() == Some(&self.agent)
     }
 }
 
@@ -100,7 +107,7 @@ mod tests {
 
     #[test]
     fn given_perspective_when_round_tripped_then_identical() {
-        let perspective = Perspective::new(Author::new("agent-a").unwrap());
+        let perspective = Perspective::new(Author::new("id-agent-a", "agent-a").unwrap());
         let json = serde_json::to_value(&perspective).unwrap();
         assert_eq!(
             serde_json::from_value::<Perspective>(json).unwrap(),
