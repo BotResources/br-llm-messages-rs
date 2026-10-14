@@ -9,16 +9,70 @@ form to decide whether a version ships.
 
 ## Unreleased
 
+## 0.3.0 - 2026-10-14
+
+Breaking: `Author` changes shape and the stored schema moves to
+`br-llm-messages/2`; documents stored under `br-llm-messages/1` no longer load.
+
+### Added
+
+- Lightening (`lighten`): a pure function taking a conversation and a
+  perspective and returning a lighter conversation whose render for that
+  perspective equals the render of the original, or the same refusal. User
+  inputs and the agent's own turns are kept as they are and entries keep their
+  order. Every other turn keeps its id and its author and holds one finished
+  step (`end_turn`) made of the texts and structured values of its steps, in
+  order, or of one empty thinking block (no signature) when it has none; its
+  thinking, redacted thinking, tool calls, tool results, usage and model ids
+  are dropped.
+- `AuthorId` and `AuthorName` value objects, each refused when empty
+  (`Blank { field: "author_id" }` / `Blank { field: "author_name" }`); a value
+  of one space is accepted.
+
 ### Changed
 
+- **Breaking:** `Author` is an id and a name (`Author::new(id, name)`,
+  `Author::from_parts`, `id()`, `name()`) instead of a single non-empty string;
+  `Author::as_str` and the `Blank { field: "author" }` refusal are gone. Two
+  authors are the same author when their ids are equal, whatever their names:
+  `PartialEq`, `Eq` and `Hash` look at the id alone. `Display` shows the name.
+- **Breaking:** JSON: an author is `{"id", "name"}` (still optional on user
+  inputs and turns) instead of a string.
+- **Breaking:** `SCHEMA_VERSION` is `br-llm-messages/2`; any other schema,
+  `br-llm-messages/1` included, is refused on load.
+- Perspective render: a turn is the perspective agent's own when its author's
+  id equals the agent's id, so a renamed agent still owns its earlier turns and
+  another agent bearing the same name does not. A turn without author is never
+  own. In frames, `author="…"` is the author's name, omitted when there is no
+  author.
 - Repository is a Cargo workspace: the crate lives in `crates/br-llm-messages/`.
-  The package name, version and public API are unchanged.
+  The package name is unchanged.
 - CI/CD: the libraries registry gate on pull requests, the release-line law
   (`main` and `release/<crate>-<major>.<minor>` are the only publishing
   branches), and a release chain that checks the registry target, computes the
   API listing, the API diff against the registry baseline and the
   dependencies, tags `br-llm-messages/v{version}`, creates the release and
   records it in the registry. Offline tests cover the wiring.
+
+### Tests
+
+- Author: id and name validation both ways, JSON shape, unknown fields
+  dropped, same author by id across a rename (equality and hash), different
+  ids with one name are different authors.
+- Render: an own turn written under an old name stays own after a rename; a
+  namesake with another id is framed; frames show the name, never the id.
+- Schema: `br-llm-messages/2` loads with `{"id", "name"}` authors and
+  re-serializes identically; `br-llm-messages/1` is refused as a schema
+  mismatch.
+- Lightening: inputs and own turns untouched; another agent's multi-step turn
+  with thinking, redacted thinking, tool calls and results reduced to one
+  `end_turn` step of texts and structured values in order, usage and model
+  dropped; a turn of thinking and tool calls only reduced to one empty
+  thinking step; a turn without author lightened as another agent's; entries
+  keep their order; `render(lighten(c, p), p) == render(c, p)` on a plain
+  conversation (two perspectives), a relay case, an own turn awaiting results
+  (same `TurnAwaitingResults` refusal), a render starting with an own turn and
+  an empty conversation; the lightened conversation reloads from JSON.
 
 ## 0.2.0 - 2026-10-08
 
