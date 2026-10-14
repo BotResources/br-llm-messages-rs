@@ -1,3 +1,4 @@
+mod assemble;
 mod draft;
 mod event;
 

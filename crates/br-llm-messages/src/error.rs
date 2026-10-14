@@ -1,4 +1,4 @@
-use crate::value::{ToolCallId, TurnId};
+use crate::value::{ToolCallId, ToolName, TurnId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TurnStateLabel {
@@ -18,17 +18,28 @@ impl std::fmt::Display for TurnStateLabel {
     }
 }
 
+/// Every refusal of the crate: one variant per rule. It may grow in a later
+/// version, so code that matches on it must allow for variants it does not
+/// know.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum MessageError {
     Blank {
         field: &'static str,
     },
+    InvalidToolName,
     InvalidBase64,
     EmptyStep,
     ToolCallNotAtTail,
     AwaitingToolResultsWithoutCalls,
     ToolCallsWithoutAwaiting,
     DuplicateToolCallId {
+        id: ToolCallId,
+    },
+    DuplicateToolCallIdInTurn {
+        id: ToolCallId,
+    },
+    DuplicateToolCallIdInConversation {
         id: ToolCallId,
     },
     EmptyUserContent,
@@ -39,6 +50,12 @@ pub enum MessageError {
         given: ToolCallId,
         pending: Vec<ToolCallId>,
     },
+    ToolNameMismatch {
+        id: ToolCallId,
+        call: ToolName,
+        result: ToolName,
+    },
+    EmptyToolResults,
     TurnNotAwaitingResults {
         state: TurnStateLabel,
     },
@@ -78,12 +95,39 @@ pub enum MessageError {
         field: &'static str,
         message: String,
     },
+    WireListEmpty,
+    WireListNotStartingWithUser {
+        message: usize,
+    },
+    WireToolCallUnanswered {
+        message: usize,
+        block: usize,
+        id: ToolCallId,
+    },
+    WireToolCallAnsweredTwice {
+        message: usize,
+        block: usize,
+        id: ToolCallId,
+    },
+    WireToolResultUnmatched {
+        message: usize,
+        block: usize,
+        id: ToolCallId,
+    },
+    WireToolCallIdRepeated {
+        message: usize,
+        block: usize,
+        id: ToolCallId,
+    },
 }
 
 impl std::fmt::Display for MessageError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             MessageError::Blank { field } => write!(f, "{field} must not be blank"),
+            MessageError::InvalidToolName => f.write_str(
+                "tool name must be 1 to 64 ascii letters, digits, '_' or '-', the first a letter or '_'",
+            ),
             MessageError::InvalidBase64 => f.write_str("value is not valid standard base64"),
             MessageError::EmptyStep => f.write_str("a step must carry at least one block"),
             MessageError::ToolCallNotAtTail => {
@@ -98,6 +142,15 @@ impl std::fmt::Display for MessageError {
             MessageError::DuplicateToolCallId { id } => {
                 write!(f, "tool-call id {id} appears twice in the step")
             }
+            MessageError::DuplicateToolCallIdInTurn { id } => {
+                write!(f, "tool-call id {id} is already used by a step of the turn")
+            }
+            MessageError::DuplicateToolCallIdInConversation { id } => {
+                write!(
+                    f,
+                    "tool-call id {id} is already used by a call of the conversation"
+                )
+            }
             MessageError::EmptyUserContent => {
                 f.write_str("a user input must carry at least one block")
             }
@@ -111,6 +164,13 @@ impl std::fmt::Display for MessageError {
                     "tool-call id {given} is not pending; pending are [{}]",
                     pending.join(", ")
                 )
+            }
+            MessageError::ToolNameMismatch { id, call, result } => write!(
+                f,
+                "the result for tool-call id {id} names tool {result}, the call names {call}"
+            ),
+            MessageError::EmptyToolResults => {
+                f.write_str("a tool results item must carry at least one result")
             }
             MessageError::TurnNotAwaitingResults { state } => {
                 write!(f, "the turn does not await results (state {state})")
@@ -161,6 +221,27 @@ impl std::fmt::Display for MessageError {
             MessageError::InvalidJson { field, message } => {
                 write!(f, "{field} is not valid json: {message}")
             }
+            MessageError::WireListEmpty => f.write_str("the wire list must not be empty"),
+            MessageError::WireListNotStartingWithUser { message } => write!(
+                f,
+                "the wire list must start with a user message (message {message})"
+            ),
+            MessageError::WireToolCallUnanswered { message, block, id } => write!(
+                f,
+                "tool call {id} (message {message}, block {block}) is not answered in the next user message"
+            ),
+            MessageError::WireToolCallAnsweredTwice { message, block, id } => write!(
+                f,
+                "tool call {id} is answered more than once (message {message}, block {block})"
+            ),
+            MessageError::WireToolResultUnmatched { message, block, id } => write!(
+                f,
+                "tool result {id} (message {message}, block {block}) answers no tool call of the assistant message just before it"
+            ),
+            MessageError::WireToolCallIdRepeated { message, block, id } => write!(
+                f,
+                "tool-call id {id} appears more than once in the wire list (message {message}, block {block})"
+            ),
         }
     }
 }

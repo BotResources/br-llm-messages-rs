@@ -7,7 +7,7 @@ pub struct Text(String);
 impl Text {
     pub fn new(value: impl Into<String>) -> Result<Self, MessageError> {
         let value = value.into();
-        if value.trim().is_empty() {
+        if is_blank(&value) {
             return Err(MessageError::Blank { field: "text" });
         }
         Ok(Self(value))
@@ -16,6 +16,12 @@ impl Text {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+}
+
+/// The one blank rule of a text: empty or whitespace only. The stream draft
+/// uses it to drop the text blocks a `Text` would refuse.
+pub(crate) fn is_blank(value: &str) -> bool {
+    value.trim().is_empty()
 }
 
 impl std::fmt::Display for Text {

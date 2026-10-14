@@ -54,6 +54,10 @@ impl ToolResults {
         &self.results
     }
 
+    pub(crate) fn into_results(self) -> Vec<ToolResult> {
+        self.results
+    }
+
     pub fn is_empty(&self) -> bool {
         self.results.is_empty()
     }

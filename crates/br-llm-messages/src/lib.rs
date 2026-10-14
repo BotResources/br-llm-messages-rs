@@ -1,16 +1,27 @@
-pub mod block;
-pub mod conversation;
-pub mod error;
-pub mod lighten;
-pub mod render;
-pub mod step;
-pub mod stop_reason;
-pub mod stream;
-pub mod tool_results;
-pub mod turn;
-pub mod usage;
-pub mod user_input;
-pub mod value;
+//! Provider-neutral model of an LLM conversation. Every public type is
+//! reached from the crate root, and only from it.
+
+#![deny(unreachable_pub)]
+
+mod block;
+mod conversation;
+mod error;
+mod lighten;
+mod render;
+mod step;
+mod stop_reason;
+mod stream;
+mod tool_results;
+mod turn;
+mod usage;
+mod user_input;
+mod value;
+
+#[cfg(doctest)]
+mod only_from_the_root;
+
+#[cfg(test)]
+mod test_walk;
 
 pub const SCHEMA_VERSION: &str = "br-llm-messages/2";
 
@@ -21,7 +32,7 @@ pub use block::{
 pub use conversation::{Conversation, Entry};
 pub use error::{MessageError, TurnStateLabel};
 pub use lighten::lighten;
-pub use render::{Perspective, WireMessage, WireUserBlock, render};
+pub use render::{Perspective, WireMessage, WireUserBlock, check_wire_list, render};
 pub use step::Step;
 pub use stop_reason::StopReason;
 pub use stream::{BlockKind, StepDraft, StreamEvent};
@@ -30,6 +41,6 @@ pub use turn::{Turn, TurnItem, TurnState};
 pub use usage::Usage;
 pub use user_input::{UserInput, UserSource};
 pub use value::{
-    Author, AuthorId, AuthorName, Base64Data, ImageMime, ModelId, Signature, Text, ToolCallId,
-    ToolName, TurnId,
+    Author, AuthorId, AuthorName, Base64Data, ImageMime, ModelId, RuntimeKind, Signature, Text,
+    ToolCallId, ToolName, TurnId,
 };

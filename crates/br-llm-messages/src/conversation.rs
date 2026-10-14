@@ -1,11 +1,13 @@
+use std::collections::HashSet;
+
 use serde::ser::SerializeStruct;
 
-use crate::block::ToolResult;
+use crate::block::{ToolCall, ToolResult};
 use crate::error::MessageError;
 use crate::step::Step;
-use crate::turn::Turn;
+use crate::turn::{Turn, TurnState};
 use crate::user_input::UserInput;
-use crate::value::TurnId;
+use crate::value::{ToolCallId, TurnId};
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -14,9 +16,31 @@ pub enum Entry {
     Turn(Turn),
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+/// The ordered entries of a conversation. It only grows: entries are never
+/// removed or reordered, and a turn only receives steps and results at its
+/// end, so the position of an entry, and of an item or a result within its
+/// turn, is a stable address.
+#[derive(Clone, Default)]
 pub struct Conversation {
     entries: Vec<Entry>,
+    /// The id of every tool call of every turn, derived from `entries` and
+    /// kept beside them so that the conversation-wide uniqueness of a call id
+    /// costs one lookup per call, on build and on load alike.
+    call_ids: HashSet<ToolCallId>,
+}
+
+impl PartialEq for Conversation {
+    fn eq(&self, other: &Self) -> bool {
+        self.entries == other.entries
+    }
+}
+
+impl std::fmt::Debug for Conversation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Conversation")
+            .field("entries", &self.entries)
+            .finish_non_exhaustive()
+    }
 }
 
 #[derive(serde::Deserialize)]
@@ -67,28 +91,36 @@ impl<'de> serde::Deserialize<'de> for Conversation {
 
 impl Conversation {
     pub fn new() -> Self {
-        Self {
-            entries: Vec::new(),
-        }
+        Self::default()
     }
 
-    /// Entries taken from a conversation, kept in order with their turn ids:
-    /// turn ids are already unique.
+    /// Entries taken from a conversation, kept in order with their turn ids
+    /// and tool call ids: both are already unique.
     pub(crate) fn from_entries(entries: Vec<Entry>) -> Self {
-        Self { entries }
+        let call_ids = entries
+            .iter()
+            .filter_map(Entry::as_turn)
+            .flat_map(Turn::tool_calls)
+            .map(|call| call.id.clone())
+            .collect();
+        Self { entries, call_ids }
     }
 
     pub fn push_input(&mut self, input: UserInput) {
         self.entries.push(Entry::UserInput(input));
     }
 
+    /// Accepts a turn whose id is new to the conversation and none of whose
+    /// tool call ids is used by a call of any turn.
     pub fn push_turn(&mut self, turn: Turn) -> Result<(), MessageError> {
         if self.turn(turn.id()).is_some() {
             return Err(MessageError::DuplicateTurnId {
                 id: turn.id().clone(),
             });
         }
+        let ids = self.unused_call_ids(turn.tool_calls())?;
         self.entries.push(Entry::Turn(turn));
+        self.call_ids.extend(ids);
         Ok(())
     }
 
@@ -100,8 +132,38 @@ impl Conversation {
         self.turn_mut(turn_id)?.push_result(result)
     }
 
+    /// Accepts a step under the rules of its turn, then when none of its tool
+    /// call ids is used by a call of any turn.
     pub fn push_step(&mut self, turn_id: &TurnId, step: Step) -> Result<(), MessageError> {
-        self.turn_mut(turn_id)?.push_step(step)
+        let turn = self
+            .turn(turn_id)
+            .ok_or_else(|| MessageError::TurnNotFound {
+                id: turn_id.clone(),
+            })?;
+        turn.check_step(&step)?;
+        let ids = self.unused_call_ids(step.tool_calls())?;
+        self.turn_mut(turn_id)?.push_step(step)?;
+        self.call_ids.extend(ids);
+        Ok(())
+    }
+
+    /// The ids of `calls`, refused when one is already used in the
+    /// conversation.
+    fn unused_call_ids<'a>(
+        &self,
+        calls: impl Iterator<Item = &'a ToolCall>,
+    ) -> Result<Vec<ToolCallId>, MessageError> {
+        calls
+            .map(|call| {
+                if self.call_ids.contains(&call.id) {
+                    Err(MessageError::DuplicateToolCallIdInConversation {
+                        id: call.id.clone(),
+                    })
+                } else {
+                    Ok(call.id.clone())
+                }
+            })
+            .collect()
     }
 
     fn turn_mut(&mut self, turn_id: &TurnId) -> Result<&mut Turn, MessageError> {
@@ -118,21 +180,17 @@ impl Conversation {
     }
 
     pub fn turn(&self, turn_id: &TurnId) -> Option<&Turn> {
-        self.entries.iter().find_map(|entry| match entry {
-            Entry::Turn(turn) if turn.id() == turn_id => Some(turn),
-            Entry::Turn(_) | Entry::UserInput(_) => None,
-        })
+        self.entries
+            .iter()
+            .filter_map(Entry::as_turn)
+            .find(|turn| turn.id() == turn_id)
     }
 
     pub fn open_turns(&self) -> impl Iterator<Item = &Turn> {
-        self.entries.iter().filter_map(|entry| match entry {
-            Entry::Turn(turn)
-                if !matches!(turn.state(), crate::turn::TurnState::Finished { .. }) =>
-            {
-                Some(turn)
-            }
-            Entry::Turn(_) | Entry::UserInput(_) => None,
-        })
+        self.entries
+            .iter()
+            .filter_map(Entry::as_turn)
+            .filter(|turn| !matches!(turn.state(), TurnState::Finished { .. }))
     }
 
     pub fn entries(&self) -> &[Entry] {
@@ -140,19 +198,23 @@ impl Conversation {
     }
 }
 
-impl std::fmt::Display for Conversation {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "conversation ({} entries)", self.entries.len())?;
-        for entry in &self.entries {
-            match entry {
-                Entry::UserInput(input) => writeln!(f, "  {input}")?,
-                Entry::Turn(turn) => writeln!(f, "  {turn}")?,
-            }
+impl Entry {
+    fn as_turn(&self) -> Option<&Turn> {
+        match self {
+            Entry::Turn(turn) => Some(turn),
+            Entry::UserInput(_) => None,
         }
-        Ok(())
     }
 }
 
 #[cfg(test)]
 #[path = "conversation_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "conversation_rules_tests.rs"]
+mod rules_tests;
+
+#[cfg(test)]
+#[path = "conversation_pieces_tests.rs"]
+mod pieces_tests;

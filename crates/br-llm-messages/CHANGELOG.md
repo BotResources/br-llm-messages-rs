@@ -9,6 +9,130 @@ form to decide whether a version ships.
 
 ## Unreleased
 
+## 0.4.0 - 2026-10-14
+
+Breaking: stricter rules on tool names, tool call ids and tool results, a
+`RuntimeKind` value, a public surface reached from the crate root only, and
+JSON as the only stored form. Documents that break a new rule no longer load;
+the schema stays `br-llm-messages/2`.
+
+### Added
+
+- `check_wire_list(&[WireMessage])`: a pure check, called by choice, of a
+  list of wire messages from anywhere. It refuses a list that is empty
+  (`WireListEmpty`), that does not start with a `User` message
+  (`WireListNotStartingWithUser`), in which a tool call of an `Assistant`
+  message is not answered exactly once, by id, in the next `User` message
+  (`WireToolCallUnanswered`, `WireToolCallAnsweredTwice`), in which a tool
+  result does not answer a tool call of the `Assistant` message just before
+  it (`WireToolResultUnmatched`), or in which a tool call id appears more than
+  once (`WireToolCallIdRepeated`). Each refusal carries the index of the
+  message and, for a rule about a block, the index of the block; the first
+  fault in message order, then block order, is reported. A list
+  yielded by `render` always passes; loading a list from JSON still checks no
+  rule of the list.
+- `RuntimeKind`: the kind of a runtime input, refused when empty
+  (`Blank { field: "runtime_kind" }`); one space is accepted.
+- Piece by piece: a `UserInput`, a `Step` and a `ToolResult` each serialize
+  and load on their own under every rule, and pushing them back in their
+  order (an input, a turn started with its first step, a step or a result
+  reaching its turn by id) rebuilds a conversation equal to the original,
+  serializing to the same JSON. Positions are stable: entries are never
+  removed or reordered, and a turn only receives steps and results at its
+  end. No new type and no new JSON shape.
+
+### Changed
+
+- **Breaking:** `ToolName` is 1 to 64 ASCII characters, each a letter, a
+  digit, `_` or `-`, the first a letter or `_`
+  (`^[A-Za-z_][A-Za-z0-9_-]{0,63}$`), the rule every main provider accepts.
+  Any other name, the empty name included, is refused with the new
+  `MessageError::InvalidToolName` (formerly `Blank { field: "tool_name" }` for
+  the empty name), at construction and on load.
+- **Breaking:** `UserSource::Runtime { kind }` carries a `RuntimeKind`
+  instead of a `String`, so an empty kind can no longer be built by hand.
+  `UserSource::runtime(kind)` is unchanged; the JSON shape is unchanged.
+- **Breaking:** tool call ids are unique within the turn: `Turn::push_step`
+  (and `Conversation::push_step`) refuses a step whose call id is already
+  used by a step of the turn (`DuplicateToolCallIdInTurn`), at construction
+  and on load. 0.3 accepted the reuse.
+- **Breaking:** tool call ids are unique in the conversation:
+  `Conversation::push_turn` and `Conversation::push_step` refuse a step (a
+  turn's first step and every step of a pushed turn included) when one of its
+  call ids is already used by a call of any turn
+  (`DuplicateToolCallIdInConversation`), at construction and on load. The turn
+  rule is reported before the conversation rule.
+- **Breaking:** a tool result is accepted only when its tool name is the name
+  of the call it answers (`ToolNameMismatch { id, call, result }`), after the
+  pending and once rules, at construction and on load.
+- **Breaking:** a turn loaded with a `tool_results` item holding no result is
+  refused (`EmptyToolResults`); 0.3 dropped the item. Consecutive non-empty
+  items still merge into one.
+- `Turn::push_results` documents that the batch is not atomic: it stops at
+  the first refused result and the results accepted before it stay in the
+  turn (unchanged behaviour).
+- Stream draft: finishing the draft drops every blank text block (empty or
+  whitespace only) instead of refusing the finish, and builds the step from
+  the other blocks; a reply left with no block is refused as `EmptyStep`.
+  `InvalidJson { field, .. }` and `EmptyStep` stay distinct refusals.
+- **Breaking:** every public type is reached from the crate root only: the
+  modules `block`, `conversation`, `error`, `render`, `step`, `stop_reason`,
+  `stream`, `tool_results`, `turn`, `usage`, `user_input` and `value` are
+  private (`br_llm_messages::block::Image` becomes `br_llm_messages::Image`).
+- **Breaking:** `#[non_exhaustive]` on the enums that may grow:
+  `MessageError`, `StreamEvent`, `BlockKind` and `AssistantBlock`
+  (`ToolResultBlock` already was). Every other public enum is closed.
+- **Breaking:** JSON is the only stored form: `Display` is removed from
+  `Conversation`, `Turn` and `UserInput`; `Deserialize` is removed from
+  `TurnState`, `Perspective` and `BlockKind`; `Serialize` is removed from
+  `StreamEvent` (stream events still load from JSON, block kinds included).
+- `MessageError` gains the variants `InvalidToolName`,
+  `DuplicateToolCallIdInTurn`, `DuplicateToolCallIdInConversation`,
+  `ToolNameMismatch`, `EmptyToolResults` and the six `Wire*` variants above.
+
+### Tests
+
+- `ToolName`: accepted and refused names (empty, one space, leading digit or
+  `-`, dots, slashes, spaces, non-ASCII, 65 characters) at construction and
+  on load.
+- `RuntimeKind`: built by hand into `UserSource::Runtime`, one space
+  accepted, an empty kind refused in a loaded user input.
+- Tool call ids: reuse within a turn and across turns refused at
+  construction (conversation unchanged) and on load; the turn rule and the
+  turn state win over the conversation rule; a lightened conversation keeps
+  the rule for the calls it holds.
+- Tool results: a result naming another tool refused at construction (turn
+  unchanged) and on load; an empty `tool_results` item refused on load after
+  an awaiting step, after a finished step and between two items; consecutive
+  items merged.
+- Stream draft: blank text blocks dropped before, between and after other
+  blocks (between two tool calls included); only blank blocks refused as
+  `EmptyStep`; a cut structured value still `InvalidJson`.
+- Piece by piece: seeded random walks (several open turns, interleaved
+  results, every block kind) stored piece by piece and pushed back in their
+  order, and loaded conversations decomposed entry by entry and pushed back,
+  rebuild equal conversations with the same JSON; every push leaves every
+  earlier position unchanged.
+- Wire list check: every rule with its position; a list loaded from JSON
+  that breaks the rules loads and is refused by the check only; the render of
+  own turns with several rounds, framed entries, a relay and merged `User`
+  messages passes, lightened or not, and so does the render of every state of
+  the random walks for every agent (with coverage counters for tool calls,
+  relays and merged results).
+- Public surface (`tests/public_surface.rs`): every public type named from
+  the root; closed enums matched without a wildcard; the enums that may grow
+  need one; `Display`, `Serialize` and `Deserialize` probed on the stored,
+  computed and transient types.
+- Lightening law on the random walks: `render(lighten(c, p), p)` equals
+  `render(c, p)`, refusals included, for every state and every agent.
+- Only from the root (`src/only_from_the_root.rs`, doctests): naming an item
+  through any module public up to 0.3 does not compile; CI now runs
+  `cargo test --doc`.
+- Stream events: every serialized `BlockKind` loads back through a block
+  start.
+- Split the lightening fixtures (`lighten_test_helpers.rs`) and the draft
+  assembly (`stream/assemble.rs`) into their own files.
+
 ## 0.3.0 - 2026-10-14
 
 Breaking: `Author` changes shape and the stored schema moves to

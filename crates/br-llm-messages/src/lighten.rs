@@ -54,5 +54,9 @@ fn lighten_turn(turn: &Turn) -> Turn {
 }
 
 #[cfg(test)]
+#[path = "lighten_test_helpers.rs"]
+mod test_helpers;
+
+#[cfg(test)]
 #[path = "lighten_tests.rs"]
 mod tests;

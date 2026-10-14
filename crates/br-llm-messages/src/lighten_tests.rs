@@ -1,213 +1,14 @@
 use super::*;
 
-use crate::block::{
-    AssistantBlock, Image, RedactedThinking, Thinking, ToolCall, ToolResult, ToolResultBlock,
-    UserBlock,
-};
+use crate::block::{AssistantBlock, Thinking};
 use crate::conversation::Entry;
 use crate::error::MessageError;
 use crate::render::{WireMessage, render};
-use crate::step::Step;
 use crate::stop_reason::StopReason;
-use crate::turn::{Turn, TurnItem, TurnState};
-use crate::usage::Usage;
-use crate::user_input::{UserInput, UserSource};
-use crate::value::{
-    Author, Base64Data, ImageMime, ModelId, Signature, Text, ToolCallId, ToolName, TurnId,
-};
+use crate::turn::TurnState;
+use crate::value::Author;
 
-fn author(id: &str, name: &str) -> Author {
-    Author::new(id, name).unwrap()
-}
-
-fn agent_a() -> Author {
-    author("id-agent-a", "Agent A")
-}
-
-fn agent_b() -> Author {
-    author("id-agent-b", "Agent B")
-}
-
-fn perspective_a() -> Perspective {
-    Perspective::new(agent_a())
-}
-
-fn text(body: &str) -> AssistantBlock {
-    AssistantBlock::Text {
-        text: Text::new(body).unwrap(),
-    }
-}
-
-fn thinking(body: &str) -> AssistantBlock {
-    AssistantBlock::Thinking(Thinking {
-        text: body.to_owned(),
-        signature: Some(Signature::new("sig").unwrap()),
-    })
-}
-
-fn call(id: &str) -> AssistantBlock {
-    AssistantBlock::ToolCall(ToolCall {
-        id: ToolCallId::new(id).unwrap(),
-        name: ToolName::new("search").unwrap(),
-        arguments: serde_json::json!({ "q": "rust" }),
-    })
-}
-
-fn usage() -> Option<Usage> {
-    Some(Usage {
-        input_tokens: 10,
-        output_tokens: 5,
-        cache_read_tokens: None,
-        cache_write_tokens: None,
-        thinking_tokens: Some(3),
-    })
-}
-
-fn model() -> Option<ModelId> {
-    Some(ModelId::new("model-x").unwrap())
-}
-
-fn step(content: Vec<AssistantBlock>, stop_reason: StopReason) -> Step {
-    Step::new(content, stop_reason, usage(), model()).unwrap()
-}
-
-fn result(id: &str) -> ToolResult {
-    ToolResult::new(
-        ToolCallId::new(id).unwrap(),
-        ToolName::new("search").unwrap(),
-        vec![ToolResultBlock::text(Text::new("42").unwrap())],
-        false,
-    )
-}
-
-fn human(body: &str) -> UserInput {
-    UserInput::new(
-        UserSource::Human,
-        Some(author("id-user", "Alice")),
-        vec![UserBlock::text(Text::new(body).unwrap())],
-    )
-    .unwrap()
-}
-
-fn runtime_with_image() -> UserInput {
-    UserInput::new(
-        UserSource::runtime("upload").unwrap(),
-        None,
-        vec![
-            UserBlock::text(Text::new("a file").unwrap()),
-            UserBlock::Image(Image {
-                mime: ImageMime::Png,
-                data: Base64Data::new("aGk=").unwrap(),
-            }),
-        ],
-    )
-    .unwrap()
-}
-
-/// A finished multi-step turn: thinking, text, structured and a call, its
-/// result, then redacted thinking, text and structured.
-fn multi_step_turn(id: &str, who: Option<Author>) -> Turn {
-    let mut turn = Turn::new(
-        TurnId::new(id).unwrap(),
-        who,
-        step(
-            vec![
-                thinking("private reasoning"),
-                text("calling a tool"),
-                AssistantBlock::Structured {
-                    value: serde_json::json!({ "plan": [1, 2] }),
-                },
-                call("c1"),
-            ],
-            StopReason::AwaitingToolResults,
-        ),
-    );
-    turn.push_result(result("c1")).unwrap();
-    turn.push_step(step(
-        vec![
-            AssistantBlock::RedactedThinking(RedactedThinking::new("opaque").unwrap()),
-            text("the answer"),
-            AssistantBlock::Structured {
-                value: serde_json::json!("done"),
-            },
-        ],
-        StopReason::EndTurn,
-    ))
-    .unwrap();
-    turn
-}
-
-/// A turn with only thinking and tool calls, still awaiting its results.
-fn silent_turn(id: &str, who: Option<Author>) -> Turn {
-    Turn::new(
-        TurnId::new(id).unwrap(),
-        who,
-        step(
-            vec![
-                thinking("thinking only"),
-                AssistantBlock::RedactedThinking(RedactedThinking::new("opaque").unwrap()),
-                call("c7"),
-                call("c8"),
-            ],
-            StopReason::AwaitingToolResults,
-        ),
-    )
-}
-
-fn own_finished_turn(id: &str) -> Turn {
-    multi_step_turn(id, Some(agent_a()))
-}
-
-/// The agent's own turn, its results in, waiting for its next step.
-fn own_awaiting_step_turn(id: &str) -> Turn {
-    let mut turn = Turn::new(
-        TurnId::new(id).unwrap(),
-        Some(agent_a()),
-        step(
-            vec![thinking("mine"), call("c5")],
-            StopReason::AwaitingToolResults,
-        ),
-    );
-    turn.push_result(result("c5")).unwrap();
-    turn
-}
-
-fn conversation(entries: Vec<Entry>) -> Conversation {
-    let mut conversation = Conversation::new();
-    for entry in entries {
-        match entry {
-            Entry::UserInput(input) => conversation.push_input(input),
-            Entry::Turn(turn) => conversation.push_turn(turn).unwrap(),
-        }
-    }
-    conversation
-}
-
-fn json<T: serde::Serialize>(value: &T) -> serde_json::Value {
-    serde_json::to_value(value).unwrap()
-}
-
-fn only_step(turn: &Turn) -> &Step {
-    match turn.items() {
-        [TurnItem::Step(step)] => step,
-        other => panic!("expected exactly one step, got {other:?}"),
-    }
-}
-
-fn turn_at(conversation: &Conversation, index: usize) -> &Turn {
-    match &conversation.entries()[index] {
-        Entry::Turn(turn) => turn,
-        Entry::UserInput(_) => panic!("expected a turn at {index}"),
-    }
-}
-
-fn assert_render_preserved(conversation: &Conversation, perspective: &Perspective) {
-    let lightened = lighten(conversation, perspective);
-    assert_eq!(
-        render(&lightened, perspective),
-        render(conversation, perspective)
-    );
-}
+use super::test_helpers::*;
 
 #[test]
 fn given_inputs_and_own_turns_when_lightened_then_kept_as_they_are() {
@@ -417,5 +218,32 @@ fn given_lightened_conversation_when_serialized_then_reloads_identically() {
     assert_eq!(
         render(&reloaded, &perspective_a()),
         render(&original, &perspective_a())
+    );
+}
+
+#[test]
+fn given_every_state_of_random_walks_when_lightened_for_each_agent_then_render_unchanged() {
+    let mut perspectives: Vec<Perspective> = crate::test_walk::agents()
+        .into_iter()
+        .map(Perspective::new)
+        .collect();
+    perspectives.push(Perspective::new(author("id-stranger", "stranger")));
+    let (mut rendered, mut refused) = (0, 0);
+    for seed in 0..100 {
+        crate::test_walk::walk(seed, 40, |_, conversation| {
+            for perspective in &perspectives {
+                let original = render(conversation, perspective);
+                let lightened = render(&lighten(conversation, perspective), perspective);
+                assert_eq!(lightened, original, "seed {seed}");
+                match original {
+                    Ok(_) => rendered += 1,
+                    Err(_) => refused += 1,
+                }
+            }
+        });
+    }
+    assert!(
+        rendered > 1_000 && refused > 1_000,
+        "{rendered} / {refused}"
     );
 }
