@@ -16,8 +16,10 @@ use super::wire::{WireMessage, WireUserBlock};
 /// not answer a tool call of the `Assistant` message just before it, or when
 /// a tool call id appears more than once. The refusal names the rule and the
 /// position (the index of the message and, for a rule about a block, the
-/// index of the block in that message); the messages are scanned in order and
-/// the first fault found is reported.
+/// index of the block in that message). The first fault in message order,
+/// then in block order, is the one reported: a call left unanswered is a
+/// fault of its `Assistant` message, a result that answers no call or answers
+/// one twice is a fault of its `User` message.
 pub fn check_wire_list(messages: &[WireMessage]) -> Result<(), MessageError> {
     match messages.first() {
         None => return Err(MessageError::WireListEmpty),
@@ -43,7 +45,7 @@ pub fn check_wire_list(messages: &[WireMessage]) -> Result<(), MessageError> {
                             id: call.id.clone(),
                         });
                     }
-                    check_answered_once(messages.get(index + 1), index, block, call)?;
+                    check_answered(messages.get(index + 1), index, block, call)?;
                 }
             }
             WireMessage::User { content } => {
@@ -56,39 +58,33 @@ pub fn check_wire_list(messages: &[WireMessage]) -> Result<(), MessageError> {
     Ok(())
 }
 
-/// The call at (`index`, `block`) is answered exactly once, by id, in `next`.
-fn check_answered_once(
+/// The call at (`index`, `block`) is answered, by id, in `next`. A second
+/// answer is a fault of `next`, reported when `next` is checked.
+fn check_answered(
     next: Option<&WireMessage>,
     index: usize,
     block: usize,
     call: &ToolCall,
 ) -> Result<(), MessageError> {
-    let answers: Vec<usize> = match next {
-        Some(WireMessage::User { content }) => content
-            .iter()
-            .enumerate()
-            .filter(|(_, item)| answers_call(item, &call.id))
-            .map(|(position, _)| position)
-            .collect(),
-        Some(WireMessage::Assistant { .. } | WireMessage::Relay { .. }) | None => Vec::new(),
+    let answered = match next {
+        Some(WireMessage::User { content }) => {
+            content.iter().any(|item| answers_call(item, &call.id))
+        }
+        Some(WireMessage::Assistant { .. } | WireMessage::Relay { .. }) | None => false,
     };
-    match answers.as_slice() {
-        [] => Err(MessageError::WireToolCallUnanswered {
+    if answered {
+        Ok(())
+    } else {
+        Err(MessageError::WireToolCallUnanswered {
             message: index,
             block,
             id: call.id.clone(),
-        }),
-        [_] => Ok(()),
-        [_, second, ..] => Err(MessageError::WireToolCallAnsweredTwice {
-            message: index + 1,
-            block: *second,
-            id: call.id.clone(),
-        }),
+        })
     }
 }
 
 /// Every tool result of the `User` message at `index` answers a tool call of
-/// `previous` when it is an `Assistant` message.
+/// `previous` when it is an `Assistant` message, and answers it once.
 fn check_results_answer(
     previous: Option<&WireMessage>,
     index: usize,
@@ -98,19 +94,28 @@ fn check_results_answer(
         Some(WireMessage::Assistant { content }) => content,
         Some(WireMessage::User { .. } | WireMessage::Relay { .. }) | None => &[],
     };
+    let mut answered: HashSet<&ToolCallId> = HashSet::new();
     for (block, item) in content.iter().enumerate() {
         let WireUserBlock::ToolResult(result) = item else {
             continue;
         };
+        let id = &result.tool_call_id;
         let answers = calls
             .iter()
             .filter_map(AssistantBlock::as_tool_call)
-            .any(|call| call.id == result.tool_call_id);
+            .any(|call| &call.id == id);
         if !answers {
             return Err(MessageError::WireToolResultUnmatched {
                 message: index,
                 block,
-                id: result.tool_call_id.clone(),
+                id: id.clone(),
+            });
+        }
+        if !answered.insert(id) {
+            return Err(MessageError::WireToolCallAnsweredTwice {
+                message: index,
+                block,
+                id: id.clone(),
             });
         }
     }

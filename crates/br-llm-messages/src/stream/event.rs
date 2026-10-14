@@ -117,16 +117,37 @@ mod tests {
         );
     }
 
+    /// Every block kind. The match has no wildcard, so a new variant does not
+    /// compile until it is listed here, and the test below then proves that
+    /// the private mirror the events load through knows it.
+    fn every_block_kind() -> Vec<BlockKind> {
+        let kinds = vec![
+            BlockKind::Text,
+            BlockKind::Thinking,
+            BlockKind::RedactedThinking,
+            BlockKind::Structured,
+            BlockKind::ToolCall,
+        ];
+        for kind in &kinds {
+            match kind {
+                BlockKind::Text
+                | BlockKind::Thinking
+                | BlockKind::RedactedThinking
+                | BlockKind::Structured
+                | BlockKind::ToolCall => {}
+            }
+        }
+        kinds
+    }
+
     #[test]
-    fn given_every_block_kind_in_json_when_loaded_then_matching_kind() {
-        for (name, kind) in [
-            ("text", BlockKind::Text),
-            ("thinking", BlockKind::Thinking),
-            ("redacted_thinking", BlockKind::RedactedThinking),
-            ("structured", BlockKind::Structured),
-            ("tool_call", BlockKind::ToolCall),
-        ] {
-            let json = serde_json::json!({ "type": "block_start", "index": 3, "kind": name });
+    fn given_every_serialized_block_kind_when_loaded_in_a_block_start_then_the_same_kind() {
+        for kind in every_block_kind() {
+            let json = serde_json::json!({
+                "type": "block_start",
+                "index": 3,
+                "kind": serde_json::to_value(&kind).unwrap(),
+            });
             assert_eq!(
                 serde_json::from_value::<StreamEvent>(json).unwrap(),
                 StreamEvent::BlockStart { index: 3, kind }

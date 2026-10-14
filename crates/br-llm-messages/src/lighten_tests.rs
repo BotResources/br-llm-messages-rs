@@ -220,3 +220,30 @@ fn given_lightened_conversation_when_serialized_then_reloads_identically() {
         render(&original, &perspective_a())
     );
 }
+
+#[test]
+fn given_every_state_of_random_walks_when_lightened_for_each_agent_then_render_unchanged() {
+    let mut perspectives: Vec<Perspective> = crate::test_walk::agents()
+        .into_iter()
+        .map(Perspective::new)
+        .collect();
+    perspectives.push(Perspective::new(author("id-stranger", "stranger")));
+    let (mut rendered, mut refused) = (0, 0);
+    for seed in 0..100 {
+        crate::test_walk::walk(seed, 40, |_, conversation| {
+            for perspective in &perspectives {
+                let original = render(conversation, perspective);
+                let lightened = render(&lighten(conversation, perspective), perspective);
+                assert_eq!(lightened, original, "seed {seed}");
+                match original {
+                    Ok(_) => rendered += 1,
+                    Err(_) => refused += 1,
+                }
+            }
+        });
+    }
+    assert!(
+        rendered > 1_000 && refused > 1_000,
+        "{rendered} / {refused}"
+    );
+}

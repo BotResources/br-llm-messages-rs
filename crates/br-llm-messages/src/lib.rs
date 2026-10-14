@@ -17,6 +17,9 @@ mod usage;
 mod user_input;
 mod value;
 
+#[cfg(doctest)]
+mod only_from_the_root;
+
 #[cfg(test)]
 mod test_walk;
 

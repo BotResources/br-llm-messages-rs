@@ -169,6 +169,10 @@ impl Turn {
         }
     }
 
+    /// Pushes the results in order, each under the rules of `push_result`.
+    /// The batch is not atomic: it stops at the first refused result and
+    /// returns its refusal, and the results accepted before it stay in the
+    /// turn.
     pub fn push_results(
         &mut self,
         results: impl IntoIterator<Item = ToolResult>,

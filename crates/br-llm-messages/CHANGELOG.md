@@ -27,7 +27,8 @@ the schema stays `br-llm-messages/2`.
   result does not answer a tool call of the `Assistant` message just before
   it (`WireToolResultUnmatched`), or in which a tool call id appears more than
   once (`WireToolCallIdRepeated`). Each refusal carries the index of the
-  message and, for a rule about a block, the index of the block. A list
+  message and, for a rule about a block, the index of the block; the first
+  fault in message order, then block order, is reported. A list
   yielded by `render` always passes; loading a list from JSON still checks no
   rule of the list.
 - `RuntimeKind`: the kind of a runtime input, refused when empty
@@ -67,6 +68,9 @@ the schema stays `br-llm-messages/2`.
 - **Breaking:** a turn loaded with a `tool_results` item holding no result is
   refused (`EmptyToolResults`); 0.3 dropped the item. Consecutive non-empty
   items still merge into one.
+- `Turn::push_results` documents that the batch is not atomic: it stops at
+  the first refused result and the results accepted before it stay in the
+  turn (unchanged behaviour).
 - Stream draft: finishing the draft drops every blank text block (empty or
   whitespace only) instead of refusing the finish, and builds the step from
   the other blocks; a reply left with no block is refused as `EmptyStep`.
@@ -119,6 +123,13 @@ the schema stays `br-llm-messages/2`.
   the root; closed enums matched without a wildcard; the enums that may grow
   need one; `Display`, `Serialize` and `Deserialize` probed on the stored,
   computed and transient types.
+- Lightening law on the random walks: `render(lighten(c, p), p)` equals
+  `render(c, p)`, refusals included, for every state and every agent.
+- Only from the root (`src/only_from_the_root.rs`, doctests): naming an item
+  through any module public up to 0.3 does not compile; CI now runs
+  `cargo test --doc`.
+- Stream events: every serialized `BlockKind` loads back through a block
+  start.
 - Split the lightening fixtures (`lighten_test_helpers.rs`) and the draft
   assembly (`stream/assemble.rs`) into their own files.
 
