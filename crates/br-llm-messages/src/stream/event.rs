@@ -117,27 +117,23 @@ mod tests {
         );
     }
 
-    /// Every block kind. The match has no wildcard, so a new variant does not
-    /// compile until it is listed here, and the test below then proves that
-    /// the private mirror the events load through knows it.
-    fn every_block_kind() -> Vec<BlockKind> {
-        let kinds = vec![
-            BlockKind::Text,
-            BlockKind::Thinking,
-            BlockKind::RedactedThinking,
-            BlockKind::Structured,
-            BlockKind::ToolCall,
-        ];
-        for kind in &kinds {
-            match kind {
-                BlockKind::Text
-                | BlockKind::Thinking
-                | BlockKind::RedactedThinking
-                | BlockKind::Structured
-                | BlockKind::ToolCall => {}
+    /// Builds the list of every block kind and a wildcard-free match from the
+    /// same variant names, so a new variant does not compile until it is
+    /// named here, and naming it puts it in the list the test below loads
+    /// through the private mirror.
+    macro_rules! every_block_kind {
+        ($($variant:ident),+ $(,)?) => {{
+            fn _exhaustive(kind: &BlockKind) {
+                match kind {
+                    $(BlockKind::$variant)|+ => {}
+                }
             }
-        }
-        kinds
+            vec![$(BlockKind::$variant),+]
+        }};
+    }
+
+    fn every_block_kind() -> Vec<BlockKind> {
+        every_block_kind!(Text, Thinking, RedactedThinking, Structured, ToolCall)
     }
 
     #[test]

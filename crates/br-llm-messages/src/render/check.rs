@@ -130,8 +130,16 @@ fn answers_call(block: &WireUserBlock, id: &ToolCallId) -> bool {
 }
 
 #[cfg(test)]
+#[path = "check_test_helpers.rs"]
+mod test_helpers;
+
+#[cfg(test)]
 #[path = "check_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "check_order_tests.rs"]
+mod order_tests;
 
 #[cfg(test)]
 #[path = "check_render_tests.rs"]
