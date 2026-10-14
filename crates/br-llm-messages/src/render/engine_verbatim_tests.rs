@@ -5,7 +5,7 @@ use crate::block::{AssistantBlock, UserBlock};
 use crate::step::Step;
 use crate::stop_reason::StopReason;
 use crate::user_input::{UserInput, UserSource};
-use crate::value::TurnId;
+use crate::value::{Author, TurnId};
 
 #[test]
 fn given_markup_in_input_when_rendered_then_body_inserted_verbatim() {
@@ -32,7 +32,7 @@ fn given_markup_in_other_agent_turn_when_rendered_then_body_inserted_verbatim() 
     .unwrap();
     let turn = Turn::new(
         TurnId::new("t2").unwrap(),
-        Some(Author::new("agent-b").unwrap()),
+        Some(Author::new("id-agent-b", "agent-b").unwrap()),
         step,
     );
     let mut conversation = Conversation::new();
@@ -51,7 +51,7 @@ fn given_markup_in_other_agent_turn_when_rendered_then_body_inserted_verbatim() 
 fn given_markup_in_author_and_kind_when_rendered_then_attributes_inserted_verbatim() {
     let input = UserInput::new(
         UserSource::runtime("a\"b").unwrap(),
-        Some(Author::new("x<y&\"z\"").unwrap()),
+        Some(Author::new("id-x", "x<y&\"z\"").unwrap()),
         vec![UserBlock::text(Text::new("body").unwrap())],
     )
     .unwrap();

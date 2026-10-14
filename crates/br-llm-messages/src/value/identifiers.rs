@@ -1,6 +1,7 @@
 nonempty_string_newtype!(ToolCallId, "tool_call_id");
 nonempty_string_newtype!(ToolName, "tool_name");
-nonempty_string_newtype!(Author, "author");
+nonempty_string_newtype!(AuthorId, "author_id");
+nonempty_string_newtype!(AuthorName, "author_name");
 nonempty_string_newtype!(ModelId, "model_id");
 nonempty_string_newtype!(TurnId, "turn_id");
 
@@ -22,8 +23,14 @@ mod tests {
             Err(MessageError::Blank { field: "tool_name" })
         ));
         assert!(matches!(
-            Author::new(""),
-            Err(MessageError::Blank { field: "author" })
+            AuthorId::new(""),
+            Err(MessageError::Blank { field: "author_id" })
+        ));
+        assert!(matches!(
+            AuthorName::new(""),
+            Err(MessageError::Blank {
+                field: "author_name"
+            })
         ));
         assert!(matches!(
             ModelId::new(""),

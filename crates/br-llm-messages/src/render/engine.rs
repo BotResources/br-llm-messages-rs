@@ -2,7 +2,7 @@ use crate::block::Image;
 use crate::conversation::{Conversation, Entry};
 use crate::error::MessageError;
 use crate::turn::{Turn, TurnItem, TurnState};
-use crate::value::{Author, Text};
+use crate::value::Text;
 
 use super::frame::{agent_frame_text, render_agent_frame, render_user_frame, user_frame_parts};
 use super::wire::{Perspective, WireMessage, WireUserBlock};
@@ -11,11 +11,10 @@ pub fn render(
     conversation: &Conversation,
     perspective: &Perspective,
 ) -> Result<Vec<WireMessage>, MessageError> {
-    let agent = &perspective.agent;
-    guard_own_turns(conversation, agent)?;
+    guard_own_turns(conversation, perspective)?;
 
     let entries = conversation.entries();
-    let (head, tail): (&[Entry], &[Entry]) = match relay_boundary(conversation, agent) {
+    let (head, tail): (&[Entry], &[Entry]) = match relay_boundary(conversation, perspective) {
         Some(start) => (&entries[..start], &entries[start..]),
         None => (entries, &[]),
     };
@@ -23,7 +22,7 @@ pub fn render(
     let mut messages = Vec::new();
     for entry in head {
         match entry {
-            Entry::Turn(turn) if owns(turn, agent) => render_own_turn(turn, &mut messages),
+            Entry::Turn(turn) if perspective.owns(turn) => render_own_turn(turn, &mut messages),
             Entry::Turn(turn) => messages.push(render_agent_frame(turn)?),
             Entry::UserInput(input) => messages.push(render_user_frame(input)?),
         }
@@ -44,14 +43,13 @@ pub fn render(
     }
 }
 
-fn owns(turn: &Turn, agent: &Author) -> bool {
-    turn.author() == Some(agent)
-}
-
-fn guard_own_turns(conversation: &Conversation, agent: &Author) -> Result<(), MessageError> {
+fn guard_own_turns(
+    conversation: &Conversation,
+    perspective: &Perspective,
+) -> Result<(), MessageError> {
     for entry in conversation.entries() {
         if let Entry::Turn(turn) = entry
-            && owns(turn, agent)
+            && perspective.owns(turn)
             && matches!(turn.state(), TurnState::AwaitingToolResults { .. })
         {
             return Err(MessageError::TurnAwaitingResults);
@@ -60,14 +58,14 @@ fn guard_own_turns(conversation: &Conversation, agent: &Author) -> Result<(), Me
     Ok(())
 }
 
-fn relay_boundary(conversation: &Conversation, agent: &Author) -> Option<usize> {
+fn relay_boundary(conversation: &Conversation, perspective: &Perspective) -> Option<usize> {
     let entries = conversation.entries();
     let last_own = entries
         .iter()
         .enumerate()
         .rev()
         .find_map(|(index, entry)| match entry {
-            Entry::Turn(turn) if owns(turn, agent) => Some((index, turn)),
+            Entry::Turn(turn) if perspective.owns(turn) => Some((index, turn)),
             Entry::Turn(_) | Entry::UserInput(_) => None,
         })?;
     let (index, turn) = last_own;
@@ -159,6 +157,10 @@ fn merge_user_messages(messages: Vec<WireMessage>) -> Vec<WireMessage> {
 #[cfg(test)]
 #[path = "engine_test_helpers.rs"]
 mod test_helpers;
+
+#[cfg(test)]
+#[path = "engine_author_tests.rs"]
+mod author_tests;
 
 #[cfg(test)]
 #[path = "engine_frame_tests.rs"]

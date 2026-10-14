@@ -42,7 +42,7 @@ fn end_step() -> Step {
 fn open_turn(turn_id: &str, agent: &str, call: &str) -> Turn {
     Turn::new(
         TurnId::new(turn_id).unwrap(),
-        Some(Author::new(agent).unwrap()),
+        Some(Author::new(format!("id-{agent}"), agent).unwrap()),
         await_step(call),
     )
 }
@@ -180,4 +180,48 @@ fn given_conversation_when_round_tripped_then_identical() {
         serde_json::from_str::<Conversation>(&json).unwrap(),
         conversation
     );
+}
+
+#[test]
+fn given_schema_constant_when_read_then_version_two() {
+    assert_eq!(crate::SCHEMA_VERSION, "br-llm-messages/2");
+}
+
+#[test]
+fn given_schema_two_document_with_authors_when_deserialized_then_loaded() {
+    let json = serde_json::json!({
+        "schema": "br-llm-messages/2",
+        "entries": [
+            {
+                "type": "user_input",
+                "source": { "type": "human" },
+                "author": { "id": "u1", "name": "Alice" },
+                "content": [ { "type": "text", "text": "hi" } ]
+            },
+            {
+                "type": "turn",
+                "id": "t1",
+                "author": { "id": "a1", "name": "Agent" },
+                "items": [
+                    {
+                        "type": "step",
+                        "content": [ { "type": "text", "text": "hello" } ],
+                        "stop_reason": { "type": "end_turn" }
+                    }
+                ]
+            }
+        ]
+    });
+    let conversation = serde_json::from_value::<Conversation>(json.clone()).unwrap();
+    assert_eq!(conversation.entries().len(), 2);
+    assert_eq!(serde_json::to_value(&conversation).unwrap(), json);
+}
+
+#[test]
+fn given_schema_one_document_when_deserialized_then_schema_mismatch_reported() {
+    let json = serde_json::json!({ "schema": "br-llm-messages/1", "entries": [] });
+    let message = serde_json::from_value::<Conversation>(json)
+        .unwrap_err()
+        .to_string();
+    assert!(message.contains("unexpected schema \"br-llm-messages/1\""));
 }

@@ -40,7 +40,7 @@ fn result(id: &str) -> ToolResult {
 fn turn(ids: &[&str]) -> Turn {
     Turn::new(
         TurnId::new("turn-1").unwrap(),
-        Some(Author::new("agent-a").unwrap()),
+        Some(Author::new("id-agent-a", "agent-a").unwrap()),
         step_await(ids),
     )
 }

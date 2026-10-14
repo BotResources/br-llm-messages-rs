@@ -5,7 +5,7 @@ use crate::block::{AssistantBlock, Thinking, ToolCall};
 use crate::step::Step;
 use crate::stop_reason::StopReason;
 use crate::user_input::{UserInput, UserSource};
-use crate::value::{Base64Data, ImageMime, ToolCallId, ToolName, TurnId};
+use crate::value::{Author, Base64Data, ImageMime, ToolCallId, ToolName, TurnId};
 
 #[test]
 fn given_own_turn_when_rendered_then_steps_verbatim() {
@@ -70,7 +70,7 @@ fn given_own_turn_awaiting_step_as_last_entry_when_rendered_then_ends_with_tool_
 fn given_other_agent_turn_when_rendered_then_framed_as_agent_dropping_thinking_and_calls() {
     let mut turn = Turn::new(
         TurnId::new("t2").unwrap(),
-        Some(Author::new("agent-b").unwrap()),
+        Some(Author::new("id-agent-b", "agent-b").unwrap()),
         call_step("c9"),
     );
     turn.push_result(result("c9")).unwrap();
@@ -95,7 +95,7 @@ fn given_other_agent_turn_when_rendered_then_framed_as_agent_dropping_thinking_a
 fn given_other_agent_turn_mid_flight_when_rendered_then_framed_dropping_calls() {
     let turn = Turn::new(
         TurnId::new("t2").unwrap(),
-        Some(Author::new("agent-b").unwrap()),
+        Some(Author::new("id-agent-b", "agent-b").unwrap()),
         call_step("c9"),
     );
     assert!(matches!(
@@ -145,7 +145,7 @@ fn given_other_agent_structured_block_when_rendered_then_json_in_frame_dropping_
     .unwrap();
     let turn = Turn::new(
         TurnId::new("t2").unwrap(),
-        Some(Author::new("agent-b").unwrap()),
+        Some(Author::new("id-agent-b", "agent-b").unwrap()),
         step,
     );
 
@@ -167,7 +167,7 @@ fn given_other_agent_structured_block_when_rendered_then_json_in_frame_dropping_
 fn given_runtime_input_when_rendered_then_runtime_role_and_kind() {
     let input = UserInput::new(
         UserSource::runtime("task notification").unwrap(),
-        Some(Author::new("scheduler").unwrap()),
+        Some(Author::new("id-scheduler", "scheduler").unwrap()),
         vec![crate::block::UserBlock::text(Text::new("wake").unwrap())],
     )
     .unwrap();
