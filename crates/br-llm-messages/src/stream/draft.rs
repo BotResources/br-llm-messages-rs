@@ -1,15 +1,14 @@
-use serde_json::{Map, Value};
-
-use crate::block::{AssistantBlock, RedactedThinking, Thinking, ToolCall};
 use crate::error::MessageError;
 use crate::step::Step;
 use crate::stop_reason::StopReason;
 use crate::usage::Usage;
-use crate::value::{ModelId, Signature, Text, ToolCallId, ToolName};
+use crate::value::{ModelId, ToolCallId, ToolName};
 
+use super::assemble::assemble;
 use super::event::{BlockKind, StreamEvent};
 
-enum DraftBlock {
+/// A block as the stream fills it, before it is assembled.
+pub(super) enum DraftBlock {
     Text {
         text: String,
     },
@@ -227,58 +226,21 @@ impl StepDraft {
         Ok(())
     }
 
+    /// Builds the step: every blank text block is dropped (providers send
+    /// them as normal output), the other blocks are assembled under the Step
+    /// rules, and a reply left with no block is refused as `EmptyStep`.
     pub fn finish(self, model: Option<ModelId>) -> Result<Step, MessageError> {
         let Some((stop_reason, usage)) = self.finish else {
             return Err(MessageError::MissingFinish);
         };
         let mut content = Vec::with_capacity(self.blocks.len());
         for block in self.blocks {
-            content.push(assemble(block)?);
+            if let Some(block) = assemble(block)? {
+                content.push(block);
+            }
         }
         Step::new(content, stop_reason, usage, model)
     }
-}
-
-fn assemble(block: DraftBlock) -> Result<AssistantBlock, MessageError> {
-    let assembled = match block {
-        DraftBlock::Text { text } => AssistantBlock::Text {
-            text: Text::new(text)?,
-        },
-        DraftBlock::Thinking { text, signature } => AssistantBlock::Thinking(Thinking {
-            text,
-            signature: signature.map(Signature::new).transpose()?,
-        }),
-        DraftBlock::RedactedThinking { data } => {
-            AssistantBlock::RedactedThinking(RedactedThinking::new(data)?)
-        }
-        DraftBlock::Structured { json } => AssistantBlock::Structured {
-            value: parse_json(&json, "structured")?,
-        },
-        DraftBlock::ToolCall {
-            id,
-            name,
-            arguments,
-        } => AssistantBlock::ToolCall(ToolCall {
-            id,
-            name,
-            arguments: parse_arguments(&arguments)?,
-        }),
-    };
-    Ok(assembled)
-}
-
-fn parse_json(fragment: &str, field: &'static str) -> Result<Value, MessageError> {
-    serde_json::from_str(fragment).map_err(|error| MessageError::InvalidJson {
-        field,
-        message: error.to_string(),
-    })
-}
-
-fn parse_arguments(fragment: &str) -> Result<Value, MessageError> {
-    if fragment.trim().is_empty() {
-        return Ok(Value::Object(Map::new()));
-    }
-    parse_json(fragment, "tool_arguments")
 }
 
 #[cfg(test)]
@@ -292,3 +254,7 @@ mod assembly_tests;
 #[cfg(test)]
 #[path = "draft_assembly_error_tests.rs"]
 mod assembly_error_tests;
+
+#[cfg(test)]
+#[path = "draft_blank_text_tests.rs"]
+mod blank_text_tests;

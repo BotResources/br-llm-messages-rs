@@ -1,41 +1,19 @@
 use crate::block::UserBlock;
 use crate::error::MessageError;
-use crate::value::Author;
+use crate::value::{Author, RuntimeKind};
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case", try_from = "RawUserSource")]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum UserSource {
     Human,
-    Runtime { kind: String },
-}
-
-#[derive(serde::Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-enum RawUserSource {
-    Human,
-    Runtime { kind: String },
-}
-
-impl TryFrom<RawUserSource> for UserSource {
-    type Error = MessageError;
-
-    fn try_from(raw: RawUserSource) -> Result<Self, Self::Error> {
-        match raw {
-            RawUserSource::Human => Ok(UserSource::Human),
-            RawUserSource::Runtime { kind } => UserSource::runtime(kind),
-        }
-    }
+    Runtime { kind: RuntimeKind },
 }
 
 impl UserSource {
     pub fn runtime(kind: impl Into<String>) -> Result<Self, MessageError> {
-        let kind = kind.into();
-        if kind.is_empty() {
-            return Err(MessageError::Blank {
-                field: "runtime_kind",
-            });
-        }
-        Ok(UserSource::Runtime { kind })
+        Ok(UserSource::Runtime {
+            kind: RuntimeKind::new(kind)?,
+        })
     }
 }
 
@@ -90,19 +68,6 @@ impl UserInput {
 
     pub fn content(&self) -> &[UserBlock] {
         &self.content
-    }
-}
-
-impl std::fmt::Display for UserInput {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let source = match &self.source {
-            UserSource::Human => "human".to_owned(),
-            UserSource::Runtime { kind } => format!("runtime:{kind}"),
-        };
-        match &self.author {
-            Some(author) => write!(f, "input[{source}] {author}"),
-            None => write!(f, "input[{source}]"),
-        }
     }
 }
 
@@ -166,5 +131,39 @@ mod tests {
                 "content": [ { "type": "text", "text": "hi" } ]
             })
         );
+    }
+
+    #[test]
+    fn given_runtime_kind_value_when_source_built_by_hand_then_checked_kind_carried() {
+        let source = UserSource::Runtime {
+            kind: RuntimeKind::new("task notification").unwrap(),
+        };
+        assert_eq!(source, UserSource::runtime("task notification").unwrap());
+        let json = serde_json::to_value(&source).unwrap();
+        assert_eq!(
+            json,
+            serde_json::json!({ "type": "runtime", "kind": "task notification" })
+        );
+        assert_eq!(serde_json::from_value::<UserSource>(json).unwrap(), source);
+    }
+
+    #[test]
+    fn given_one_space_runtime_kind_when_built_and_loaded_then_accepted() {
+        assert!(UserSource::runtime(" ").is_ok());
+        let json = serde_json::json!({ "type": "runtime", "kind": " " });
+        assert!(serde_json::from_value::<UserSource>(json).is_ok());
+    }
+
+    #[test]
+    fn given_user_input_with_empty_runtime_kind_when_loaded_then_refused_with_the_rule() {
+        let json = serde_json::json!({
+            "source": { "type": "runtime", "kind": "" },
+            "content": [ { "type": "text", "text": "wake up" } ]
+        });
+        let error = serde_json::from_value::<UserInput>(json).unwrap_err();
+        let rule = MessageError::Blank {
+            field: "runtime_kind",
+        };
+        assert!(error.to_string().contains(&rule.to_string()), "{error}");
     }
 }

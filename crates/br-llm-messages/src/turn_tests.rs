@@ -1,49 +1,5 @@
+use super::test_helpers::{result, step_end, turn};
 use super::*;
-use crate::block::{AssistantBlock, ToolCall, ToolResult};
-use crate::value::{Text, ToolName};
-
-fn step_await(ids: &[&str]) -> Step {
-    let mut content = vec![AssistantBlock::Text {
-        text: Text::new("calling").unwrap(),
-    }];
-    for id in ids {
-        content.push(AssistantBlock::ToolCall(ToolCall {
-            id: ToolCallId::new(*id).unwrap(),
-            name: ToolName::new("search").unwrap(),
-            arguments: serde_json::json!({}),
-        }));
-    }
-    Step::new(content, StopReason::AwaitingToolResults, None, None).unwrap()
-}
-
-fn step_end() -> Step {
-    Step::new(
-        vec![AssistantBlock::Text {
-            text: Text::new("done").unwrap(),
-        }],
-        StopReason::EndTurn,
-        None,
-        None,
-    )
-    .unwrap()
-}
-
-fn result(id: &str) -> ToolResult {
-    ToolResult::new(
-        ToolCallId::new(id).unwrap(),
-        ToolName::new("search").unwrap(),
-        Vec::new(),
-        false,
-    )
-}
-
-fn turn(ids: &[&str]) -> Turn {
-    Turn::new(
-        TurnId::new("turn-1").unwrap(),
-        Some(Author::new("id-agent-a", "agent-a").unwrap()),
-        step_await(ids),
-    )
-}
 
 #[test]
 fn given_finished_first_step_when_state_then_finished() {
@@ -136,42 +92,6 @@ fn given_partial_results_item_when_push_results_batch_stops_at_first_refusal() {
         TurnItem::Step(_) => Vec::new(),
     };
     assert_eq!(ids, vec!["a"]);
-}
-
-#[test]
-fn given_tool_call_id_reused_across_steps_when_pushed_then_accepted() {
-    let mut turn = turn(&["a"]);
-    turn.push_result(result("a")).unwrap();
-    turn.push_step(step_await(&["a"])).unwrap();
-    assert!(matches!(
-        turn.state(),
-        TurnState::AwaitingToolResults { .. }
-    ));
-    turn.push_result(result("a")).unwrap();
-    assert_eq!(turn.state(), TurnState::AwaitingStep);
-}
-
-#[test]
-fn given_empty_results_item_when_loaded_then_dropped_deterministically() {
-    let json = serde_json::json!({
-        "id": "t",
-        "items": [
-            {
-                "type": "step",
-                "content": [
-                    { "type": "tool_call", "id": "a", "name": "search", "arguments": {} }
-                ],
-                "stop_reason": { "type": "awaiting_tool_results" }
-            },
-            { "type": "tool_results", "results": [] }
-        ]
-    });
-    let turn = serde_json::from_value::<Turn>(json).unwrap();
-    assert_eq!(turn.items().len(), 1);
-    assert!(matches!(
-        turn.state(),
-        TurnState::AwaitingToolResults { .. }
-    ));
 }
 
 #[test]
@@ -277,17 +197,25 @@ fn given_partial_results_then_step_when_loaded_then_refused() {
 }
 
 #[test]
-fn given_each_turn_state_when_round_tripped_then_identical() {
-    for state in [
-        TurnState::AwaitingToolResults {
-            pending: vec![ToolCallId::new("a").unwrap(), ToolCallId::new("b").unwrap()],
-        },
-        TurnState::AwaitingStep,
-        TurnState::Finished {
-            stop_reason: StopReason::EndTurn,
-        },
+fn given_each_turn_state_when_serialized_then_type_tagged() {
+    for (state, json) in [
+        (
+            TurnState::AwaitingToolResults {
+                pending: vec![ToolCallId::new("a").unwrap(), ToolCallId::new("b").unwrap()],
+            },
+            serde_json::json!({ "type": "awaiting_tool_results", "pending": ["a", "b"] }),
+        ),
+        (
+            TurnState::AwaitingStep,
+            serde_json::json!({ "type": "awaiting_step" }),
+        ),
+        (
+            TurnState::Finished {
+                stop_reason: StopReason::EndTurn,
+            },
+            serde_json::json!({ "type": "finished", "stop_reason": { "type": "end_turn" } }),
+        ),
     ] {
-        let json = serde_json::to_value(&state).unwrap();
-        assert_eq!(serde_json::from_value::<TurnState>(json).unwrap(), state);
+        assert_eq!(serde_json::to_value(&state).unwrap(), json);
     }
 }

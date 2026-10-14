@@ -1,9 +1,9 @@
 nonempty_string_newtype!(ToolCallId, "tool_call_id");
-nonempty_string_newtype!(ToolName, "tool_name");
 nonempty_string_newtype!(AuthorId, "author_id");
 nonempty_string_newtype!(AuthorName, "author_name");
 nonempty_string_newtype!(ModelId, "model_id");
 nonempty_string_newtype!(TurnId, "turn_id");
+nonempty_string_newtype!(RuntimeKind, "runtime_kind");
 
 #[cfg(test)]
 mod tests {
@@ -17,10 +17,6 @@ mod tests {
             Err(MessageError::Blank {
                 field: "tool_call_id"
             })
-        ));
-        assert!(matches!(
-            ToolName::new(""),
-            Err(MessageError::Blank { field: "tool_name" })
         ));
         assert!(matches!(
             AuthorId::new(""),
@@ -40,6 +36,12 @@ mod tests {
             TurnId::new(""),
             Err(MessageError::Blank { field: "turn_id" })
         ));
+        assert!(matches!(
+            RuntimeKind::new(""),
+            Err(MessageError::Blank {
+                field: "runtime_kind"
+            })
+        ));
     }
 
     #[test]
@@ -51,7 +53,10 @@ mod tests {
 
     #[test]
     fn given_single_space_when_new_then_accepted() {
-        assert!(ToolName::new(" ").is_ok());
+        assert!(ToolCallId::new(" ").is_ok());
+        assert!(ModelId::new(" ").is_ok());
+        assert!(TurnId::new(" ").is_ok());
+        assert!(RuntimeKind::new(" ").is_ok());
     }
 
     #[test]
@@ -65,5 +70,6 @@ mod tests {
     #[test]
     fn given_empty_json_string_when_deserialized_then_refused() {
         assert!(serde_json::from_str::<ToolCallId>("\"\"").is_err());
+        assert!(serde_json::from_str::<RuntimeKind>("\"\"").is_err());
     }
 }

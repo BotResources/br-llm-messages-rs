@@ -129,28 +129,6 @@ fn given_empty_structured_block_when_finish_then_invalid_json() {
 }
 
 #[test]
-fn given_empty_text_block_when_finish_then_blank_text() {
-    let mut draft = draft();
-    draft
-        .apply(StreamEvent::BlockStart {
-            index: 0,
-            kind: BlockKind::Text,
-        })
-        .unwrap();
-    draft.apply(StreamEvent::BlockEnd { index: 0 }).unwrap();
-    draft
-        .apply(StreamEvent::Finish {
-            stop_reason: StopReason::EndTurn,
-            usage: None,
-        })
-        .unwrap();
-    assert!(matches!(
-        draft.finish(None),
-        Err(MessageError::Blank { field: "text" })
-    ));
-}
-
-#[test]
 fn given_tool_call_with_non_awaiting_finish_when_finish_then_tool_calls_without_awaiting() {
     let mut draft = draft();
     draft

@@ -1,5 +1,8 @@
 use crate::value::{Text, ToolCallId, ToolName};
 
+/// A block of a tool result. It may grow in a later version, so code that
+/// matches on it must allow for kinds it does not know; JSON naming a kind
+/// this version does not know is refused.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[non_exhaustive]

@@ -18,7 +18,9 @@ pub enum WireUserBlock {
     ToolResult(ToolResult),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+/// The agent a conversation is rendered for. It serializes for a reader but
+/// is not loaded from JSON.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Perspective {
     pub agent: Author,
 }
@@ -106,12 +108,11 @@ mod tests {
     }
 
     #[test]
-    fn given_perspective_when_round_tripped_then_identical() {
+    fn given_perspective_when_serialized_then_names_its_agent() {
         let perspective = Perspective::new(Author::new("id-agent-a", "agent-a").unwrap());
-        let json = serde_json::to_value(&perspective).unwrap();
         assert_eq!(
-            serde_json::from_value::<Perspective>(json).unwrap(),
-            perspective
+            serde_json::to_value(&perspective).unwrap(),
+            serde_json::json!({ "agent": { "id": "id-agent-a", "name": "agent-a" } })
         );
     }
 }
