@@ -105,11 +105,16 @@ impl Conversation {
     /// Entries taken from a conversation, kept in order with their entry ids
     /// and tool call ids: both are already unique.
     pub(crate) fn from_entries(entries: Vec<Entry>) -> Self {
-        let positions = entries
+        let positions: HashMap<String, usize> = entries
             .iter()
             .enumerate()
             .map(|(position, entry)| (entry.id().to_owned(), position))
             .collect();
+        debug_assert_eq!(
+            positions.len(),
+            entries.len(),
+            "from_entries takes entries whose ids are already unique"
+        );
         let call_ids = entries
             .iter()
             .filter_map(Entry::as_turn)

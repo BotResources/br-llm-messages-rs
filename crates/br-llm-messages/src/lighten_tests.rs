@@ -234,8 +234,10 @@ fn given_render_starting_with_own_turn_or_empty_when_lightened_then_same_refusal
     assert_render_preserved(&Conversation::new(), &perspective_a());
 }
 
+/// A lightened conversation is a view for one render, never stored as the
+/// conversation; reloading it only proves the view obeys every load rule.
 #[test]
-fn given_lightened_conversation_when_serialized_then_reloads_identically() {
+fn given_lightened_view_when_reloaded_then_a_valid_conversation_under_every_load_rule() {
     let original = conversation(vec![
         Entry::UserInput(human("question")),
         Entry::Turn(own_finished_turn("t1")),
