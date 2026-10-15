@@ -6,13 +6,13 @@
 //!
 //! ```
 //! use br_llm_messages::{
-//!     Conversation, Image, MessageError, Step, StopReason, StreamEvent, Text, ToolResults, Turn,
-//!     Usage, UserInput, WireMessage, lighten,
+//!     Conversation, Image, InputId, MessageError, Step, StopReason, StreamEvent, Text,
+//!     ToolResults, Turn, Usage, UserInput, WireMessage, lighten,
 //! };
 //! let _ = lighten;
 //! fn _named(
-//!     _: Conversation, _: Image, _: MessageError, _: Step, _: StopReason, _: StreamEvent,
-//!     _: Text, _: ToolResults, _: Turn, _: Usage, _: UserInput, _: WireMessage,
+//!     _: Conversation, _: Image, _: InputId, _: MessageError, _: Step, _: StopReason,
+//!     _: StreamEvent, _: Text, _: ToolResults, _: Turn, _: Usage, _: UserInput, _: WireMessage,
 //! ) {}
 //! ```
 //!
@@ -66,4 +66,8 @@
 //!
 //! ```compile_fail,E0603
 //! use br_llm_messages::value::Text;
+//! ```
+//!
+//! ```compile_fail,E0603
+//! use br_llm_messages::value::InputId;
 //! ```

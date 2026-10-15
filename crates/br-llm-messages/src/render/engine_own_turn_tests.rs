@@ -16,7 +16,7 @@ fn given_two_own_turns_back_to_back_when_rendered_then_each_step_verbatim_assist
     turn_two.push_step(end_step()).unwrap();
 
     let mut conversation = Conversation::new();
-    conversation.push_input(human("question"));
+    conversation.push_input(human("question")).unwrap();
     conversation.push_turn(turn_one).unwrap();
     conversation.push_turn(turn_two).unwrap();
 
@@ -64,7 +64,7 @@ fn given_own_step_with_redacted_and_structured_when_rendered_then_content_verbat
     let turn = Turn::new(TurnId::new("t1").unwrap(), Some(agent()), step.clone());
 
     let mut conversation = Conversation::new();
-    conversation.push_input(human("question"));
+    conversation.push_input(human("question")).unwrap();
     conversation.push_turn(turn).unwrap();
 
     let wire = render(&conversation, &perspective()).unwrap();

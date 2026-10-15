@@ -9,6 +9,87 @@ form to decide whether a version ships.
 
 ## Unreleased
 
+## 0.5.0 - 2026-10-15
+
+Breaking: a user input carries a required id chosen by its creator, entry
+ids (input ids and turn ids together) are unique in the conversation, and
+the stored schema moves to `br-llm-messages/3`; documents stored under
+`br-llm-messages/2` no longer load.
+
+### Added
+
+- `InputId`: the id of a user input, chosen by whoever creates the input
+  (the library never makes one up), refused when empty
+  (`Blank { field: "input_id" }`); one space is accepted; reached from the
+  crate root.
+- `UserInput::id()`.
+- `Conversation::entry(&str) -> Option<&Entry>`: an entry, input or turn, is
+  found by its id, beside `Conversation::turn(&TurnId)`. Input ids and turn
+  ids are one space, so the lookup takes the id text.
+- `Entry::id() -> &str`: the input id of an input, the turn id of a turn.
+- `MessageError::DuplicateEntryId { id: String }`: an input or a turn whose
+  id is already the id of an entry, input or turn.
+
+### Changed
+
+- **Breaking:** `UserInput::new(id, source, author, content)` takes the
+  input's `InputId` first.
+- **Breaking:** JSON: a user input is `{"id", "source", "author"?,
+  "content"}`; `id` is required, so an input without id no longer loads, on
+  its own or inside a conversation.
+- **Breaking:** entry ids, input ids and turn ids together, are unique in the
+  conversation: an input and a turn never share an id. `Conversation::push_input`
+  now returns `Result<(), MessageError>` and refuses an input whose id is
+  used by any entry; `Conversation::push_turn` refuses a turn whose id is
+  used by any entry, input included. Both refuse with `DuplicateEntryId`,
+  at construction (the conversation unchanged) and on load. A turn's entry
+  id is checked before its tool call ids.
+- **Breaking:** `MessageError::DuplicateTurnId { id: TurnId }` is replaced by
+  `MessageError::DuplicateEntryId { id: String }`.
+- **Breaking:** `SCHEMA_VERSION` is `br-llm-messages/3`; any other schema,
+  `br-llm-messages/2` included, is refused on load. Entries are still loaded
+  first, and the schema is checked before the duplicate entry id, so a wrong
+  schema wins over a duplicate entry id.
+- `Conversation::turn`, `push_step` and `push_result` reach a turn through an
+  index of the entries by id; the id of an input reaches no turn
+  (`TurnNotFound`).
+- Lightening keeps user inputs and own turns as they are, ids included; the
+  rustdoc of `lighten` states that a lightened conversation is a view for one
+  render, never stored as the conversation. No behaviour change.
+- Perspective render: unchanged. No entry id appears in a render: frames
+  carry the author's name, the role and the kind, and wire messages carry no
+  id.
+
+### Tests
+
+- `InputId`: empty refused, one space accepted, kept verbatim, at
+  construction and on load; a user input without id or with an empty id
+  refused on load; its JSON is `{"id", "source", "author"?, "content"}`.
+- Entry ids: an input or a turn reusing the id of an input or a turn refused
+  at construction (conversation unchanged) and on load, in all four pairings;
+  the entry id reported before a reused call id; ids differing by whitespace
+  distinct; lookup of inputs and turns by id; the id of an input reaches no
+  turn.
+- Schema: `br-llm-messages/3` loads with ids and re-serializes identically;
+  `br-llm-messages/1` and `/2` refused as a schema mismatch; a wrong schema
+  wins over a duplicate entry id; a refused entry wins over a wrong schema.
+- Random walks mint distinct input ids. On every state: every entry is found
+  by its id, an input and a turn reusing each entry id are refused with the
+  conversation unchanged, and a stored conversation with an entry appended
+  under a used id is refused on load.
+- Piece by piece: a stored input carries its id and reloads equal; an input
+  whose id is used is refused when pushed back; rebuilding by pushes still
+  equals the original.
+- Render: no entry id appears in the render of every kind of entry (inputs,
+  own turns, another agent's turn, a relay) nor on any state of the walks,
+  original or lightened, for every agent; renaming every entry leaves the
+  render unchanged.
+- Lightening: entry ids kept in order, on fixtures and on every state of the
+  walks; a lightened conversation still finds entries by id and refuses a
+  reused entry id.
+- Public surface: `InputId` named from the crate root, unreachable through
+  `value`; `SCHEMA_VERSION` is `br-llm-messages/3`.
+
 ## 0.4.0 - 2026-10-14
 
 Breaking: stricter rules on tool names, tool call ids and tool results, a

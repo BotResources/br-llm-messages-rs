@@ -1,3 +1,4 @@
+nonempty_string_newtype!(InputId, "input_id");
 nonempty_string_newtype!(ToolCallId, "tool_call_id");
 nonempty_string_newtype!(AuthorId, "author_id");
 nonempty_string_newtype!(AuthorName, "author_name");
@@ -12,6 +13,10 @@ mod tests {
 
     #[test]
     fn given_empty_string_when_new_then_blank() {
+        assert!(matches!(
+            InputId::new(""),
+            Err(MessageError::Blank { field: "input_id" })
+        ));
         assert!(matches!(
             ToolCallId::new(""),
             Err(MessageError::Blank {
@@ -53,6 +58,7 @@ mod tests {
 
     #[test]
     fn given_single_space_when_new_then_accepted() {
+        assert!(InputId::new(" ").is_ok());
         assert!(ToolCallId::new(" ").is_ok());
         assert!(ModelId::new(" ").is_ok());
         assert!(TurnId::new(" ").is_ok());
@@ -68,7 +74,15 @@ mod tests {
     }
 
     #[test]
+    fn given_one_space_json_string_when_deserialized_then_input_id_kept_verbatim() {
+        let id = serde_json::from_str::<InputId>("\" \"").unwrap();
+        assert_eq!(id.as_str(), " ");
+        assert_eq!(serde_json::to_string(&id).unwrap(), "\" \"");
+    }
+
+    #[test]
     fn given_empty_json_string_when_deserialized_then_refused() {
+        assert!(serde_json::from_str::<InputId>("\"\"").is_err());
         assert!(serde_json::from_str::<ToolCallId>("\"\"").is_err());
         assert!(serde_json::from_str::<RuntimeKind>("\"\"").is_err());
     }

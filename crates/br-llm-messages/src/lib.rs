@@ -23,7 +23,7 @@ mod only_from_the_root;
 #[cfg(test)]
 mod test_walk;
 
-pub const SCHEMA_VERSION: &str = "br-llm-messages/2";
+pub const SCHEMA_VERSION: &str = "br-llm-messages/3";
 
 pub use block::{
     AssistantBlock, Image, RedactedThinking, Thinking, ToolCall, ToolResult, ToolResultBlock,
@@ -41,6 +41,6 @@ pub use turn::{Turn, TurnItem, TurnState};
 pub use usage::Usage;
 pub use user_input::{UserInput, UserSource};
 pub use value::{
-    Author, AuthorId, AuthorName, Base64Data, ImageMime, ModelId, RuntimeKind, Signature, Text,
-    ToolCallId, ToolName, TurnId,
+    Author, AuthorId, AuthorName, Base64Data, ImageMime, InputId, ModelId, RuntimeKind, Signature,
+    Text, ToolCallId, ToolName, TurnId,
 };

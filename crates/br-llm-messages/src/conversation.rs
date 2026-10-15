@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use serde::ser::SerializeStruct;
 
@@ -20,9 +20,17 @@ pub enum Entry {
 /// removed or reordered, and a turn only receives steps and results at its
 /// end, so the position of an entry, and of an item or a result within its
 /// turn, is a stable address.
+///
+/// Entry ids, input ids and turn ids together, are unique in the
+/// conversation: an input and a turn never share an id, and an entry is
+/// found by its id.
 #[derive(Clone, Default)]
 pub struct Conversation {
     entries: Vec<Entry>,
+    /// The position of every entry by its id, derived from `entries` and kept
+    /// beside them so that the uniqueness of an entry id and the lookup of an
+    /// entry cost one lookup, on build and on load alike.
+    positions: HashMap<String, usize>,
     /// The id of every tool call of every turn, derived from `entries` and
     /// kept beside them so that the conversation-wide uniqueness of a call id
     /// costs one lookup per call, on build and on load alike.
@@ -59,7 +67,7 @@ impl TryFrom<RawConversation> for Conversation {
         let mut conversation = Conversation::new();
         for entry in raw.entries {
             match entry {
-                Entry::UserInput(input) => conversation.push_input(input),
+                Entry::UserInput(input) => conversation.push_input(input)?,
                 Entry::Turn(turn) => conversation.push_turn(turn)?,
             }
         }
@@ -94,34 +102,60 @@ impl Conversation {
         Self::default()
     }
 
-    /// Entries taken from a conversation, kept in order with their turn ids
+    /// Entries taken from a conversation, kept in order with their entry ids
     /// and tool call ids: both are already unique.
     pub(crate) fn from_entries(entries: Vec<Entry>) -> Self {
+        let positions: HashMap<String, usize> = entries
+            .iter()
+            .enumerate()
+            .map(|(position, entry)| (entry.id().to_owned(), position))
+            .collect();
+        debug_assert_eq!(
+            positions.len(),
+            entries.len(),
+            "from_entries takes entries whose ids are already unique"
+        );
         let call_ids = entries
             .iter()
             .filter_map(Entry::as_turn)
             .flat_map(Turn::tool_calls)
             .map(|call| call.id.clone())
             .collect();
-        Self { entries, call_ids }
-    }
-
-    pub fn push_input(&mut self, input: UserInput) {
-        self.entries.push(Entry::UserInput(input));
-    }
-
-    /// Accepts a turn whose id is new to the conversation and none of whose
-    /// tool call ids is used by a call of any turn.
-    pub fn push_turn(&mut self, turn: Turn) -> Result<(), MessageError> {
-        if self.turn(turn.id()).is_some() {
-            return Err(MessageError::DuplicateTurnId {
-                id: turn.id().clone(),
-            });
+        Self {
+            entries,
+            positions,
+            call_ids,
         }
+    }
+
+    /// Accepts an input whose id is the id of no entry, input or turn.
+    pub fn push_input(&mut self, input: UserInput) -> Result<(), MessageError> {
+        self.check_entry_id_unused(input.id().as_str())?;
+        self.push_entry(Entry::UserInput(input));
+        Ok(())
+    }
+
+    /// Accepts a turn whose id is the id of no entry, input or turn, and none
+    /// of whose tool call ids is used by a call of any turn.
+    pub fn push_turn(&mut self, turn: Turn) -> Result<(), MessageError> {
+        self.check_entry_id_unused(turn.id().as_str())?;
         let ids = self.unused_call_ids(turn.tool_calls())?;
-        self.entries.push(Entry::Turn(turn));
+        self.push_entry(Entry::Turn(turn));
         self.call_ids.extend(ids);
         Ok(())
+    }
+
+    fn check_entry_id_unused(&self, id: &str) -> Result<(), MessageError> {
+        if self.positions.contains_key(id) {
+            return Err(MessageError::DuplicateEntryId { id: id.to_owned() });
+        }
+        Ok(())
+    }
+
+    fn push_entry(&mut self, entry: Entry) {
+        self.positions
+            .insert(entry.id().to_owned(), self.entries.len());
+        self.entries.push(entry);
     }
 
     pub fn push_result(
@@ -167,23 +201,27 @@ impl Conversation {
     }
 
     fn turn_mut(&mut self, turn_id: &TurnId) -> Result<&mut Turn, MessageError> {
-        for entry in &mut self.entries {
-            if let Entry::Turn(turn) = entry
-                && turn.id() == turn_id
-            {
-                return Ok(turn);
-            }
+        let position = self.positions.get(turn_id.as_str()).copied();
+        match position.map(|position| &mut self.entries[position]) {
+            Some(Entry::Turn(turn)) => Ok(turn),
+            Some(Entry::UserInput(_)) | None => Err(MessageError::TurnNotFound {
+                id: turn_id.clone(),
+            }),
         }
-        Err(MessageError::TurnNotFound {
-            id: turn_id.clone(),
-        })
     }
 
+    /// The entry, input or turn, whose id is `id`. Input ids and turn ids are
+    /// one space: an input id and a turn id are the same entry id when their
+    /// texts are equal.
+    pub fn entry(&self, id: &str) -> Option<&Entry> {
+        self.positions
+            .get(id)
+            .map(|&position| &self.entries[position])
+    }
+
+    /// The turn whose id is `turn_id`; an input bearing that id is not a turn.
     pub fn turn(&self, turn_id: &TurnId) -> Option<&Turn> {
-        self.entries
-            .iter()
-            .filter_map(Entry::as_turn)
-            .find(|turn| turn.id() == turn_id)
+        self.entry(turn_id.as_str()).and_then(Entry::as_turn)
     }
 
     pub fn open_turns(&self) -> impl Iterator<Item = &Turn> {
@@ -199,6 +237,14 @@ impl Conversation {
 }
 
 impl Entry {
+    /// The id of the entry: the input id of an input, the turn id of a turn.
+    pub fn id(&self) -> &str {
+        match self {
+            Entry::UserInput(input) => input.id().as_str(),
+            Entry::Turn(turn) => turn.id().as_str(),
+        }
+    }
+
     fn as_turn(&self) -> Option<&Turn> {
         match self {
             Entry::Turn(turn) => Some(turn),
@@ -218,3 +264,7 @@ mod rules_tests;
 #[cfg(test)]
 #[path = "conversation_pieces_tests.rs"]
 mod pieces_tests;
+
+#[cfg(test)]
+#[path = "conversation_entry_id_tests.rs"]
+mod entry_id_tests;

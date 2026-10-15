@@ -12,7 +12,7 @@ use crate::turn::{Turn, TurnItem};
 use crate::usage::Usage;
 use crate::user_input::{UserInput, UserSource};
 use crate::value::{
-    Author, Base64Data, ImageMime, ModelId, Signature, Text, ToolCallId, ToolName, TurnId,
+    Author, Base64Data, ImageMime, InputId, ModelId, Signature, Text, ToolCallId, ToolName, TurnId,
 };
 
 pub(super) fn author(id: &str, name: &str) -> Author {
@@ -81,6 +81,7 @@ pub(super) fn result(id: &str) -> ToolResult {
 
 pub(super) fn human(body: &str) -> UserInput {
     UserInput::new(
+        InputId::new(format!("in-{body}")).unwrap(),
         UserSource::Human,
         Some(author("id-user", "Alice")),
         vec![UserBlock::text(Text::new(body).unwrap())],
@@ -90,6 +91,7 @@ pub(super) fn human(body: &str) -> UserInput {
 
 pub(super) fn runtime_with_image() -> UserInput {
     UserInput::new(
+        InputId::new("in-runtime-image").unwrap(),
         UserSource::runtime("upload").unwrap(),
         None,
         vec![
@@ -176,7 +178,7 @@ pub(super) fn conversation(entries: Vec<Entry>) -> Conversation {
     let mut conversation = Conversation::new();
     for entry in entries {
         match entry {
-            Entry::UserInput(input) => conversation.push_input(input),
+            Entry::UserInput(input) => conversation.push_input(input).unwrap(),
             Entry::Turn(turn) => conversation.push_turn(turn).unwrap(),
         }
     }

@@ -2,7 +2,7 @@ use super::test_helpers::*;
 use super::*;
 
 use crate::user_input::{UserInput, UserSource};
-use crate::value::{Author, Base64Data, ImageMime, TurnId};
+use crate::value::{Author, Base64Data, ImageMime, InputId, TurnId};
 
 #[test]
 fn given_trailing_input_after_open_turn_when_rendered_then_relay_after_results() {
@@ -10,9 +10,9 @@ fn given_trailing_input_after_open_turn_when_rendered_then_relay_after_results()
     turn.push_result(result("c1")).unwrap();
 
     let mut conversation = Conversation::new();
-    conversation.push_input(human("question"));
+    conversation.push_input(human("question")).unwrap();
     conversation.push_turn(turn).unwrap();
-    conversation.push_input(human("meanwhile"));
+    conversation.push_input(human("meanwhile")).unwrap();
 
     let wire = render(&conversation, &perspective()).unwrap();
     assert_eq!(wire.len(), 4);
@@ -43,10 +43,10 @@ fn given_several_trailing_inputs_after_open_turn_when_rendered_then_single_relay
     turn.push_result(result("c1")).unwrap();
 
     let mut conversation = Conversation::new();
-    conversation.push_input(human("question"));
+    conversation.push_input(human("question")).unwrap();
     conversation.push_turn(turn).unwrap();
-    conversation.push_input(human("first meanwhile"));
-    conversation.push_input(human("second meanwhile"));
+    conversation.push_input(human("first meanwhile")).unwrap();
+    conversation.push_input(human("second meanwhile")).unwrap();
 
     let wire = render(&conversation, &perspective()).unwrap();
     let relays: Vec<&WireMessage> = wire
@@ -70,6 +70,7 @@ fn given_relayed_input_with_image_when_rendered_then_image_on_preceding_user() {
     turn.push_result(result("c1")).unwrap();
 
     let relayed = UserInput::new(
+        InputId::new("in-relayed").unwrap(),
         UserSource::Human,
         None,
         vec![
@@ -80,9 +81,9 @@ fn given_relayed_input_with_image_when_rendered_then_image_on_preceding_user() {
     .unwrap();
 
     let mut conversation = Conversation::new();
-    conversation.push_input(human("question"));
+    conversation.push_input(human("question")).unwrap();
     conversation.push_turn(turn).unwrap();
-    conversation.push_input(relayed);
+    conversation.push_input(relayed).unwrap();
 
     let wire = render(&conversation, &perspective()).unwrap();
     assert_eq!(wire.len(), 4);
@@ -120,7 +121,7 @@ fn given_other_agent_turn_arriving_during_own_open_turn_when_rendered_then_folde
     other.push_step(end_step()).unwrap();
 
     let mut conversation = Conversation::new();
-    conversation.push_input(human("q"));
+    conversation.push_input(human("q")).unwrap();
     conversation.push_turn(own).unwrap();
     conversation.push_turn(other).unwrap();
 
@@ -156,7 +157,7 @@ fn given_other_agent_mid_flight_during_own_open_turn_when_rendered_then_calls_dr
     ));
 
     let mut conversation = Conversation::new();
-    conversation.push_input(human("q"));
+    conversation.push_input(human("q")).unwrap();
     conversation.push_turn(own).unwrap();
     conversation.push_turn(other).unwrap();
 
@@ -180,9 +181,9 @@ fn given_other_agent_mid_flight_during_own_open_turn_when_rendered_then_calls_dr
 #[test]
 fn given_trailing_input_after_finished_own_turn_when_rendered_then_opens_user_not_relay() {
     let mut conversation = Conversation::new();
-    conversation.push_input(human("question"));
+    conversation.push_input(human("question")).unwrap();
     conversation.push_turn(own_turn_finished()).unwrap();
-    conversation.push_input(human("afterwards"));
+    conversation.push_input(human("afterwards")).unwrap();
 
     let wire = render(&conversation, &perspective()).unwrap();
     assert!(

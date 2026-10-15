@@ -10,7 +10,7 @@ use crate::stop_reason::StopReason;
 use crate::test_walk::{agents, walk};
 use crate::turn::Turn;
 use crate::user_input::{UserInput, UserSource};
-use crate::value::{Author, Base64Data, ImageMime, Text, ToolName, TurnId};
+use crate::value::{Author, Base64Data, ImageMime, InputId, Text, ToolName, TurnId};
 
 fn agent(name: &str) -> Author {
     Author::new(format!("id-{name}"), name).unwrap()
@@ -58,6 +58,7 @@ fn result(id: &str) -> ToolResult {
 
 fn human(body: &str) -> UserInput {
     UserInput::new(
+        InputId::new(format!("in-{body}")).unwrap(),
         UserSource::Human,
         Some(agent("alice")),
         vec![UserBlock::text(Text::new(body).unwrap())],
@@ -67,6 +68,7 @@ fn human(body: &str) -> UserInput {
 
 fn runtime_image() -> UserInput {
     UserInput::new(
+        InputId::new("in-runtime-image").unwrap(),
         UserSource::runtime("upload").unwrap(),
         None,
         vec![UserBlock::Image(Image {
@@ -109,7 +111,7 @@ fn assert_render_passes(
 #[test]
 fn given_own_turns_with_several_rounds_when_rendered_then_the_list_passes() {
     let mut conversation = Conversation::new();
-    conversation.push_input(human("question"));
+    conversation.push_input(human("question")).unwrap();
     conversation
         .push_turn(answered_turn(
             "t1",
@@ -118,7 +120,7 @@ fn given_own_turns_with_several_rounds_when_rendered_then_the_list_passes() {
             true,
         ))
         .unwrap();
-    conversation.push_input(human("again"));
+    conversation.push_input(human("again")).unwrap();
     conversation
         .push_turn(answered_turn(
             "t2",
@@ -134,7 +136,7 @@ fn given_own_turns_with_several_rounds_when_rendered_then_the_list_passes() {
 #[test]
 fn given_framed_entries_of_other_agents_when_rendered_then_the_list_passes() {
     let mut conversation = Conversation::new();
-    conversation.push_input(runtime_image());
+    conversation.push_input(runtime_image()).unwrap();
     conversation
         .push_turn(answered_turn(
             "t1",
@@ -150,7 +152,7 @@ fn given_framed_entries_of_other_agents_when_rendered_then_the_list_passes() {
             call_step(&["c2"]),
         ))
         .unwrap();
-    conversation.push_input(human("question"));
+    conversation.push_input(human("question")).unwrap();
     let list = assert_render_passes(&conversation, &mine());
     assert_eq!(list.len(), 1);
 }
@@ -158,7 +160,7 @@ fn given_framed_entries_of_other_agents_when_rendered_then_the_list_passes() {
 #[test]
 fn given_own_open_turn_followed_by_entries_when_rendered_then_the_relay_list_passes() {
     let mut conversation = Conversation::new();
-    conversation.push_input(human("question"));
+    conversation.push_input(human("question")).unwrap();
     conversation
         .push_turn(answered_turn(
             "t1",
@@ -167,7 +169,7 @@ fn given_own_open_turn_followed_by_entries_when_rendered_then_the_relay_list_pas
             false,
         ))
         .unwrap();
-    conversation.push_input(runtime_image());
+    conversation.push_input(runtime_image()).unwrap();
     conversation
         .push_turn(Turn::new(
             TurnId::new("t2").unwrap(),
@@ -182,7 +184,7 @@ fn given_own_open_turn_followed_by_entries_when_rendered_then_the_relay_list_pas
 #[test]
 fn given_own_results_followed_by_framed_entries_when_rendered_then_the_merged_list_passes() {
     let mut conversation = Conversation::new();
-    conversation.push_input(human("question"));
+    conversation.push_input(human("question")).unwrap();
     conversation
         .push_turn(answered_turn(
             "t1",
@@ -191,7 +193,7 @@ fn given_own_results_followed_by_framed_entries_when_rendered_then_the_merged_li
             false,
         ))
         .unwrap();
-    conversation.push_input(human("interjection"));
+    conversation.push_input(human("interjection")).unwrap();
     conversation
         .push_turn(answered_turn(
             "t2",

@@ -7,10 +7,15 @@ use crate::turn::{Turn, TurnItem};
 /// Lightens a conversation for one perspective: the result renders for that
 /// perspective exactly as the original does, or is refused the same way.
 ///
-/// User inputs and the agent's own turns are kept as they are, in order.
-/// Every other turn keeps its id and its author and holds one finished step
-/// made of the texts and structured values of its steps, in order, or of one
-/// empty thinking block when it has none.
+/// User inputs and the agent's own turns are kept as they are, ids included,
+/// and the entries keep their order. Every other turn keeps its id and its
+/// author and holds one finished step (`end_turn`) made of the texts and
+/// structured values of its steps, in order, or of one empty thinking block
+/// when it has none.
+///
+/// A lightened conversation is a view for one render: its steps were written
+/// by no model, so it is never stored as the conversation. Store and grow the
+/// original, and lighten it again for each render.
 pub fn lighten(conversation: &Conversation, perspective: &Perspective) -> Conversation {
     let entries = conversation
         .entries()

@@ -5,12 +5,14 @@ use crate::block::{AssistantBlock, UserBlock};
 use crate::step::Step;
 use crate::stop_reason::StopReason;
 use crate::user_input::{UserInput, UserSource};
-use crate::value::{Author, TurnId};
+use crate::value::{Author, InputId, TurnId};
 
 #[test]
 fn given_markup_in_input_when_rendered_then_body_inserted_verbatim() {
     let mut conversation = Conversation::new();
-    conversation.push_input(human("<page>x < 5 & y > 2</page>"));
+    conversation
+        .push_input(human("<page>x < 5 & y > 2</page>"))
+        .unwrap();
 
     let wire = render(&conversation, &perspective()).unwrap();
     assert_eq!(
@@ -36,7 +38,7 @@ fn given_markup_in_other_agent_turn_when_rendered_then_body_inserted_verbatim() 
         step,
     );
     let mut conversation = Conversation::new();
-    conversation.push_input(human("hi"));
+    conversation.push_input(human("hi")).unwrap();
     conversation.push_turn(turn).unwrap();
 
     let wire = render(&conversation, &perspective()).unwrap();
@@ -50,13 +52,14 @@ fn given_markup_in_other_agent_turn_when_rendered_then_body_inserted_verbatim() 
 #[test]
 fn given_markup_in_author_and_kind_when_rendered_then_attributes_inserted_verbatim() {
     let input = UserInput::new(
+        InputId::new("in-markup").unwrap(),
         UserSource::runtime("a\"b").unwrap(),
         Some(Author::new("id-x", "x<y&\"z\"").unwrap()),
         vec![UserBlock::text(Text::new("body").unwrap())],
     )
     .unwrap();
     let mut conversation = Conversation::new();
-    conversation.push_input(input);
+    conversation.push_input(input).unwrap();
 
     let wire = render(&conversation, &perspective()).unwrap();
     assert_eq!(

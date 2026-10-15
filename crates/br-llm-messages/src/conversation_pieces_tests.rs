@@ -211,8 +211,32 @@ fn given_standalone_pieces_breaking_their_rules_when_loaded_then_refused() {
     assert!(serde_json::from_value::<ToolResult>(result).is_err());
     let result = serde_json::json!({ "tool_call_id": "c1", "tool_name": "a b", "is_error": false });
     assert!(serde_json::from_value::<ToolResult>(result).is_err());
-    let input = serde_json::json!({ "source": { "type": "human" }, "content": [] });
+    let input = serde_json::json!({ "id": "i1", "source": { "type": "human" }, "content": [] });
     assert!(serde_json::from_value::<UserInput>(input).is_err());
+    let text = serde_json::json!([ { "type": "text", "text": "hi" } ]);
+    let input = serde_json::json!({ "id": "", "source": { "type": "human" }, "content": text });
+    assert!(serde_json::from_value::<UserInput>(input).is_err());
+    let input = serde_json::json!({ "source": { "type": "human" }, "content": text });
+    assert!(serde_json::from_value::<UserInput>(input).is_err());
+}
+
+#[test]
+fn given_walks_when_an_input_is_stored_alone_then_it_carries_its_id_and_reloads_equal() {
+    let mut inputs = 0;
+    for seed in 0..SEEDS {
+        let (_, pieces) = walk(seed, LENGTH, |_, _| {});
+        for piece in &pieces {
+            let Piece::Input(input) = piece else {
+                continue;
+            };
+            let stored = json(input);
+            let value: serde_json::Value = load(&stored);
+            assert_eq!(value["id"], serde_json::json!(input.id().as_str()));
+            assert_eq!(&load::<UserInput>(&stored), input);
+            inputs += 1;
+        }
+    }
+    assert!(inputs > 1_000, "{inputs}");
 }
 
 #[test]
@@ -244,6 +268,14 @@ fn given_stored_pieces_construction_refuses_when_pushed_back_then_refused_by_the
         conversation.push_turn(crate::turn::Turn::new(load(r#""t2""#), Some(author), first)),
         Err(MessageError::DuplicateToolCallIdInConversation {
             id: ToolCallId::new("c1").unwrap()
+        })
+    );
+    let reused: UserInput =
+        load(r#"{"id":"t1","source":{"type":"human"},"content":[{"type":"text","text":"hi"}]}"#);
+    assert_eq!(
+        conversation.push_input(reused),
+        Err(MessageError::DuplicateEntryId {
+            id: "t1".to_owned()
         })
     );
 }

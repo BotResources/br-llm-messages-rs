@@ -5,7 +5,7 @@ use crate::block::{AssistantBlock, Thinking, ToolCall};
 use crate::step::Step;
 use crate::stop_reason::StopReason;
 use crate::user_input::{UserInput, UserSource};
-use crate::value::{Author, Base64Data, ImageMime, ToolCallId, ToolName, TurnId};
+use crate::value::{Author, Base64Data, ImageMime, InputId, ToolCallId, ToolName, TurnId};
 
 #[test]
 fn given_own_turn_when_rendered_then_steps_verbatim() {
@@ -16,7 +16,7 @@ fn given_own_turn_when_rendered_then_steps_verbatim() {
     turn.push_step(step2.clone()).unwrap();
 
     let mut conversation = Conversation::new();
-    conversation.push_input(human("question"));
+    conversation.push_input(human("question")).unwrap();
     conversation.push_turn(turn).unwrap();
 
     let wire = render(&conversation, &perspective()).unwrap();
@@ -45,7 +45,7 @@ fn given_own_turn_awaiting_step_as_last_entry_when_rendered_then_ends_with_tool_
     turn.push_result(result("c1")).unwrap();
 
     let mut conversation = Conversation::new();
-    conversation.push_input(human("question"));
+    conversation.push_input(human("question")).unwrap();
     conversation.push_turn(turn).unwrap();
 
     let wire = render(&conversation, &perspective()).unwrap();
@@ -77,7 +77,7 @@ fn given_other_agent_turn_when_rendered_then_framed_as_agent_dropping_thinking_a
     turn.push_step(end_step()).unwrap();
 
     let mut conversation = Conversation::new();
-    conversation.push_input(human("hi"));
+    conversation.push_input(human("hi")).unwrap();
     conversation.push_turn(turn).unwrap();
 
     let wire = render(&conversation, &perspective()).unwrap();
@@ -104,7 +104,7 @@ fn given_other_agent_turn_mid_flight_when_rendered_then_framed_dropping_calls() 
     ));
 
     let mut conversation = Conversation::new();
-    conversation.push_input(human("hi"));
+    conversation.push_input(human("hi")).unwrap();
     conversation.push_turn(turn).unwrap();
 
     let wire = render(&conversation, &perspective()).unwrap();
@@ -150,7 +150,7 @@ fn given_other_agent_structured_block_when_rendered_then_json_in_frame_dropping_
     );
 
     let mut conversation = Conversation::new();
-    conversation.push_input(human("hi"));
+    conversation.push_input(human("hi")).unwrap();
     conversation.push_turn(turn).unwrap();
 
     let wire = render(&conversation, &perspective()).unwrap();
@@ -166,13 +166,14 @@ fn given_other_agent_structured_block_when_rendered_then_json_in_frame_dropping_
 #[test]
 fn given_runtime_input_when_rendered_then_runtime_role_and_kind() {
     let input = UserInput::new(
+        InputId::new("in-runtime").unwrap(),
         UserSource::runtime("task notification").unwrap(),
         Some(Author::new("id-scheduler", "scheduler").unwrap()),
         vec![crate::block::UserBlock::text(Text::new("wake").unwrap())],
     )
     .unwrap();
     let mut conversation = Conversation::new();
-    conversation.push_input(input);
+    conversation.push_input(input).unwrap();
 
     let wire = render(&conversation, &perspective()).unwrap();
     let framed = frame_text(&wire[0]);
@@ -184,8 +185,8 @@ fn given_runtime_input_when_rendered_then_runtime_role_and_kind() {
 #[test]
 fn given_consecutive_inputs_when_rendered_then_merged_into_one_user_message() {
     let mut conversation = Conversation::new();
-    conversation.push_input(human("first"));
-    conversation.push_input(human("second"));
+    conversation.push_input(human("first")).unwrap();
+    conversation.push_input(human("second")).unwrap();
 
     let wire = render(&conversation, &perspective()).unwrap();
     assert_eq!(wire.len(), 1);
@@ -200,7 +201,7 @@ fn given_earlier_own_turn_awaiting_results_when_rendered_then_refused() {
     let finished = Turn::new(TurnId::new("t2").unwrap(), Some(agent()), end_step());
 
     let mut conversation = Conversation::new();
-    conversation.push_input(human("q"));
+    conversation.push_input(human("q")).unwrap();
     conversation.push_turn(awaiting).unwrap();
     conversation.push_turn(finished).unwrap();
 
@@ -214,7 +215,7 @@ fn given_earlier_own_turn_awaiting_results_when_rendered_then_refused() {
 fn given_own_last_turn_awaiting_results_when_rendered_then_refused() {
     let turn = Turn::new(TurnId::new("t1").unwrap(), Some(agent()), call_step("c1"));
     let mut conversation = Conversation::new();
-    conversation.push_input(human("q"));
+    conversation.push_input(human("q")).unwrap();
     conversation.push_turn(turn).unwrap();
 
     assert!(matches!(
@@ -246,6 +247,7 @@ fn given_empty_conversation_when_rendered_then_refused() {
 #[test]
 fn given_input_with_image_when_rendered_then_image_after_frame() {
     let input = UserInput::new(
+        InputId::new("in-image").unwrap(),
         UserSource::Human,
         None,
         vec![
@@ -255,7 +257,7 @@ fn given_input_with_image_when_rendered_then_image_after_frame() {
     )
     .unwrap();
     let mut conversation = Conversation::new();
-    conversation.push_input(input);
+    conversation.push_input(input).unwrap();
 
     let wire = render(&conversation, &perspective()).unwrap();
     match &wire[0] {
@@ -273,7 +275,7 @@ fn given_input_with_image_when_rendered_then_image_after_frame() {
 fn given_authorless_other_turn_when_rendered_then_agent_role_without_author() {
     let turn = Turn::new(TurnId::new("t3").unwrap(), None, end_step());
     let mut conversation = Conversation::new();
-    conversation.push_input(human("hi"));
+    conversation.push_input(human("hi")).unwrap();
     conversation.push_turn(turn).unwrap();
 
     let wire = render(&conversation, &perspective()).unwrap();
