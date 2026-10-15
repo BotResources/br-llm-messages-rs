@@ -22,6 +22,39 @@ fn given_inputs_and_own_turns_when_lightened_then_kept_as_they_are() {
     assert_eq!(json(&lightened), json(&original));
 }
 
+fn entry_ids(conversation: &Conversation) -> Vec<&str> {
+    conversation.entries().iter().map(Entry::id).collect()
+}
+
+#[test]
+fn given_every_kind_of_entry_when_lightened_then_ids_kept_in_order_and_still_unique() {
+    let original = conversation(vec![
+        Entry::UserInput(human("question")),
+        Entry::Turn(own_finished_turn("t1")),
+        Entry::Turn(multi_step_turn("t2", Some(agent_b()))),
+        Entry::UserInput(runtime_with_image()),
+        Entry::Turn(silent_turn("t3", None)),
+    ]);
+    let mut lightened = lighten(&original, &perspective_a());
+
+    assert_eq!(entry_ids(&lightened), entry_ids(&original));
+    assert_eq!(
+        entry_ids(&lightened),
+        ["in-question", "t1", "t2", "in-runtime-image", "t3"]
+    );
+    assert!(matches!(lightened.entry("t2"), Some(Entry::Turn(_))));
+    assert!(matches!(
+        lightened.entry("in-question"),
+        Some(Entry::UserInput(_))
+    ));
+    assert_eq!(
+        lightened.push_turn(silent_turn("in-question", None)),
+        Err(MessageError::DuplicateEntryId {
+            id: "in-question".to_owned()
+        })
+    );
+}
+
 #[test]
 fn given_other_agent_multi_step_turn_when_lightened_then_one_end_turn_step_of_texts_and_structured()
 {
@@ -233,7 +266,9 @@ fn given_every_state_of_random_walks_when_lightened_for_each_agent_then_render_u
         crate::test_walk::walk(seed, 40, |_, conversation| {
             for perspective in &perspectives {
                 let original = render(conversation, perspective);
-                let lightened = render(&lighten(conversation, perspective), perspective);
+                let light = lighten(conversation, perspective);
+                assert_eq!(entry_ids(&light), entry_ids(conversation), "seed {seed}");
+                let lightened = render(&light, perspective);
                 assert_eq!(lightened, original, "seed {seed}");
                 match original {
                     Ok(_) => rendered += 1,

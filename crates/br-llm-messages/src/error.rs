@@ -63,8 +63,10 @@ pub enum MessageError {
         state: TurnStateLabel,
     },
     TurnMustStartWithStep,
-    DuplicateTurnId {
-        id: TurnId,
+    /// An input or a turn whose id is already the id of an entry, input or
+    /// turn: entry ids are one space, unique in the conversation.
+    DuplicateEntryId {
+        id: String,
     },
     TurnNotFound {
         id: TurnId,
@@ -181,8 +183,11 @@ impl std::fmt::Display for MessageError {
             MessageError::TurnMustStartWithStep => {
                 f.write_str("a turn must start with a step, not a results item")
             }
-            MessageError::DuplicateTurnId { id } => {
-                write!(f, "turn id {id} already exists in the conversation")
+            MessageError::DuplicateEntryId { id } => {
+                write!(
+                    f,
+                    "entry id {id} is already used by an entry of the conversation"
+                )
             }
             MessageError::TurnNotFound { id } => {
                 write!(f, "no turn with id {id} in the conversation")

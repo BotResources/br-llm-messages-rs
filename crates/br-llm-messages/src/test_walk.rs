@@ -14,7 +14,7 @@ use crate::turn::TurnState;
 use crate::usage::Usage;
 use crate::user_input::{UserInput, UserSource};
 use crate::value::{
-    Author, Base64Data, ImageMime, ModelId, Signature, Text, ToolCallId, ToolName, TurnId,
+    Author, Base64Data, ImageMime, InputId, ModelId, Signature, Text, ToolCallId, ToolName, TurnId,
 };
 
 /// One piece appended to a conversation, in the words of the intent: an
@@ -41,7 +41,7 @@ pub(crate) enum Piece {
 impl Piece {
     pub(crate) fn push_onto(self, conversation: &mut Conversation) {
         match self {
-            Piece::Input(input) => conversation.push_input(input),
+            Piece::Input(input) => conversation.push_input(input).unwrap(),
             Piece::Turn { id, author, first } => conversation
                 .push_turn(crate::turn::Turn::new(id, author, first))
                 .unwrap(),
@@ -109,8 +109,11 @@ pub(crate) fn walk(
     (conversation, pieces)
 }
 
+/// Mints the ids of a walk, each distinct: input ids, turn ids and tool call
+/// ids are never reused, so every push the walk makes is accepted.
 #[derive(Default)]
 struct Walker {
+    inputs: usize,
     turns: usize,
     calls: usize,
 }
@@ -161,7 +164,8 @@ impl Walker {
                 first: self.step(rng),
             };
         }
-        Piece::Input(input(rng))
+        self.inputs += 1;
+        Piece::Input(input(rng, self.inputs))
     }
 
     fn step(&mut self, rng: &mut Rng) -> Step {
@@ -240,7 +244,7 @@ fn tool_result(rng: &mut Rng, id: ToolCallId, name: ToolName) -> ToolResult {
     ToolResult::new(id, name, content, rng.chance(20))
 }
 
-fn input(rng: &mut Rng) -> UserInput {
+fn input(rng: &mut Rng, number: usize) -> UserInput {
     let source = if rng.chance(70) {
         UserSource::Human
     } else {
@@ -261,5 +265,6 @@ fn input(rng: &mut Rng) -> UserInput {
             data: Base64Data::new("aGk=").unwrap(),
         }));
     }
-    UserInput::new(source, author, content).unwrap()
+    let id = InputId::new(format!("input-{number}")).unwrap();
+    UserInput::new(id, source, author, content).unwrap()
 }

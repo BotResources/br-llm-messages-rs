@@ -50,7 +50,7 @@ mod tool_name;
 
 pub use author::Author;
 pub use base64::Base64Data;
-pub use identifiers::{AuthorId, AuthorName, ModelId, RuntimeKind, ToolCallId, TurnId};
+pub use identifiers::{AuthorId, AuthorName, InputId, ModelId, RuntimeKind, ToolCallId, TurnId};
 pub use mime::ImageMime;
 pub use signature::Signature;
 pub use text::Text;

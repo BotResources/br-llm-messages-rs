@@ -10,7 +10,7 @@ use std::marker::PhantomData;
 
 use br_llm_messages::{
     AssistantBlock, Author, AuthorId, AuthorName, Base64Data, BlockKind, Conversation, Entry,
-    Image, ImageMime, MessageError, ModelId, Perspective, RedactedThinking, RuntimeKind,
+    Image, ImageMime, InputId, MessageError, ModelId, Perspective, RedactedThinking, RuntimeKind,
     SCHEMA_VERSION, Signature, Step, StepDraft, StopReason, StreamEvent, Text, Thinking, ToolCall,
     ToolCallId, ToolName, ToolResult, ToolResultBlock, ToolResults, Turn, TurnId, TurnItem,
     TurnState, TurnStateLabel, Usage, UserBlock, UserInput, UserSource, WireMessage, WireUserBlock,
@@ -53,6 +53,7 @@ fn given_the_crate_root_when_every_public_type_is_named_then_each_resolves() {
         type_name::<Entry>(),
         type_name::<Image>(),
         type_name::<ImageMime>(),
+        type_name::<InputId>(),
         type_name::<MessageError>(),
         type_name::<ModelId>(),
         type_name::<Perspective>(),
@@ -98,7 +99,7 @@ fn given_the_crate_root_when_every_public_type_is_named_then_each_resolves() {
             .iter()
             .all(|name| name.contains("br_llm_messages"))
     );
-    assert_eq!(SCHEMA_VERSION, "br-llm-messages/2");
+    assert_eq!(SCHEMA_VERSION, "br-llm-messages/3");
 }
 
 fn type_name_of<T>(_: &T) -> &'static str {
@@ -149,6 +150,7 @@ fn given_closed_enums_when_matched_exhaustively_then_no_wildcard_is_needed() {
         },
         || match Entry::UserInput(
             UserInput::new(
+                InputId::new("i1").unwrap(),
                 UserSource::Human,
                 None,
                 vec![UserBlock::text(Text::new("x").unwrap())],

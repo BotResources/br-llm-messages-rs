@@ -177,3 +177,7 @@ mod relay_tests;
 #[cfg(test)]
 #[path = "engine_verbatim_tests.rs"]
 mod verbatim_tests;
+
+#[cfg(test)]
+#[path = "engine_entry_id_tests.rs"]
+mod entry_id_tests;
