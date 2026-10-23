@@ -1,58 +1,24 @@
-macro_rules! nonempty_string_newtype {
-    ($name:ident, $field:literal) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-        #[serde(try_from = "String", into = "String")]
-        pub struct $name(String);
-
-        impl $name {
-            pub fn new(value: impl Into<String>) -> Result<Self, $crate::error::MessageError> {
-                let value = value.into();
-                if value.is_empty() {
-                    return Err($crate::error::MessageError::Blank { field: $field });
-                }
-                Ok(Self(value))
-            }
-
-            pub fn as_str(&self) -> &str {
-                &self.0
-            }
-        }
-
-        impl std::fmt::Display for $name {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                f.write_str(&self.0)
-            }
-        }
-
-        impl std::convert::TryFrom<String> for $name {
-            type Error = $crate::error::MessageError;
-
-            fn try_from(value: String) -> Result<Self, Self::Error> {
-                Self::new(value)
-            }
-        }
-
-        impl std::convert::From<$name> for String {
-            fn from(value: $name) -> Self {
-                value.0
-            }
-        }
-    };
-}
-
 mod author;
 mod base64;
-mod identifiers;
-mod mime;
-mod signature;
+mod citation;
+mod ending;
+mod external;
+mod media;
+pub(crate) mod opaque;
+mod replay;
+mod status;
 mod text;
 mod tool_name;
+mod usage;
 
 pub use author::Author;
 pub use base64::Base64Data;
-pub use identifiers::{AuthorId, AuthorName, InputId, ModelId, RuntimeKind, ToolCallId, TurnId};
-pub use mime::ImageMime;
-pub use signature::Signature;
-pub use text::Text;
-pub(crate) use text::is_blank;
+pub use citation::{Citation, CitationSource, TextRange};
+pub use ending::ResponseEnding;
+pub use external::{ExternalId, ModelName, ProviderOperation};
+pub use media::{ImageSource, MediaType};
+pub use replay::{ReplayFormat, ReplayMaterial, ReplayPayload};
+pub use status::{ExecutionStatus, FailureDetail, ResultStatus};
+pub use text::PlainText;
 pub use tool_name::ToolName;
+pub use usage::Usage;

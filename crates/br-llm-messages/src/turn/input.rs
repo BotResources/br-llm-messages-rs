@@ -1,0 +1,62 @@
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
+use serde_json::Value;
+
+use super::declared::places_of_incoming;
+use super::kind::TurnKind;
+use crate::entry::IncomingEntry;
+use crate::error::{Error, ErrorCode};
+use crate::id::TurnId;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InputTurn {
+    id: TurnId,
+    entry: IncomingEntry,
+}
+
+impl Serialize for InputTurn {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut turn = serializer.serialize_struct("InputTurn", 3)?;
+        turn.serialize_field("type", TurnKind::InputTurn.as_str())?;
+        turn.serialize_field("id", &self.id)?;
+        turn.serialize_field("entry", &self.entry)?;
+        turn.end()
+    }
+}
+
+impl InputTurn {
+    pub fn new(id: TurnId, entry: impl Into<IncomingEntry>) -> Result<Self, Error> {
+        let entry = entry.into();
+        let clash = places_of_incoming(&entry, 0)
+            .into_iter()
+            .any(|(declared, _)| declared == id.as_uuid());
+        if clash {
+            return Err(Error::new(ErrorCode::ReusedIdentity).with_id(id.as_uuid()));
+        }
+        Ok(InputTurn { id, entry })
+    }
+
+    pub fn id(&self) -> TurnId {
+        self.id
+    }
+
+    pub fn entry(&self) -> &IncomingEntry {
+        &self.entry
+    }
+
+    pub fn to_json(&self) -> Result<String, Error> {
+        crate::json::encode(self)
+    }
+
+    pub fn from_json(text: &str) -> Result<Self, Error> {
+        super::json::input_from_value(crate::json::decode(text)?)
+    }
+
+    pub fn to_value(&self) -> Result<Value, Error> {
+        crate::json::encode_value(self)
+    }
+
+    pub fn from_value(value: Value) -> Result<Self, Error> {
+        super::json::input_from_value(value)
+    }
+}

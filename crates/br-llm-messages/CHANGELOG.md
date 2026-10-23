@@ -7,7 +7,19 @@ released under the tag `v{version}`. Format follows
 Release headings are plain `## X.Y.Z` — the release pipeline greps that exact
 form to decide whether a version ships.
 
-## Unreleased
+## 1.0.0 - 2026-10-23
+
+Breaking rewrite of the conversation model: a conversation is an ordered list
+of turns (`InputTurn`, `AITurn`) holding typed entries and content blocks,
+and every internal id is a validated UUIDv7.
+The stored schema is `br-llm-messages/4`, with `br-llm-messages-delta/1`,
+`br-llm-messages-draft/1` and `br-llm-messages-records/1`; documents stored
+under earlier schemas do not load.
+Added streaming drafts, storage-neutral records and perspective projection;
+removed `Step`, `TurnItem`, `UserInput`, `lighten` and `render`.
+Repeated JSON keys are refused on every read path, `from_json` and serde alike.
+Opaque JSON keeps number digits; two spellings are not kept: exponent form
+(`1E2` is written `1e+2`) and `-0` (written `0`).
 
 ## 0.5.0 - 2026-10-15
 

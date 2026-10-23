@@ -1,0 +1,52 @@
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
+use crate::entry::ResponseMetadata;
+use crate::error::Error;
+use crate::stream::draft::DraftPhase;
+use crate::stream::ops::InterruptionReason;
+use crate::value::{ExternalId, ModelName, Usage};
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Header {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    usage: Option<Usage>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    model: Option<ModelName>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    provider_response_id: Option<ExternalId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    interruption: Option<InterruptionReason>,
+}
+
+pub(super) fn write(metadata: &ResponseMetadata, phase: &DraftPhase) -> Result<Value, Error> {
+    let interruption = match phase {
+        DraftPhase::Interrupted(reason) => Some(reason.clone()),
+        _ => None,
+    };
+    let header = Header {
+        usage: metadata.usage().copied(),
+        model: metadata.model().cloned(),
+        provider_response_id: metadata.provider_response_id().cloned(),
+        interruption,
+    };
+    crate::json::encode_value(&header)
+}
+
+pub(super) fn read(
+    payload: Value,
+) -> Result<(ResponseMetadata, Option<InterruptionReason>), Error> {
+    let header: Header = crate::json::decode_value(payload).map_err(|error| error.at("payload"))?;
+    let mut metadata = ResponseMetadata::new();
+    if let Some(usage) = header.usage {
+        metadata = metadata.with_usage(usage);
+    }
+    if let Some(model) = header.model {
+        metadata = metadata.with_model(model);
+    }
+    if let Some(id) = header.provider_response_id {
+        metadata = metadata.with_provider_response_id(id);
+    }
+    Ok((metadata, header.interruption))
+}

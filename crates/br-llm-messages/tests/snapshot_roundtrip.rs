@@ -1,0 +1,178 @@
+mod common;
+mod snapshot_support;
+mod stream_support;
+
+use br_llm_messages::{
+    DeltaOp, DraftPhase, ErrorCode, FailureDetail, InterruptionReason, RepresentationState,
+    ResponseDraft, SlotLifecycle,
+};
+use common::bid;
+use serde_json::json;
+use snapshot_support::{deltas, draft_after, script};
+use stream_support::delta;
+
+const SECRET: &str = "SECRET_VISIBLE_TEXT";
+
+fn mid_script() -> ResponseDraft {
+    draft_after(&deltas(&script()), 19)
+}
+
+#[test]
+fn given_a_producing_draft_with_a_position_gap_when_restored_then_ids_order_fragments_and_phase_are_equal()
+ {
+    let draft = mid_script();
+
+    let restored = ResponseDraft::from_snapshot(&draft.to_snapshot().unwrap()).unwrap();
+
+    assert_eq!(restored, draft);
+    assert_eq!(restored.phase(), &DraftPhase::Producing);
+    let slots = restored.view().slots();
+    let positions: Vec<u32> = slots.iter().map(|slot| slot.position()).collect();
+    assert_eq!(positions, [0, 2, 3, 4, 5, 6, 7]);
+    assert_eq!(slots[1].raw_json(), Some("{\"query\":\"rust\"}"));
+    assert_eq!(slots[2].text(), Some("Hello w\u{f6}rld"));
+    assert_eq!(slots[4].raw_json(), Some("{\"a\":[1,"));
+}
+
+#[test]
+fn given_a_discarded_position_when_restored_then_it_stays_occupied_and_unreused() {
+    let steps = deltas(&script());
+    let draft = draft_after(&steps, 31);
+
+    let mut restored = ResponseDraft::from_snapshot(&draft.to_snapshot().unwrap()).unwrap();
+
+    assert_eq!(restored, draft);
+    let lifecycle = restored.view().slots()[4].lifecycle();
+    assert_eq!(lifecycle, SlotLifecycle::Discarded);
+    let reuse = delta(DeltaOp::block_started(
+        bid(77),
+        4,
+        br_llm_messages::BlockStart::text(),
+    ));
+    assert_eq!(
+        restored.apply(&reuse).unwrap_err().code(),
+        ErrorCode::InvalidPosition
+    );
+}
+
+#[test]
+fn given_late_replay_and_metadata_when_restored_then_they_are_exact() {
+    let steps = deltas(&script());
+    let draft = draft_after(&steps, 25);
+
+    let restored = ResponseDraft::from_snapshot(&draft.to_snapshot().unwrap()).unwrap();
+
+    let view = restored.view();
+    let text = &view.slots()[3];
+    let replay = text.replay().expect("late replay is kept");
+    assert_eq!(
+        replay.payload(),
+        &br_llm_messages::ReplayPayload::text("Ab")
+    );
+    assert_eq!(view.metadata().usage().unwrap().input_tokens(), Some(3));
+    assert_eq!(view.metadata().model().unwrap().as_str(), "m");
+}
+
+#[test]
+fn given_an_interrupted_draft_when_restored_then_phase_and_partial_content_are_equal() {
+    let mut draft = mid_script();
+    let reason = InterruptionReason::failed(FailureDetail::new("upstream_closed", None).unwrap());
+    draft
+        .apply(&delta(DeltaOp::response_interrupted(reason.clone())))
+        .unwrap();
+
+    let snapshot = draft.to_snapshot().unwrap();
+    let mut restored = ResponseDraft::from_snapshot(&snapshot).unwrap();
+
+    assert_eq!(restored, draft);
+    assert_eq!(restored.phase(), &DraftPhase::Interrupted(reason));
+    assert!(restored.response().is_none());
+    assert_eq!(snapshot.entry().state(), RepresentationState::Interrupted);
+    let later = delta(DeltaOp::text_appended(bid(10), "more"));
+    assert_eq!(
+        restored.apply(&later).unwrap_err().code(),
+        ErrorCode::StreamPhase
+    );
+}
+
+#[test]
+fn given_a_producing_snapshot_when_built_then_the_header_holds_no_block_content() {
+    let mut draft = mid_script();
+    draft
+        .apply(&delta(DeltaOp::text_appended(bid(10), SECRET)))
+        .unwrap();
+
+    let snapshot = draft.to_snapshot().unwrap();
+
+    let header = snapshot.entry().payload();
+    assert!(!header.to_string().contains(SECRET));
+    let allowed = ["usage", "model", "provider_response_id", "interruption"];
+    assert!(
+        header
+            .as_object()
+            .unwrap()
+            .keys()
+            .all(|key| allowed.contains(&key.as_str()))
+    );
+    let rows: Vec<String> = snapshot
+        .blocks()
+        .iter()
+        .map(|row| row.payload().to_string())
+        .collect();
+    assert_eq!(rows.iter().filter(|row| row.contains(SECRET)).count(), 1);
+}
+
+#[test]
+fn given_an_interrupted_snapshot_when_built_then_raw_json_and_late_replay_stay_verbatim() {
+    let steps = deltas(&script());
+    let mut draft = draft_after(&steps, 25);
+    draft
+        .apply(&delta(DeltaOp::response_interrupted(
+            InterruptionReason::Truncated,
+        )))
+        .unwrap();
+
+    let snapshot = draft.to_snapshot().unwrap();
+
+    let row = |n: u64| {
+        snapshot
+            .blocks()
+            .iter()
+            .find(|row| row.id() == bid(n))
+            .unwrap()
+    };
+    assert_eq!(row(12).state(), RepresentationState::Interrupted);
+    assert_eq!(row(12).payload()["raw_arguments"], "{\"query\":\"rust\"}");
+    assert_eq!(row(13).payload()["raw_json"], "{\"a\":[1,2]}");
+    assert_eq!(row(10).payload()["replay"]["payload"]["value"], "Ab");
+    assert_eq!(row(14).payload()["text"], "  ");
+    assert_eq!(
+        snapshot.entry().payload()["interruption"],
+        json!({"type": "truncated"})
+    );
+}
+
+#[test]
+fn given_an_interrupted_draft_when_snapshotted_then_complete_blocks_stay_complete() {
+    let steps = deltas(&script());
+    let mut draft = draft_after(&steps, 30);
+    draft
+        .apply(&delta(DeltaOp::response_interrupted(
+            InterruptionReason::Cancelled,
+        )))
+        .unwrap();
+
+    let snapshot = draft.to_snapshot().unwrap();
+
+    let state = |n: u64| {
+        snapshot
+            .blocks()
+            .iter()
+            .find(|row| row.id() == bid(n))
+            .unwrap()
+            .state()
+    };
+    assert_eq!(state(10), RepresentationState::Complete);
+    assert_eq!(state(16), RepresentationState::Interrupted);
+    assert_eq!(ResponseDraft::from_snapshot(&snapshot).unwrap(), draft);
+}

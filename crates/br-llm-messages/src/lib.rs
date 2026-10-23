@@ -1,46 +1,46 @@
-//! Provider-neutral model of an LLM conversation. Every public type is
-//! reached from the crate root, and only from it.
-
-#![deny(unreachable_pub)]
-
 mod block;
 mod conversation;
+mod entry;
 mod error;
-mod lighten;
-mod render;
-mod step;
-mod stop_reason;
+mod id;
+mod json;
+mod projection;
+mod record;
 mod stream;
-mod tool_results;
 mod turn;
-mod usage;
-mod user_input;
 mod value;
 
-#[cfg(doctest)]
-mod only_from_the_root;
-
-#[cfg(test)]
-mod test_walk;
-
-pub const SCHEMA_VERSION: &str = "br-llm-messages/3";
-
 pub use block::{
-    AssistantBlock, Image, RedactedThinking, Thinking, ToolCall, ToolResult, ToolResultBlock,
-    UserBlock,
+    ContentBlock, ContentBlockKind, ImageBlock, PlainBlock, ProviderToolCall,
+    ProviderToolExecutionRecord, ProviderToolResult, RedactedThinkingBlock, ResultExposure,
+    RuntimeToolCall, RuntimeToolResult, StructuredBlock, TextBlock, ThinkingBlock,
 };
-pub use conversation::{Conversation, Entry};
-pub use error::{MessageError, TurnStateLabel};
-pub use lighten::lighten;
-pub use render::{Perspective, WireMessage, WireUserBlock, check_wire_list, render};
-pub use step::Step;
-pub use stop_reason::StopReason;
-pub use stream::{BlockKind, StepDraft, StreamEvent};
-pub use tool_results::ToolResults;
-pub use turn::{Turn, TurnItem, TurnState};
-pub use usage::Usage;
-pub use user_input::{UserInput, UserSource};
+pub use conversation::{BlockRef, Conversation, EntryRef};
+pub use entry::{
+    AgentMail, AgentRequest, BudgetKind, ClosureReason, HumanMessage, IncomingEntry,
+    MailCorrelation, ModelResponse, QueuePosition, RequestAccepted, RequestOrigin,
+    ResponseMetadata, RuntimeToolResults, TaskCompleted, TaskFailed, TaskStarted, ToolDefinition,
+    ToolMounted, ToolUnmounted, TurnClosure, TurnEntry, TurnEntryKind,
+};
+pub use error::{Error, ErrorCode};
+pub use id::{
+    AgentId, BlockId, CitationId, ConversationId, EntryId, HumanId, RequestId, TaskId, TurnId,
+};
+pub use projection::{
+    OtherItem, OtherTurn, Perspective, ProjectedTurn, Projection, PublicResponse,
+};
+pub use record::{
+    ActorRef, BlockRecord, EntryRecord, RECORD_SCHEMA, RecordSet, RepresentationState, TurnRecord,
+};
+pub use stream::{
+    BlockMetadataUpdate, BlockStart, DRAFT_SCHEMA, DeltaOp, DeltaOutcome, DeltaTarget, DraftPhase,
+    DraftSnapshot, DraftView, Finalization, InterruptionReason, ResponseDelta, ResponseDeltaKind,
+    ResponseDraft, ResponseMetadataUpdate, SlotLifecycle, SlotView,
+};
+pub use turn::{AITurn, InputTurn, Turn, TurnKind, TurnState};
+pub use uuid::Uuid;
 pub use value::{
-    Author, AuthorId, AuthorName, Base64Data, ImageMime, InputId, ModelId, RuntimeKind, Signature,
-    Text, ToolCallId, ToolName, TurnId,
+    Author, Base64Data, Citation, CitationSource, ExecutionStatus, ExternalId, FailureDetail,
+    ImageSource, MediaType, ModelName, PlainText, ProviderOperation, ReplayFormat, ReplayMaterial,
+    ReplayPayload, ResponseEnding, ResultStatus, TextRange, ToolName, Usage,
 };

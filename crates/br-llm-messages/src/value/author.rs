@@ -1,55 +1,38 @@
-use std::hash::{Hash, Hasher};
+use serde::{Deserialize, Serialize};
 
-use super::{AuthorId, AuthorName};
-use crate::error::MessageError;
+use crate::error::{Error, ErrorCode};
 
-/// Who speaks: a stable id and a display name. Two authors are the same
-/// author when their ids are equal, whatever their names, so equality and
-/// hashing look at the id alone and a rename keeps the author.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Author {
-    id: AuthorId,
-    name: AuthorName,
-}
+const MAX_SCALAR_VALUES: usize = 256;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String")]
+pub struct Author(String);
 
 impl Author {
-    pub fn new(id: impl Into<String>, name: impl Into<String>) -> Result<Self, MessageError> {
-        Ok(Self::from_parts(AuthorId::new(id)?, AuthorName::new(name)?))
+    pub fn new(value: impl Into<String>) -> Result<Self, Error> {
+        let value = value.into();
+        let has_visible = value.chars().any(|c| !c.is_whitespace());
+        if !has_visible || value.chars().count() > MAX_SCALAR_VALUES {
+            return Err(Error::new(ErrorCode::InvalidAuthor));
+        }
+        Ok(Author(value))
     }
 
-    pub fn from_parts(id: AuthorId, name: AuthorName) -> Self {
-        Self { id, name }
-    }
-
-    pub fn id(&self) -> &AuthorId {
-        &self.id
-    }
-
-    pub fn name(&self) -> &AuthorName {
-        &self.name
+    pub fn as_str(&self) -> &str {
+        &self.0
     }
 }
 
-impl PartialEq for Author {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
+impl TryFrom<String> for Author {
+    type Error = Error;
+
+    fn try_from(value: String) -> Result<Self, Error> {
+        Author::new(value)
     }
 }
 
-impl Eq for Author {}
-
-impl Hash for Author {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.id.hash(state);
+impl AsRef<str> for Author {
+    fn as_ref(&self) -> &str {
+        &self.0
     }
 }
-
-impl std::fmt::Display for Author {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.name.as_str())
-    }
-}
-
-#[cfg(test)]
-#[path = "author_tests.rs"]
-mod tests;
