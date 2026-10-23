@@ -1,4 +1,7 @@
-#![allow(dead_code)] // each integration test crate uses a different subset of these helpers
+#![allow(
+    dead_code,
+    reason = "each integration test crate uses a different subset of these helpers"
+)]
 
 use br_llm_messages::{
     BlockStart, Citation, CitationSource, DeltaOp, DeltaOutcome, Error, ExternalId, Finalization,

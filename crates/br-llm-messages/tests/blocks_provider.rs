@@ -3,38 +3,36 @@ mod common;
 use br_llm_messages::{
     ContentBlock, ErrorCode, ExecutionStatus, ExternalId, PlainBlock, ProviderOperation,
     ProviderToolCall, ProviderToolExecutionRecord, ProviderToolResult, RedactedThinkingBlock,
-    ResultExposure, ResultStatus, RuntimeToolCall, RuntimeToolResult, TextBlock, ThinkingBlock,
+    ResultExposure, RuntimeToolCall, RuntimeToolResult, TextBlock, ThinkingBlock,
 };
 use common::{bid, envelope, plain_text, png, refused, signature, text_block, tool, v7};
 use serde_json::json;
 
 fn every_non_plain_kind() -> Vec<ContentBlock> {
     vec![
-        ThinkingBlock::new(bid(1), "t").into(),
+        ThinkingBlock::new(bid(1), "t").unwrap().into(),
         RedactedThinkingBlock::new(bid(2), signature("s")).into(),
         RuntimeToolCall::new(bid(3), tool("t"), common::oj(json!({})))
             .unwrap()
             .into(),
-        RuntimeToolResult::new(bid(4), bid(3), tool("t"), ResultStatus::Error, vec![])
+        RuntimeToolResult::new(bid(4), bid(3), tool("t"), true, vec![])
             .unwrap()
             .into(),
         ProviderToolCall::new(bid(5)).into(),
         ProviderToolResult::new(bid(6), bid(5), vec![plain_text(7, "r")])
             .unwrap()
             .into(),
-        ProviderToolExecutionRecord::new(bid(8), ResultExposure::not_exposed())
-            .unwrap()
-            .into(),
+        ProviderToolExecutionRecord::new(bid(8)).into(),
     ]
 }
 
 #[test]
-fn given_any_non_plain_block_when_made_plain_then_disallowed_block_kind_with_its_id() {
+fn given_any_non_plain_block_when_made_plain_then_disallowed_kind_with_its_id() {
     for block in every_non_plain_kind() {
         let id = block.id();
         let error = refused(PlainBlock::try_from(block));
 
-        assert_eq!(error.code(), ErrorCode::DisallowedBlockKind);
+        assert_eq!(error.code(), ErrorCode::DisallowedKind);
         assert_eq!(error.object_id(), Some(id.as_uuid()));
     }
 }
@@ -55,19 +53,24 @@ fn given_plain_kinds_when_made_plain_then_accepted_and_converted_back() {
 }
 
 #[test]
-fn given_text_carrying_replay_when_made_plain_then_invalid_content() {
+fn given_text_carrying_model_only_fields_when_made_plain_then_disallowed_kind() {
     let replayed = TextBlock::new(bid(1), "x")
         .unwrap()
         .with_replay(signature("s"));
 
-    assert_eq!(
-        refused(PlainBlock::try_from(replayed.clone())).code(),
-        ErrorCode::InvalidContent
-    );
-    assert_eq!(
-        refused(PlainBlock::try_from(ContentBlock::from(replayed))).code(),
-        ErrorCode::InvalidContent
-    );
+    let referenced = TextBlock::new(bid(2), "x")
+        .unwrap()
+        .with_item_ref(br_llm_messages::ItemRef::new("msg_1").unwrap());
+
+    for block in [replayed, referenced] {
+        let error = refused(PlainBlock::try_from(block.clone()));
+        assert_eq!(error.code(), ErrorCode::DisallowedKind);
+        assert_eq!(error.object_id(), Some(block.id().as_uuid()));
+        assert_eq!(
+            refused(PlainBlock::try_from(ContentBlock::from(block))).code(),
+            ErrorCode::DisallowedKind
+        );
+    }
 }
 
 #[test]
@@ -118,10 +121,10 @@ fn given_a_provider_result_when_built_then_it_links_to_the_call_by_identity() {
 }
 
 #[test]
-fn given_no_content_and_no_replay_when_a_provider_result_is_built_then_missing_content() {
+fn given_no_content_and_no_replay_when_a_provider_result_is_built_then_invalid_content() {
     let error = refused(ProviderToolResult::new(bid(2), bid(1), vec![]));
 
-    assert_eq!(error.code(), ErrorCode::MissingContent);
+    assert_eq!(error.code(), ErrorCode::InvalidContent);
     assert_eq!(error.object_id(), Some(v7(2)));
 }
 
@@ -145,41 +148,53 @@ fn given_a_provider_result_nested_id_clash_when_built_then_reused_identity() {
 }
 
 #[test]
-fn given_readable_or_mixed_exposure_without_content_when_built_then_missing_content() {
-    assert_eq!(
-        refused(ResultExposure::readable(vec![])).code(),
-        ErrorCode::MissingContent
-    );
-    assert_eq!(
-        refused(ResultExposure::mixed(vec![], signature("s"))).code(),
-        ErrorCode::MissingContent
-    );
-}
+fn given_every_combination_of_content_and_replay_when_a_record_is_built_then_each_is_valid_and_exposure_is_derived()
+ {
+    let bare = ProviderToolExecutionRecord::new(bid(1));
+    let readable = ProviderToolExecutionRecord::new(bid(2))
+        .with_content(vec![plain_text(3, "a")])
+        .unwrap();
+    let opaque = ProviderToolExecutionRecord::new(bid(4)).with_replay(signature("s"));
+    let mixed = ProviderToolExecutionRecord::new(bid(5))
+        .with_content(vec![plain_text(6, "b")])
+        .unwrap()
+        .with_replay(signature("m"));
 
-#[test]
-fn given_each_exposure_when_inspected_then_content_and_material_match_its_kind() {
-    let readable = ResultExposure::readable(vec![plain_text(1, "a")]).unwrap();
-    let opaque = ResultExposure::opaque(signature("s"));
-    let mixed = ResultExposure::mixed(vec![plain_text(2, "b")], signature("m")).unwrap();
-    let hidden = ResultExposure::not_exposed();
-
-    assert_eq!((readable.content().len(), readable.material()), (1, None));
+    assert_eq!(bare.exposure(), ResultExposure::NotExposed);
+    assert_eq!(readable.exposure(), ResultExposure::Readable);
+    assert_eq!(opaque.exposure(), ResultExposure::Opaque);
+    assert_eq!(mixed.exposure(), ResultExposure::Mixed);
+    assert_eq!((readable.content().len(), readable.replay()), (1, None));
     assert_eq!(
-        (opaque.content().len(), opaque.material()),
+        (opaque.content().len(), opaque.replay()),
         (0, Some(&signature("s")))
     );
     assert_eq!(
-        (mixed.content().len(), mixed.material()),
+        (mixed.content().len(), mixed.replay()),
         (1, Some(&signature("m")))
     );
-    assert_eq!((hidden.content().len(), hidden.material()), (0, None));
+    assert_eq!((bare.content().len(), bare.replay()), (0, None));
+}
+
+#[test]
+fn given_a_record_when_content_is_replaced_then_exposure_follows_the_content_not_a_stored_flag() {
+    let record = ProviderToolExecutionRecord::new(bid(1)).with_replay(signature("s"));
+
+    let with_content = record
+        .clone()
+        .with_content(vec![plain_text(2, "x")])
+        .unwrap();
+    let emptied = with_content.clone().with_content(vec![]).unwrap();
+
+    assert_eq!(record.exposure(), ResultExposure::Opaque);
+    assert_eq!(with_content.exposure(), ResultExposure::Mixed);
+    assert_eq!(emptied.exposure(), ResultExposure::Opaque);
 }
 
 #[test]
 fn given_a_record_without_status_when_built_then_status_stays_absent_and_never_defaults() {
-    let bare = ProviderToolExecutionRecord::new(bid(1), ResultExposure::not_exposed()).unwrap();
-    let running = ProviderToolExecutionRecord::new(bid(2), ResultExposure::not_exposed())
-        .unwrap()
+    let bare = ProviderToolExecutionRecord::new(bid(1));
+    let running = ProviderToolExecutionRecord::new(bid(2))
         .with_operation(ProviderOperation::new("code_execution").unwrap())
         .with_status(ExecutionStatus::Running);
 
@@ -189,15 +204,14 @@ fn given_a_record_without_status_when_built_then_status_stays_absent_and_never_d
         running.operation().map(|o| o.as_str()),
         Some("code_execution")
     );
-    assert!(matches!(bare.exposure(), ResultExposure::NotExposed { .. }));
+    assert_eq!(bare.exposure(), ResultExposure::NotExposed);
 }
 
 #[test]
-fn given_exposure_content_reusing_the_record_id_when_built_then_reused_identity() {
-    let exposure = ResultExposure::readable(vec![plain_text(1, "x")]).unwrap();
-
-    let error = refused(ProviderToolExecutionRecord::new(bid(1), exposure));
+fn given_record_content_reusing_the_record_id_when_built_then_reused_identity() {
+    let error =
+        refused(ProviderToolExecutionRecord::new(bid(1)).with_content(vec![plain_text(1, "x")]));
 
     assert_eq!(error.code(), ErrorCode::ReusedIdentity);
-    assert_eq!(error.location(), Some("exposure.content[0]"));
+    assert_eq!(error.location(), Some("content[0]"));
 }

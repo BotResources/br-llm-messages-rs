@@ -68,7 +68,7 @@ fn given_two_root_blocks_sharing_a_position_when_rebuilt_then_invalid_position()
 
     let error = refused(set.into_turns());
 
-    assert_eq!(error.code(), ErrorCode::InvalidPosition);
+    assert_eq!(error.code(), ErrorCode::InvalidRecordStructure);
 }
 
 #[test]
@@ -81,6 +81,6 @@ fn given_a_discarded_row_left_in_a_completed_bundle_when_rebuilt_then_invalid_re
         .and_then(RecordSet::into_turns),
     );
 
-    assert_eq!(error.code(), ErrorCode::InvalidRecord);
+    assert_eq!(error.code(), ErrorCode::InvalidRecordStructure);
     assert_eq!(error.object_id(), Some(bid(12).as_uuid()));
 }

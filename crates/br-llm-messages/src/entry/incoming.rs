@@ -10,6 +10,7 @@ use super::{
 };
 use crate::error::{Error, ErrorCode};
 use crate::id::EntryId;
+use crate::value::ObservedAt;
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -39,6 +40,12 @@ macro_rules! incoming_variants {
                     $(IncomingEntry::$variant(entry) => entry.id(),)+
                 }
             }
+
+            pub fn observed_at(&self) -> Option<&ObservedAt> {
+                match self {
+                    $(IncomingEntry::$variant(entry) => entry.observed_at(),)+
+                }
+            }
         }
 
         $(
@@ -63,7 +70,7 @@ macro_rules! incoming_variants {
             fn try_from(entry: TurnEntry) -> Result<Self, Error> {
                 match entry {
                     $(TurnEntry::$variant(entry) => Ok(IncomingEntry::$variant(entry)),)+
-                    other => Err(Error::new(ErrorCode::DisallowedEntryKind)
+                    other => Err(Error::new(ErrorCode::DisallowedKind)
                         .with_id(other.id().as_uuid())),
                 }
             }
@@ -125,7 +132,7 @@ fn refuse_non_incoming(value: &Value) -> Result<(), Error> {
     if kind.is_incoming() {
         return Ok(());
     }
-    let mut error = Error::new(ErrorCode::DisallowedEntryKind);
+    let mut error = Error::new(ErrorCode::DisallowedKind);
     if let Some(id) = value
         .get("id")
         .and_then(Value::as_str)

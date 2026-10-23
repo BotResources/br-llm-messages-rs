@@ -31,7 +31,7 @@ fn given_whole_text_material_when_a_fragment_arrives_then_replay_mismatch_and_no
 
     let error = refuse(&mut draft, fragment(10, "cd"));
 
-    assert_eq!(error.code(), ErrorCode::ReplayMismatch);
+    assert_eq!(error.code(), ErrorCode::StreamTargetError);
     assert_eq!(error.object_id(), Some(bid(10).as_uuid()));
     assert_eq!(draft, before);
 }
@@ -43,7 +43,7 @@ fn given_whole_text_material_when_snapshotted_and_restored_then_fragments_stay_r
 
     let error = refuse(&mut again, fragment(10, "cd"));
 
-    assert_eq!(error.code(), ErrorCode::ReplayMismatch);
+    assert_eq!(error.code(), ErrorCode::StreamTargetError);
 }
 
 #[test]
@@ -65,6 +65,6 @@ fn given_a_fragment_mode_marker_without_text_material_when_loaded_then_invalid_r
 
     let error = DraftSnapshot::from_value(common::oj(document)).unwrap_err();
 
-    assert_eq!(error.code(), ErrorCode::InvalidRecord);
+    assert_eq!(error.code(), ErrorCode::InvalidRecordStructure);
     assert_eq!(error.object_id(), Some(bid(10).as_uuid()));
 }

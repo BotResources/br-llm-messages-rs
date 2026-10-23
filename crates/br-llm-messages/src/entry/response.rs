@@ -1,10 +1,12 @@
+use std::collections::HashSet;
+
 use serde::{Deserialize, Serialize};
 
 use super::{locate, refuse_author};
 use crate::block::{ContentBlock, IdSink, RuntimeToolCall};
 use crate::error::{Error, ErrorCode};
-use crate::id::EntryId;
-use crate::value::{ExternalId, ModelName, ResponseEnding, Usage};
+use crate::id::{BlockId, EntryId};
+use crate::value::{ExternalId, ModelName, ObservedAt, ResponseEnding, Usage};
 
 #[non_exhaustive]
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -16,6 +18,8 @@ pub struct ResponseMetadata {
     model: Option<ModelName>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     provider_response_id: Option<ExternalId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    observed_at: Option<ObservedAt>,
 }
 
 impl ResponseMetadata {
@@ -38,6 +42,11 @@ impl ResponseMetadata {
         self
     }
 
+    pub fn with_observed_at(mut self, observed_at: ObservedAt) -> Self {
+        self.observed_at = Some(observed_at);
+        self
+    }
+
     pub fn usage(&self) -> Option<&Usage> {
         self.usage.as_ref()
     }
@@ -48,6 +57,10 @@ impl ResponseMetadata {
 
     pub fn provider_response_id(&self) -> Option<&ExternalId> {
         self.provider_response_id.as_ref()
+    }
+
+    pub fn observed_at(&self) -> Option<&ObservedAt> {
+        self.observed_at.as_ref()
     }
 }
 
@@ -63,6 +76,8 @@ pub struct ModelResponse {
     model: Option<ModelName>,
     #[serde(skip_serializing_if = "Option::is_none")]
     provider_response_id: Option<ExternalId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    observed_at: Option<ObservedAt>,
     #[serde(rename = "content")]
     blocks: Vec<ContentBlock>,
 }
@@ -78,6 +93,7 @@ struct ModelResponseWire {
     content: Vec<ContentBlock>,
     #[serde(default, deserialize_with = "super::present")]
     author: bool,
+    observed_at: Option<ObservedAt>,
 }
 
 impl ModelResponse {
@@ -93,10 +109,16 @@ impl ModelResponse {
             usage: metadata.usage,
             model: metadata.model,
             provider_response_id: metadata.provider_response_id,
+            observed_at: metadata.observed_at,
             blocks,
         };
         response.validate().map_err(|error| locate(error, id))?;
         Ok(response)
+    }
+
+    pub fn with_observed_at(mut self, observed_at: ObservedAt) -> Self {
+        self.observed_at = Some(observed_at);
+        self
     }
 
     pub fn id(&self) -> EntryId {
@@ -123,11 +145,16 @@ impl ModelResponse {
         self.provider_response_id.as_ref()
     }
 
+    pub fn observed_at(&self) -> Option<&ObservedAt> {
+        self.observed_at.as_ref()
+    }
+
     pub fn metadata(&self) -> ResponseMetadata {
         ResponseMetadata {
             usage: self.usage.clone(),
             model: self.model.clone(),
             provider_response_id: self.provider_response_id.clone(),
+            observed_at: self.observed_at.clone(),
         }
     }
 
@@ -151,16 +178,56 @@ impl ModelResponse {
     fn validate(&self) -> Result<(), Error> {
         for (index, block) in self.blocks.iter().enumerate() {
             if matches!(block, ContentBlock::RuntimeToolResult(_)) {
-                return Err(Error::new(ErrorCode::DisallowedBlockKind)
+                return Err(Error::new(ErrorCode::DisallowedKind)
                     .with_id(block.id().as_uuid())
                     .at(format!("content[{index}]")));
             }
         }
         self.collect_ids(&mut IdSink::default())?;
-        if self.ending == ResponseEnding::tool_results_requested()
-            && self.runtime_calls().next().is_none()
-        {
-            return Err(Error::new(ErrorCode::MissingContent).at("content"));
+        self.check_provider_links()?;
+        if let Some(usage) = &self.usage {
+            usage.ensure_observed()?;
+        }
+        if self.ending == ResponseEnding::tool_use() && self.runtime_calls().next().is_none() {
+            return Err(Error::new(ErrorCode::InvalidContent).at("content"));
+        }
+        Ok(())
+    }
+}
+
+impl ModelResponse {
+    fn check_provider_links(&self) -> Result<(), Error> {
+        let here: HashSet<BlockId> = self
+            .blocks
+            .iter()
+            .filter_map(|block| match block {
+                ContentBlock::ProviderToolCall(call) => Some(call.id()),
+                _ => None,
+            })
+            .collect();
+        let mut preceding = HashSet::new();
+        let mut answered = HashSet::new();
+        for (index, block) in self.blocks.iter().enumerate() {
+            match block {
+                ContentBlock::ProviderToolCall(call) => {
+                    preceding.insert(call.id());
+                }
+                ContentBlock::ProviderToolResult(result) => {
+                    let target = result.call();
+                    let located = |code| {
+                        Error::new(code)
+                            .with_id(target.as_uuid())
+                            .at(format!("content[{index}].call"))
+                    };
+                    if here.contains(&target) && !preceding.contains(&target) {
+                        return Err(located(ErrorCode::UnknownReference));
+                    }
+                    if here.contains(&target) && !answered.insert(target) {
+                        return Err(located(ErrorCode::DuplicateResult));
+                    }
+                }
+                _ => {}
+            }
         }
         Ok(())
     }
@@ -179,6 +246,7 @@ impl TryFrom<ModelResponseWire> for ModelResponse {
                 usage: wire.usage,
                 model: wire.model,
                 provider_response_id: wire.provider_response_id,
+                observed_at: wire.observed_at,
             },
         )
     }

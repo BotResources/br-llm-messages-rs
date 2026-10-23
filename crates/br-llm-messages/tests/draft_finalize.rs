@@ -210,7 +210,7 @@ fn given_a_finalized_block_when_finalized_again_or_mutated_then_stream_phase() {
     ];
     for op in ops {
         let error = refuse(&mut draft, op);
-        assert_eq!(error.code(), ErrorCode::StreamPhase);
+        assert_eq!(error.code(), ErrorCode::StreamPhaseError);
     }
 }
 
@@ -233,10 +233,10 @@ fn given_blank_provisional_text_when_discarded_then_the_position_stays_occupied_
     ));
     let reuse_position = refuse(&mut draft, start_text(13, 1));
     let reuse_id = refuse(&mut draft, start_text(11, 5));
-    assert_eq!(reuse_position.code(), ErrorCode::InvalidPosition);
+    assert_eq!(reuse_position.code(), ErrorCode::InvalidRecordStructure);
     assert_eq!(reuse_id.code(), ErrorCode::ReusedIdentity);
     let phase = refuse(&mut draft, text(11, "late"));
-    assert_eq!(phase.code(), ErrorCode::StreamPhase);
+    assert_eq!(phase.code(), ErrorCode::StreamPhaseError);
 }
 
 #[test]

@@ -62,19 +62,19 @@ fn given_an_unknown_turn_when_an_entry_is_pushed_then_unknown_reference() {
 }
 
 #[test]
-fn given_an_input_turn_target_when_an_entry_is_pushed_then_wrong_kind_reference() {
+fn given_an_input_turn_target_when_an_entry_is_pushed_then_unknown_reference() {
     let mut conversation = empty();
     conversation.push_turn(input_turn(10, 11).into()).unwrap();
     let before = conversation.clone();
 
     let error = refused(conversation.push_entry(&tid(10), human(12)));
 
-    assert_eq!(error.code(), ErrorCode::WrongKindReference);
+    assert_eq!(error.code(), ErrorCode::UnknownReference);
     assert_eq!(conversation, before);
 }
 
 #[test]
-fn given_a_non_turn_id_as_target_when_an_entry_is_pushed_then_wrong_kind_reference() {
+fn given_a_non_turn_id_as_target_when_an_entry_is_pushed_then_unknown_reference() {
     let mut conversation = empty();
     conversation.push_turn(open_turn(10).into()).unwrap();
     conversation.push_entry(&tid(10), human(11)).unwrap();
@@ -83,7 +83,7 @@ fn given_a_non_turn_id_as_target_when_an_entry_is_pushed_then_wrong_kind_referen
 
     for target in [entry_as_turn, conversation_as_turn] {
         let error = refused(conversation.push_entry(&target, human(12)));
-        assert_eq!(error.code(), ErrorCode::WrongKindReference);
+        assert_eq!(error.code(), ErrorCode::UnknownReference);
     }
 }
 

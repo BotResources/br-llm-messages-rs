@@ -25,7 +25,7 @@ impl PublicResponse {
             .blocks()
             .iter()
             .filter_map(|block| match block {
-                ContentBlock::Text(text) => Some(PlainBlock::Text(text.without_replay())),
+                ContentBlock::Text(text) => Some(PlainBlock::Text(text.without_model_fields())),
                 ContentBlock::Image(image) => Some(PlainBlock::Image(image.clone())),
                 ContentBlock::StructuredContent(structured) => {
                     Some(PlainBlock::StructuredContent(structured.clone()))

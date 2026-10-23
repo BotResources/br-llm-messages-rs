@@ -19,8 +19,6 @@ pub enum TurnEntryKind {
     TaskFailed,
     ModelResponse,
     RuntimeToolResults,
-    ToolMounted,
-    ToolUnmounted,
     TurnClosure,
 }
 
@@ -36,8 +34,6 @@ impl TurnEntryKind {
         TurnEntryKind::TaskFailed,
         TurnEntryKind::ModelResponse,
         TurnEntryKind::RuntimeToolResults,
-        TurnEntryKind::ToolMounted,
-        TurnEntryKind::ToolUnmounted,
         TurnEntryKind::TurnClosure,
     ];
 
@@ -53,8 +49,6 @@ impl TurnEntryKind {
             TurnEntryKind::TaskFailed => "task_failed",
             TurnEntryKind::ModelResponse => "model_response",
             TurnEntryKind::RuntimeToolResults => "runtime_tool_results",
-            TurnEntryKind::ToolMounted => "tool_mounted",
-            TurnEntryKind::ToolUnmounted => "tool_unmounted",
             TurnEntryKind::TurnClosure => "turn_closure",
         }
     }
@@ -82,7 +76,7 @@ impl FromStr for TurnEntryKind {
             .iter()
             .copied()
             .find(|kind| kind.as_str() == value)
-            .ok_or_else(|| Error::new(ErrorCode::UnsupportedVariant))
+            .ok_or_else(|| Error::new(ErrorCode::VariantMismatch))
     }
 }
 

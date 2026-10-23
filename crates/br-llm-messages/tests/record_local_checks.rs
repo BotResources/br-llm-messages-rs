@@ -1,7 +1,8 @@
 mod common;
 
 use br_llm_messages::{
-    BlockRecord, ContentBlockKind, EntryRecord, ErrorCode, RepresentationState, TurnEntryKind,
+    ActorRef, BlockRecord, ContentBlockKind, EntryRecord, ErrorCode, RepresentationState,
+    TurnEntryKind,
 };
 use common::turns::tid;
 use common::{bid, eid, kid};
@@ -93,7 +94,7 @@ fn given_an_opaque_value_beyond_the_depth_limit_when_a_row_is_checked_locally_th
         ),
         opaque_row(
             ContentBlockKind::RuntimeToolCall,
-            json!({"name": "t", "arguments": deep(64)}),
+            json!({"name": "t", "arguments": {"k": deep(63)}}),
         ),
         opaque_row(
             ContentBlockKind::ProviderToolCall,
@@ -111,7 +112,7 @@ fn given_an_opaque_value_beyond_the_depth_limit_when_a_row_is_checked_locally_th
         (
             opaque_row(
                 ContentBlockKind::RuntimeToolCall,
-                json!({"name": "t", "arguments": deep(65)}),
+                json!({"name": "t", "arguments": {"k": deep(64)}}),
             ),
             "payload.arguments",
         ),
@@ -130,4 +131,120 @@ fn given_an_opaque_value_beyond_the_depth_limit_when_a_row_is_checked_locally_th
         assert_eq!(error.code(), ErrorCode::InvalidContent);
         assert_eq!(error.location(), Some(location));
     }
+}
+
+#[test]
+fn given_a_runtime_call_row_with_non_object_arguments_when_checked_locally_then_invalid_content() {
+    for arguments in [json!(null), json!([1]), json!("x")] {
+        let row = opaque_row(
+            ContentBlockKind::RuntimeToolCall,
+            json!({"name": "t", "arguments": arguments}),
+        );
+
+        let error = row.check_local().unwrap_err();
+
+        assert_eq!(error.code(), ErrorCode::InvalidContent);
+        assert_eq!(error.location(), Some("payload.arguments"));
+    }
+}
+
+#[test]
+fn given_a_thinking_row_with_empty_text_when_checked_locally_then_replay_decides_but_only_if_complete()
+ {
+    let sealed = json!({"format": "a.b", "payload": {"type": "text", "value": "s"}});
+    let row = |state: RepresentationState, payload: Value| {
+        BlockRecord::new(
+            bid(3),
+            eid(2),
+            ContentBlockKind::Thinking,
+            0,
+            state,
+            common::oj(payload),
+        )
+    };
+
+    let bare = row(RepresentationState::Complete, json!({"text": ""}));
+    let replayed = row(
+        RepresentationState::Complete,
+        json!({"text": "", "replay": sealed}),
+    );
+    let producing = row(RepresentationState::Producing, json!({"text": ""}));
+
+    let error = bare.check_local().unwrap_err();
+    assert_eq!(error.code(), ErrorCode::InvalidContent);
+    assert_eq!(error.location(), Some("payload.text"));
+    assert!(replayed.check_local().is_ok());
+    assert!(producing.check_local().is_ok());
+}
+
+fn row_of(kind: TurnEntryKind, payload: Value) -> EntryRecord {
+    EntryRecord::new(
+        eid(2),
+        tid(1),
+        kind,
+        0,
+        RepresentationState::Complete,
+        common::oj(payload),
+    )
+}
+
+#[test]
+fn given_a_task_failed_payload_when_checked_locally_then_a_non_blank_reason_is_required() {
+    let task = kid(1).to_string();
+    let reason = |payload: Value| row_of(TurnEntryKind::TaskFailed, payload).check_local();
+
+    assert!(reason(json!({"task": task, "reason": "boom"})).is_ok());
+    for payload in [
+        json!({"task": task, "reason": "  "}),
+        json!({"task": task}),
+        json!({"task": task, "failure": {"code": "boom"}}),
+    ] {
+        assert_eq!(
+            reason(payload).unwrap_err().code(),
+            ErrorCode::InvalidContent
+        );
+    }
+}
+
+#[test]
+fn given_a_closure_payload_when_checked_locally_then_failed_requires_a_detail() {
+    let closure =
+        |reason: Value| row_of(TurnEntryKind::TurnClosure, json!({"reason": reason})).check_local();
+
+    assert!(closure(json!({"type": "failed", "detail": "boom"})).is_ok());
+    assert!(closure(json!({"type": "completed"})).is_ok());
+    assert!(closure(json!({"type": "completed", "detail": "ok"})).is_ok());
+    for reason in [
+        json!({"type": "failed"}),
+        json!({"type": "failed", "detail": " "}),
+        json!({"type": "cancelled", "detail": ""}),
+        json!({"type": "budget_exhausted", "budget": "tokens"}),
+    ] {
+        assert_eq!(
+            closure(reason).unwrap_err().code(),
+            ErrorCode::InvalidContent
+        );
+    }
+}
+
+#[test]
+fn given_a_mail_payload_when_checked_locally_then_in_reply_to_is_a_plain_entry_id() {
+    let conversation = common::cvid(1).to_string();
+    let mail = |reply: Value| {
+        row_of(
+            TurnEntryKind::AgentMail,
+            json!({"source_conversation": conversation, "in_reply_to": reply}),
+        )
+        .with_sender(ActorRef::agent(common::aid(1)))
+        .with_author(common::author("A"))
+        .check_local()
+    };
+
+    assert!(mail(json!(eid(9).to_string())).is_ok());
+    assert_eq!(
+        mail(json!({"type": "message", "entry": eid(9).to_string()}))
+            .unwrap_err()
+            .code(),
+        ErrorCode::InvalidContent
+    );
 }

@@ -4,11 +4,11 @@ mod stream_support;
 
 use br_llm_messages::{
     AITurn, ContentBlock, Conversation, DraftSnapshot, ErrorCode, IncomingEntry, InputTurn,
-    PlainBlock, RecordSet, ResponseDelta, StructuredBlock, TextBlock, ToolDefinition, Turn,
+    PlainBlock, RecordSet, ResponseDelta, StructuredBlock, TextBlock, Turn,
 };
 use common::conversations::rich;
 use common::records::rich_set;
-use common::{bid, code_of, tool};
+use common::{bid, code_of};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 use snapshot_support::{deltas, draft_after, script};
@@ -95,20 +95,12 @@ fn given_a_repeated_key_inside_an_opaque_value_when_read_through_serde_then_malf
     let block =
         ContentBlock::from(StructuredBlock::new(bid(1), common::oj(json!({"k": 1}))).unwrap());
     let block_text = block.to_json().unwrap();
-    let definition = ToolDefinition::inline(tool("t"), "d", common::oj(json!({"k": 1}))).unwrap();
-    let definition_text = serde_json::to_string(&definition).unwrap();
 
     let repeat = |text: &str| text.replacen("\"k\":1", "\"k\":1,\"k\":2", 1);
     let block_duplicated = repeat(&block_text);
-    let definition_duplicated = repeat(&definition_text);
     assert_ne!(block_duplicated, block_text);
-    assert_ne!(definition_duplicated, definition_text);
     assert_eq!(
         code_of::<ContentBlock>(&block_duplicated),
-        ErrorCode::MalformedJson
-    );
-    assert_eq!(
-        code_of::<ToolDefinition>(&definition_duplicated),
         ErrorCode::MalformedJson
     );
 }

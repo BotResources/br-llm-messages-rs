@@ -11,7 +11,7 @@ use crate::id::{EntryId, TurnId};
 use crate::turn::{Turn, TurnKind};
 
 pub(crate) fn position(index: usize) -> Result<u32, Error> {
-    u32::try_from(index).map_err(|_| Error::new(ErrorCode::InvalidPosition))
+    u32::try_from(index).map_err(|_| Error::new(ErrorCode::InvalidRecordStructure))
 }
 
 pub(crate) fn block_rows(
@@ -31,20 +31,25 @@ pub(crate) fn block_rows(
     if let Some(call) = call_of(block) {
         row = row.with_call(call);
     }
+    if let Some(observed_at) = block.observed_at() {
+        row = row.with_observed_at(observed_at.clone());
+    }
     out.push(row);
     for (index, child) in block.children().iter().enumerate() {
         let nested = ContentBlock::from(child.clone());
-        out.push(
-            BlockRecord::new(
-                nested.id(),
-                entry,
-                nested.kind(),
-                position(index)?,
-                RepresentationState::Complete,
-                block_payload(&nested)?,
-            )
-            .with_parent(block.id()),
-        );
+        let mut row = BlockRecord::new(
+            nested.id(),
+            entry,
+            nested.kind(),
+            position(index)?,
+            RepresentationState::Complete,
+            block_payload(&nested)?,
+        )
+        .with_parent(block.id());
+        if let Some(observed_at) = nested.observed_at() {
+            row = row.with_observed_at(observed_at.clone());
+        }
+        out.push(row);
     }
     Ok(())
 }
@@ -64,6 +69,9 @@ fn entry_rows(turn: TurnId, entry: &TurnEntry, at: u32, set: &mut RecordSet) -> 
     }
     if let Some(author) = parts.author {
         row = row.with_author(author);
+    }
+    if let Some(observed_at) = parts.observed_at {
+        row = row.with_observed_at(observed_at);
     }
     set.entries.push(row);
     let blocks: Vec<ContentBlock> = match entry {
@@ -92,17 +100,22 @@ fn entry_rows(turn: TurnId, entry: &TurnEntry, at: u32, set: &mut RecordSet) -> 
 pub(crate) fn turn_rows(turn: &Turn, at: u32, set: &mut RecordSet) -> Result<(), Error> {
     match turn {
         Turn::InputTurn(input) => {
-            set.turns
-                .push(TurnRecord::new(input.id(), TurnKind::InputTurn, at));
+            let mut row = TurnRecord::new(input.id(), TurnKind::InputTurn, at);
+            if let Some(observed_at) = input.observed_at() {
+                row = row.with_observed_at(observed_at.clone());
+            }
+            set.turns.push(row);
             let entry = TurnEntry::from(input.entry().clone());
             entry_rows(input.id(), &entry, 0, set)
         }
         Turn::AITurn(ai) => {
-            set.turns.push(
-                TurnRecord::new(ai.id(), TurnKind::AITurn, at)
-                    .with_agent(ai.agent())
-                    .with_author(ai.author().clone()),
-            );
+            let mut row = TurnRecord::new(ai.id(), TurnKind::AITurn, at)
+                .with_agent(ai.agent())
+                .with_author(ai.author().clone());
+            if let Some(observed_at) = ai.observed_at() {
+                row = row.with_observed_at(observed_at.clone());
+            }
+            set.turns.push(row);
             for (index, entry) in ai.entries().iter().enumerate() {
                 entry_rows(ai.id(), entry, position(index)?, set)?;
             }

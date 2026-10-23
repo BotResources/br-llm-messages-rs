@@ -42,7 +42,7 @@ impl FromStr for RepresentationState {
             .iter()
             .copied()
             .find(|state| state.as_str() == value)
-            .ok_or_else(|| Error::new(ErrorCode::UnsupportedVariant))
+            .ok_or_else(|| Error::new(ErrorCode::VariantMismatch))
     }
 }
 

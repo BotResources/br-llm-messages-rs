@@ -12,6 +12,7 @@ use super::structured::StructuredBlock;
 use super::text::TextBlock;
 use crate::error::{Error, ErrorCode};
 use crate::id::BlockId;
+use crate::value::ObservedAt;
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -44,6 +45,14 @@ impl PlainBlock {
             PlainBlock::Text(block) => block.id(),
             PlainBlock::Image(block) => block.id(),
             PlainBlock::StructuredContent(block) => block.id(),
+        }
+    }
+
+    pub fn observed_at(&self) -> Option<&ObservedAt> {
+        match self {
+            PlainBlock::Text(block) => block.observed_at(),
+            PlainBlock::Image(block) => block.observed_at(),
+            PlainBlock::StructuredContent(block) => block.observed_at(),
         }
     }
 
@@ -95,7 +104,7 @@ impl TryFrom<TextBlock> for PlainBlock {
     type Error = Error;
 
     fn try_from(block: TextBlock) -> Result<Self, Error> {
-        block.refuse_replay()?;
+        block.refuse_model_fields()?;
         Ok(PlainBlock::Text(block))
     }
 }
@@ -122,7 +131,7 @@ impl TryFrom<ContentBlock> for PlainBlock {
             ContentBlock::StructuredContent(structured) => {
                 Ok(PlainBlock::StructuredContent(structured))
             }
-            other => Err(Error::new(ErrorCode::DisallowedBlockKind).with_id(other.id().as_uuid())),
+            other => Err(Error::new(ErrorCode::DisallowedKind).with_id(other.id().as_uuid())),
         }
     }
 }
@@ -152,7 +161,7 @@ fn refuse_non_plain(value: &Value) -> Result<(), Error> {
     if kind.is_plain() {
         return Ok(());
     }
-    let mut error = Error::new(ErrorCode::DisallowedBlockKind);
+    let mut error = Error::new(ErrorCode::DisallowedKind);
     if let Some(id) = value
         .get("id")
         .and_then(Value::as_str)

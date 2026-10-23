@@ -14,7 +14,7 @@ use crate::stream::draft::slot::{Slot, block_ids};
 use crate::stream::draft::{DraftPhase, ResponseDraft};
 
 fn invalid(row: &BlockRecord, location: &str) -> Error {
-    Error::new(ErrorCode::InvalidRecord)
+    Error::new(ErrorCode::DisallowedKind)
         .with_id(row.id().as_uuid())
         .at(location)
 }
@@ -33,7 +33,7 @@ fn slot_of(
         }
         RepresentationState::Complete => {
             if row.kind() == ContentBlockKind::RuntimeToolResult {
-                return Err(Error::new(ErrorCode::DisallowedBlockKind)
+                return Err(Error::new(ErrorCode::DisallowedKind)
                     .with_id(row.id().as_uuid())
                     .at("kind"));
             }
@@ -64,20 +64,23 @@ pub(super) fn restore(snapshot: &DraftSnapshot) -> Result<ResponseDraft, Error> 
     let entry = snapshot.entry();
     entry.check_local()?;
     if entry.kind() != TurnEntryKind::ModelResponse {
-        return Err(Error::new(ErrorCode::InvalidRecord)
+        return Err(Error::new(ErrorCode::DisallowedKind)
             .with_id(entry.id().as_uuid())
             .at("kind"));
     }
     let entry_state = entry.state();
     if entry_state == RepresentationState::Complete {
-        return Err(Error::new(ErrorCode::StreamPhase).with_id(entry.id().as_uuid()));
+        return Err(Error::new(ErrorCode::StreamPhaseError).with_id(entry.id().as_uuid()));
     }
-    let (metadata, interruption) = header::read(entry.payload())?;
+    let (mut metadata, interruption) = header::read(entry.payload())?;
+    if let Some(observed_at) = entry.observed_at() {
+        metadata = metadata.with_observed_at(observed_at.clone());
+    }
     let phase = match (entry_state, interruption) {
         (RepresentationState::Producing, None) => DraftPhase::Producing {},
         (RepresentationState::Interrupted, Some(reason)) => DraftPhase::Interrupted(reason),
         _ => {
-            return Err(Error::new(ErrorCode::InvalidRecord)
+            return Err(Error::new(ErrorCode::InvalidContent)
                 .with_id(entry.id().as_uuid())
                 .at("payload"));
         }

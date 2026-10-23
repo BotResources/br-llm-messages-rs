@@ -10,7 +10,7 @@ use super::state::{Tracker, TurnState};
 use crate::entry::TurnEntry;
 use crate::error::Error;
 use crate::id::{AgentId, TurnId};
-use crate::value::Author;
+use crate::value::{Author, ObservedAt};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AITurn {
@@ -18,17 +18,21 @@ pub struct AITurn {
     agent: AgentId,
     author: Author,
     entries: Vec<TurnEntry>,
+    observed_at: Option<ObservedAt>,
     tracker: Box<Tracker>,
 }
 
 impl Serialize for AITurn {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut turn = serializer.serialize_struct("AITurn", 5)?;
+        let mut turn = serializer.serialize_struct("AITurn", 6)?;
         turn.serialize_field("type", TurnKind::AITurn.as_str())?;
         turn.serialize_field("id", &self.id)?;
         turn.serialize_field("agent", &self.agent)?;
         turn.serialize_field("author", &self.author)?;
         turn.serialize_field("entries", &self.entries)?;
+        if let Some(observed_at) = &self.observed_at {
+            turn.serialize_field("observed_at", observed_at)?;
+        }
         turn.end()
     }
 }
@@ -40,8 +44,14 @@ impl AITurn {
             agent,
             author,
             entries: Vec::new(),
+            observed_at: None,
             tracker: Box::new(Tracker::new(id)),
         }
+    }
+
+    pub fn with_observed_at(mut self, observed_at: ObservedAt) -> Self {
+        self.observed_at = Some(observed_at);
+        self
     }
 
     pub fn from_parts(
@@ -72,6 +82,10 @@ impl AITurn {
 
     pub fn entries(&self) -> &[TurnEntry] {
         &self.entries
+    }
+
+    pub fn observed_at(&self) -> Option<&ObservedAt> {
+        self.observed_at.as_ref()
     }
 
     pub fn state(&self) -> TurnState {

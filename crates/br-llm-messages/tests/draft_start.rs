@@ -13,7 +13,7 @@ fn given_a_first_delta_that_is_not_a_start_when_beginning_then_stream_phase_with
 
     let error = ResponseDraft::begin(&first).unwrap_err();
 
-    assert_eq!(error.code(), ErrorCode::StreamPhase);
+    assert_eq!(error.code(), ErrorCode::StreamPhaseError);
     assert_eq!(error.object_id(), Some(eid(2).as_uuid()));
 }
 
@@ -36,7 +36,7 @@ fn given_a_started_draft_when_a_second_start_arrives_then_stream_phase_and_uncha
 
     let error = refuse(&mut draft, DeltaOp::response_started(metadata()));
 
-    assert_eq!(error.code(), ErrorCode::StreamPhase);
+    assert_eq!(error.code(), ErrorCode::StreamPhaseError);
     assert_eq!(error.object_id(), Some(eid(2).as_uuid()));
 }
 
@@ -49,7 +49,7 @@ fn given_a_foreign_turn_or_entry_when_applied_then_stream_target_and_unchanged()
 
     for foreign in [foreign_turn, foreign_entry] {
         let error = draft.apply(&foreign).unwrap_err();
-        assert_eq!(error.code(), ErrorCode::StreamTarget);
+        assert_eq!(error.code(), ErrorCode::StreamTargetError);
         assert_eq!(error.object_id(), Some(bid(10).as_uuid()));
         assert_eq!(draft, before);
     }
@@ -87,7 +87,7 @@ fn given_an_occupied_position_when_another_block_starts_there_then_invalid_posit
 
     let error = refuse(&mut draft, start_thinking(11, 4));
 
-    assert_eq!(error.code(), ErrorCode::InvalidPosition);
+    assert_eq!(error.code(), ErrorCode::InvalidRecordStructure);
     assert_eq!(error.object_id(), Some(bid(11).as_uuid()));
 }
 
@@ -99,6 +99,7 @@ fn given_blocks_declared_out_of_order_when_completed_then_caller_ids_and_positio
         start_thinking(20, 1),
         text(30, "third"),
         text(10, "first"),
+        DeltaOp::thinking_appended(bid(20), "plan"),
         stream_support::finalize(30),
         stream_support::finalize(10),
         stream_support::finalize(20),
@@ -131,6 +132,6 @@ fn given_a_draft_with_no_start_blocks_when_a_block_op_targets_an_unknown_block_t
 
     let error = refuse(&mut draft, text(10, "x"));
 
-    assert_eq!(error.code(), ErrorCode::StreamTarget);
+    assert_eq!(error.code(), ErrorCode::StreamTargetError);
     assert_eq!(error.object_id(), Some(bid(10).as_uuid()));
 }

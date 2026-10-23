@@ -5,7 +5,7 @@ use uuid::Uuid;
 use super::declared::{Declared, Place, turn_place};
 use crate::block::ContentBlock;
 use crate::entry::{ClosureReason, TurnEntry};
-use crate::id::{BlockId, EntryId, TurnId};
+use crate::id::{BlockId, TurnId};
 use crate::value::{ExecutionStatus, ResponseEnding, ToolName};
 
 #[non_exhaustive]
@@ -45,7 +45,7 @@ pub(crate) struct Tracker {
     pub(crate) calls: HashMap<BlockId, ToolName>,
     pub(crate) outstanding: Vec<BlockId>,
     pub(crate) answered: HashSet<BlockId>,
-    pub(crate) mountings: HashMap<EntryId, bool>,
+    pub(crate) answered_provider: HashSet<BlockId>,
     pub(crate) closure: Option<ClosureReason>,
     pub(crate) last_ending: Option<ResponseEnding>,
     pub(crate) pending: Vec<BlockId>,
@@ -58,7 +58,7 @@ impl Tracker {
             calls: HashMap::new(),
             outstanding: Vec::new(),
             answered: HashSet::new(),
-            mountings: HashMap::new(),
+            answered_provider: HashSet::new(),
             closure: None,
             last_ending: None,
             pending: Vec::new(),
@@ -85,8 +85,7 @@ impl Tracker {
         match entry {
             TurnEntry::ModelResponse(response) => {
                 self.pending.clear();
-                let results_requested =
-                    *response.ending() == ResponseEnding::tool_results_requested();
+                let results_requested = *response.ending() == ResponseEnding::tool_use();
                 for block in response.blocks() {
                     match block {
                         ContentBlock::RuntimeToolCall(call) => {
@@ -94,6 +93,9 @@ impl Tracker {
                             if results_requested {
                                 self.outstanding.push(call.id());
                             }
+                        }
+                        ContentBlock::ProviderToolResult(result) => {
+                            self.answered_provider.insert(result.call());
                         }
                         ContentBlock::ProviderToolExecutionRecord(record)
                             if matches!(
@@ -112,14 +114,6 @@ impl Tracker {
                 for result in results.results() {
                     self.outstanding.retain(|call| *call != result.call());
                     self.answered.insert(result.call());
-                }
-            }
-            TurnEntry::ToolMounted(mounted) => {
-                self.mountings.insert(mounted.id(), true);
-            }
-            TurnEntry::ToolUnmounted(unmounted) => {
-                if let Some(active) = self.mountings.get_mut(&unmounted.mounting()) {
-                    *active = false;
                 }
             }
             TurnEntry::TurnClosure(closure) => {

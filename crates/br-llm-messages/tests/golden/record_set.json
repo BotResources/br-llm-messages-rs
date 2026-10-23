@@ -4,6 +4,7 @@
       "entry": "ab000000-0000-7000-8000-000000000065",
       "id": "ab000000-0000-7000-8000-000000000066",
       "kind": "text",
+      "observed_at": "2026-10-23T08:00:10.4Z",
       "payload": {
         "text": "do it"
       },
@@ -56,8 +57,9 @@
       "entry": "ab000000-0000-7000-8000-00000000019c",
       "id": "ab000000-0000-7000-8000-00000000019d",
       "kind": "runtime_tool_result",
+      "observed_at": "2026-10-23T08:00:11.4Z",
       "payload": {
-        "status": "success",
+        "is_error": false,
         "tool_name": "lookup"
       },
       "position": 0,
@@ -68,6 +70,7 @@
       "id": "ab000000-0000-7000-8000-0000000000c8",
       "kind": "text",
       "payload": {
+        "item_ref": "msg_9",
         "replay": {
           "format": "anthropic.signature",
           "payload": {
@@ -135,6 +138,7 @@
           ]
         },
         "external_id": "toolu_9",
+        "item_ref": "fc_9",
         "name": "lookup",
         "replay": {
           "format": "anthropic.signature",
@@ -151,9 +155,11 @@
       "entry": "ab000000-0000-7000-8000-0000000000e6",
       "id": "ab000000-0000-7000-8000-0000000000d3",
       "kind": "provider_tool_call",
+      "observed_at": "2026-10-23T08:00:16.4Z",
       "payload": {
         "arguments": null,
         "external_id": "srv_1",
+        "item_ref": "ws_9",
         "operation": "web_search",
         "replay": {
           "format": "openai.reasoning",
@@ -193,18 +199,15 @@
       "id": "ab000000-0000-7000-8000-0000000000dc",
       "kind": "provider_tool_execution_record",
       "payload": {
-        "exposure": {
-          "material": {
-            "format": "anthropic.signature",
-            "payload": {
-              "type": "text",
-              "value": "o"
-            }
-          },
-          "type": "opaque"
-        },
         "external_id": "rec",
         "operation": "code",
+        "replay": {
+          "format": "anthropic.signature",
+          "payload": {
+            "type": "text",
+            "value": "o"
+          }
+        },
         "status": "incomplete"
       },
       "position": 7,
@@ -215,18 +218,15 @@
       "id": "ab000000-0000-7000-8000-0000000000dd",
       "kind": "provider_tool_execution_record",
       "payload": {
-        "exposure": {
-          "material": {
-            "format": "anthropic.signature",
-            "payload": {
-              "type": "text",
-              "value": "m"
-            }
-          },
-          "type": "mixed"
-        },
         "external_id": "rec",
         "operation": "code",
+        "replay": {
+          "format": "anthropic.signature",
+          "payload": {
+            "type": "text",
+            "value": "m"
+          }
+        },
         "status": "incomplete"
       },
       "position": 8,
@@ -236,6 +236,7 @@
       "entry": "ab000000-0000-7000-8000-0000000000e6",
       "id": "ab000000-0000-7000-8000-0000000000de",
       "kind": "text",
+      "observed_at": "2026-10-23T08:00:12.4Z",
       "parent": "ab000000-0000-7000-8000-0000000000dd",
       "payload": {
         "text": "partly"
@@ -248,9 +249,6 @@
       "id": "ab000000-0000-7000-8000-0000000000df",
       "kind": "provider_tool_execution_record",
       "payload": {
-        "exposure": {
-          "type": "not_exposed"
-        },
         "external_id": "rec",
         "operation": "code",
         "status": "incomplete"
@@ -263,9 +261,6 @@
       "id": "ab000000-0000-7000-8000-0000000000e0",
       "kind": "provider_tool_execution_record",
       "payload": {
-        "exposure": {
-          "type": "not_exposed"
-        },
         "status": "pending"
       },
       "position": 10,
@@ -275,6 +270,7 @@
       "entry": "ab000000-0000-7000-8000-000000000002",
       "id": "ab000000-0000-7000-8000-00000000000b",
       "kind": "thinking",
+      "observed_at": "2026-10-23T08:00:13.4Z",
       "payload": {
         "replay": {
           "format": "anthropic.signature",
@@ -293,6 +289,7 @@
       "entry": "ab000000-0000-7000-8000-000000000002",
       "id": "ab000000-0000-7000-8000-000000000011",
       "kind": "image",
+      "observed_at": "2026-10-23T08:00:15.4Z",
       "payload": {
         "source": {
           "data": "QUJD",
@@ -380,6 +377,7 @@
       "entry": "ab000000-0000-7000-8000-00000000012d",
       "id": "ab000000-0000-7000-8000-000000000136",
       "kind": "text",
+      "observed_at": "2026-10-23T08:00:14.4Z",
       "payload": {
         "text": "cut"
       },
@@ -404,6 +402,7 @@
       "author": "Claude",
       "id": "ab000000-0000-7000-8000-000000000065",
       "kind": "agent_request",
+      "observed_at": "2026-10-23T08:00:03.123Z",
       "payload": {
         "origin": {
           "id": "ab000000-0000-7000-8000-000000000001",
@@ -424,10 +423,7 @@
       "id": "ab000000-0000-7000-8000-000000000067",
       "kind": "agent_mail",
       "payload": {
-        "in_reply_to": {
-          "entry": "ab000000-0000-7000-8000-0000000003e7",
-          "type": "message"
-        },
+        "in_reply_to": "ab000000-0000-7000-8000-0000000003e7",
         "source_conversation": "ab000000-0000-7000-8000-000000000002"
       },
       "position": 0,
@@ -443,10 +439,7 @@
       "id": "ab000000-0000-7000-8000-000000000069",
       "kind": "agent_mail",
       "payload": {
-        "in_reply_to": {
-          "id": "ab000000-0000-7000-8000-000000000002",
-          "type": "request"
-        },
+        "in_reply_to": "ab000000-0000-7000-8000-0000000003e6",
         "source_conversation": "ab000000-0000-7000-8000-000000000002"
       },
       "position": 0,
@@ -482,10 +475,7 @@
       "id": "ab000000-0000-7000-8000-00000000006d",
       "kind": "task_failed",
       "payload": {
-        "failure": {
-          "code": "boom",
-          "message": "it broke"
-        },
+        "reason": "it broke",
         "task": "ab000000-0000-7000-8000-000000000001"
       },
       "position": 0,
@@ -519,6 +509,7 @@
     {
       "id": "ab000000-0000-7000-8000-000000000191",
       "kind": "request_accepted",
+      "observed_at": "2026-10-23T08:00:09.123Z",
       "payload": {
         "request": "ab000000-0000-7000-8000-000000000001"
       },
@@ -540,9 +531,10 @@
     {
       "id": "ab000000-0000-7000-8000-00000000019a",
       "kind": "model_response",
+      "observed_at": "2026-10-23T08:00:04.123Z",
       "payload": {
         "ending": {
-          "type": "tool_results_requested"
+          "type": "tool_use"
         }
       },
       "position": 0,
@@ -552,6 +544,7 @@
     {
       "id": "ab000000-0000-7000-8000-00000000019c",
       "kind": "runtime_tool_results",
+      "observed_at": "2026-10-23T08:00:05.123Z",
       "payload": {},
       "position": 1,
       "state": "complete",
@@ -570,30 +563,6 @@
       "turn": "ab000000-0000-7000-8000-00000000002b"
     },
     {
-      "id": "ab000000-0000-7000-8000-0000000000f0",
-      "kind": "tool_mounted",
-      "payload": {
-        "definition": {
-          "name": "lookup",
-          "type": "versioned",
-          "version": "1"
-        }
-      },
-      "position": 0,
-      "state": "complete",
-      "turn": "ab000000-0000-7000-8000-000000000014"
-    },
-    {
-      "id": "ab000000-0000-7000-8000-0000000000f1",
-      "kind": "tool_unmounted",
-      "payload": {
-        "mounting": "ab000000-0000-7000-8000-0000000000f0"
-      },
-      "position": 1,
-      "state": "complete",
-      "turn": "ab000000-0000-7000-8000-000000000014"
-    },
-    {
       "id": "ab000000-0000-7000-8000-0000000000e6",
       "kind": "model_response",
       "payload": {
@@ -601,20 +570,21 @@
           "type": "provider_continuation"
         }
       },
-      "position": 2,
+      "position": 0,
       "state": "complete",
       "turn": "ab000000-0000-7000-8000-000000000014"
     },
     {
       "id": "ab000000-0000-7000-8000-0000000000f2",
       "kind": "turn_closure",
+      "observed_at": "2026-10-23T08:00:06.123Z",
       "payload": {
         "reason": {
           "detail": "stop",
           "type": "cancelled"
         }
       },
-      "position": 3,
+      "position": 1,
       "state": "complete",
       "turn": "ab000000-0000-7000-8000-000000000014"
     },
@@ -647,9 +617,7 @@
       "kind": "turn_closure",
       "payload": {
         "reason": {
-          "detail": {
-            "code": "code"
-          },
+          "detail": "code",
           "type": "interrupted"
         }
       },
@@ -662,7 +630,7 @@
       "kind": "turn_closure",
       "payload": {
         "reason": {
-          "budget": "tokens",
+          "detail": "tokens",
           "type": "budget_exhausted"
         }
       },
@@ -675,9 +643,7 @@
       "kind": "turn_closure",
       "payload": {
         "reason": {
-          "detail": {
-            "code": "code"
-          },
+          "detail": "code",
           "type": "failed"
         }
       },
@@ -712,6 +678,7 @@
     {
       "id": "ab000000-0000-7000-8000-000000000002",
       "kind": "model_response",
+      "observed_at": "2026-10-23T08:00:07.123Z",
       "payload": {
         "model": "m",
         "usage": {
@@ -725,6 +692,7 @@
     {
       "id": "ab000000-0000-7000-8000-00000000012d",
       "kind": "model_response",
+      "observed_at": "2026-10-23T08:00:08.123Z",
       "payload": {
         "interruption": {
           "type": "cancelled"
@@ -740,6 +708,7 @@
     {
       "id": "ab000000-0000-7000-8000-000000000001",
       "kind": "input_turn",
+      "observed_at": "2026-10-23T08:00:01Z",
       "position": 0
     },
     {
@@ -792,6 +761,7 @@
       "author": "Codex",
       "id": "ab000000-0000-7000-8000-00000000002b",
       "kind": "ai_turn",
+      "observed_at": "2026-10-23T08:00:02.5Z",
       "position": 10
     },
     {

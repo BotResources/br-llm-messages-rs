@@ -1,7 +1,7 @@
 mod common;
 
 use br_llm_messages::{
-    ErrorCode, IncomingEntry, QueuePosition, TaskCompleted, TaskStarted, TurnEntry,
+    ErrorCode, IncomingEntry, QueuePosition, TaskCompleted, TaskFailed, TaskStarted, TurnEntry,
 };
 use common::entries::all_entries;
 use common::{cvid, eid, kid, refused, rid};
@@ -62,7 +62,7 @@ fn given_each_notice_json_with_an_author_key_when_loaded_then_author_forbidden()
         json!({"type": "queue_position", "id": eid(1).to_string(), "request": rid(1).to_string(), "position": 2}),
         json!({"type": "task_started", "id": eid(1).to_string(), "request": rid(1).to_string(), "task": kid(1).to_string()}),
         json!({"type": "task_completed", "id": eid(1).to_string(), "task": kid(1).to_string()}),
-        json!({"type": "task_failed", "id": eid(1).to_string(), "task": kid(1).to_string(), "failure": {"code": "x"}}),
+        json!({"type": "task_failed", "id": eid(1).to_string(), "task": kid(1).to_string(), "reason": "x"}),
     ];
     for notice in notices {
         assert!(
@@ -79,13 +79,42 @@ fn given_each_notice_json_with_an_author_key_when_loaded_then_author_forbidden()
 }
 
 #[test]
-fn given_a_task_failed_json_without_failure_when_loaded_then_missing_content() {
+fn given_a_task_failed_json_without_reason_when_loaded_then_invalid_content() {
     let value =
         json!({"type": "task_failed", "id": eid(1).to_string(), "task": kid(1).to_string()});
 
     let error = refused(TurnEntry::from_value(common::oj(value)));
 
-    assert_eq!(error.code(), ErrorCode::MissingContent);
+    assert_eq!(error.code(), ErrorCode::InvalidContent);
+}
+
+#[test]
+fn given_a_task_failed_when_built_then_the_reason_is_kept_and_a_blank_one_is_refused() {
+    let failed = TaskFailed::new(eid(1), kid(1), "  out of disk \n").unwrap();
+
+    assert_eq!(failed.reason(), "  out of disk \n");
+    for blank in ["", "   ", "\n\t"] {
+        let error = refused(TaskFailed::new(eid(1), kid(1), blank));
+        assert_eq!(error.code(), ErrorCode::InvalidContent);
+        assert_eq!(error.object_id(), Some(eid(1).as_uuid()));
+
+        let value = json!({"type": "task_failed", "id": eid(1).to_string(),
+            "task": kid(1).to_string(), "reason": blank});
+        assert_eq!(
+            refused(TurnEntry::from_value(common::oj(value))).code(),
+            ErrorCode::InvalidContent
+        );
+    }
+}
+
+#[test]
+fn given_a_task_failed_json_with_the_retired_failure_object_when_loaded_then_invalid_content() {
+    let value = json!({"type": "task_failed", "id": eid(1).to_string(),
+        "task": kid(1).to_string(), "failure": {"code": "x"}});
+
+    let error = refused(TurnEntry::from_value(common::oj(value)));
+
+    assert_eq!(error.code(), ErrorCode::InvalidContent);
 }
 
 #[test]
@@ -100,52 +129,42 @@ fn given_incoming_entries_when_converted_to_turn_entries_and_back_then_they_are_
 }
 
 #[test]
-fn given_non_incoming_entries_when_converted_then_disallowed_entry_kind_names_the_entry() {
+fn given_non_incoming_entries_when_converted_then_disallowed_kind_names_the_entry() {
     let non_incoming: Vec<TurnEntry> = all_entries()
         .into_iter()
         .filter(|e| !e.is_incoming())
         .collect();
-    assert_eq!(non_incoming.len(), 5);
+    assert_eq!(non_incoming.len(), 3);
 
     for entry in non_incoming {
         let error = refused(IncomingEntry::try_from(entry.clone()));
 
-        assert_eq!(
-            error.code(),
-            ErrorCode::DisallowedEntryKind,
-            "{}",
-            entry.kind()
-        );
+        assert_eq!(error.code(), ErrorCode::DisallowedKind, "{}", entry.kind());
         assert_eq!(error.object_id(), Some(entry.id().as_uuid()));
         assert_eq!(
             refused(IncomingEntry::try_from(&entry)).code(),
-            ErrorCode::DisallowedEntryKind
+            ErrorCode::DisallowedKind
         );
     }
 }
 
 #[test]
-fn given_json_of_a_non_incoming_kind_when_loaded_as_incoming_then_disallowed_entry_kind() {
+fn given_json_of_a_non_incoming_kind_when_loaded_as_incoming_then_disallowed_kind() {
     for entry in all_entries().into_iter().filter(|e| !e.is_incoming()) {
         let text = entry.to_json().unwrap();
 
         let error = refused(IncomingEntry::from_json(&text));
 
-        assert_eq!(
-            error.code(),
-            ErrorCode::DisallowedEntryKind,
-            "{}",
-            entry.kind()
-        );
+        assert_eq!(error.code(), ErrorCode::DisallowedKind, "{}", entry.kind());
         assert_eq!(error.object_id(), Some(entry.id().as_uuid()));
     }
 }
 
 #[test]
-fn given_json_of_an_unknown_kind_when_loaded_as_incoming_then_unsupported_variant() {
+fn given_json_of_an_unknown_kind_when_loaded_as_incoming_then_variant_mismatch() {
     let value = json!({"type": "carrier_pigeon", "id": eid(1).to_string()});
 
     let error = refused(IncomingEntry::from_value(common::oj(value)));
 
-    assert_eq!(error.code(), ErrorCode::UnsupportedVariant);
+    assert_eq!(error.code(), ErrorCode::VariantMismatch);
 }

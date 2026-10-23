@@ -4,7 +4,7 @@ use br_llm_messages::{
     AITurn, AgentId, BlockId, ContentBlock, Conversation, EntryId, ErrorCode, HumanId,
     HumanMessage, PlainBlock, ResponseEnding, TurnId, Uuid,
 };
-use common::turns::{calling, delivery, human_message, mount, open_turn, response, tid};
+use common::turns::{calling, delivery, human_message, open_turn, response, tid};
 use common::{author, bid, cid, cvid, eid, plain_text, refused, v7};
 
 fn empty() -> Conversation {
@@ -21,7 +21,7 @@ fn given_ids_of_every_object_kind_when_reused_for_another_kind_then_reused_ident
             response(
                 11,
                 vec![cited(12, 13), calling_block(14)],
-                ResponseEnding::tool_results_requested(),
+                ResponseEnding::tool_use(),
             ),
         )
         .unwrap();
@@ -106,18 +106,12 @@ fn given_references_to_existing_objects_when_pushed_then_they_are_not_second_dec
     conversation
         .push_entry(&tid(10), calling(11, &[(12, "t")]))
         .unwrap();
-    conversation
-        .push_entry(&tid(10), mount(13, "alpha"))
-        .unwrap();
 
     conversation
         .push_entry(&tid(10), delivery(20, &[(21, 12, "t")]))
         .unwrap();
-    conversation
-        .push_entry(&tid(10), common::turns::unmount(22, 13))
-        .unwrap();
 
-    assert_eq!(conversation.turns()[0].as_ai().unwrap().entries().len(), 4);
+    assert_eq!(conversation.turns()[0].as_ai().unwrap().entries().len(), 2);
 }
 
 #[test]

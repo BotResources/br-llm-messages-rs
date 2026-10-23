@@ -23,7 +23,7 @@ fn given_the_record_kinds_when_listed_then_discriminants_are_stable_snake_case()
     );
     let turns: Vec<&str> = TurnKind::ALL.iter().map(|k| k.as_str()).collect();
     assert_eq!(turns, ["input_turn", "ai_turn"]);
-    assert_eq!(TurnEntryKind::ALL[12].as_str(), "turn_closure");
+    assert_eq!(TurnEntryKind::ALL[10].as_str(), "turn_closure");
     assert_eq!(
         ContentBlockKind::ProviderToolExecutionRecord.as_str(),
         "provider_tool_execution_record"

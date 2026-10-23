@@ -127,6 +127,7 @@ fn given_text_with_replay_and_citation_when_projected_then_replay_is_stripped_an
         .unwrap()
         .with_citations(vec![cite.clone()])
         .unwrap()
+        .with_item_ref(br_llm_messages::ItemRef::new("msg_1").unwrap())
         .with_replay(signature("sig"));
     let conversation = conversation(vec![turn_of(
         1,
@@ -151,6 +152,7 @@ fn given_text_with_replay_and_citation_when_projected_then_replay_is_stripped_an
         panic!("expected text");
     };
     assert!(kept.replay().is_none());
+    assert!(kept.item_ref().is_none());
     assert_eq!(kept.citations(), &[cite]);
     assert_eq!(public.blocks().len(), 2);
 }
@@ -161,6 +163,7 @@ fn given_private_blocks_only_when_projected_then_the_response_is_omitted() {
         11,
         vec![
             ThinkingBlock::new(bid(12), "plan")
+                .unwrap()
                 .with_replay(signature("sig"))
                 .into(),
             RuntimeToolCall::new(bid(13), tool("lookup"), common::oj(json!({})))
@@ -168,7 +171,7 @@ fn given_private_blocks_only_when_projected_then_the_response_is_omitted() {
                 .into(),
             ProviderToolCall::new(bid(14)).into(),
         ],
-        ResponseEnding::tool_results_requested(),
+        ResponseEnding::tool_use(),
     );
     let conversation = conversation(vec![turn_of(1, 2, "Claude", vec![private])]);
 

@@ -18,6 +18,7 @@ use super::ops::InterruptionReason;
 use crate::entry::{ModelResponse, ResponseMetadata};
 use crate::error::{Error, ErrorCode};
 use crate::id::{BlockId, EntryId, TurnId};
+use crate::value::Usage;
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
@@ -55,26 +56,34 @@ pub struct ResponseDraft {
 }
 
 fn target_error() -> Error {
-    Error::new(ErrorCode::StreamTarget)
+    Error::new(ErrorCode::StreamTargetError)
+}
+
+fn ensure_usage(usage: Option<&Usage>) -> Result<(), Error> {
+    usage.map_or(Ok(()), Usage::ensure_observed)
 }
 
 fn phase_error() -> Error {
-    Error::new(ErrorCode::StreamPhase)
+    Error::new(ErrorCode::StreamPhaseError)
 }
 
 impl ResponseDraft {
     pub fn begin(first: &ResponseDelta) -> Result<ResponseDraft, Error> {
         match first.op() {
-            DeltaOp::ResponseStarted { metadata } => Ok(ResponseDraft {
-                turn: first.turn(),
-                entry: first.entry(),
-                phase: DraftPhase::Producing {},
-                metadata: metadata.clone(),
-                slots: BTreeMap::new(),
-                positions: HashMap::new(),
-                ids: HashSet::from([first.entry().as_uuid()]),
-                response: None,
-            }),
+            DeltaOp::ResponseStarted { metadata } => {
+                ensure_usage(metadata.usage())
+                    .map_err(|error| error.with_id(first.entry().as_uuid()))?;
+                Ok(ResponseDraft {
+                    turn: first.turn(),
+                    entry: first.entry(),
+                    phase: DraftPhase::Producing {},
+                    metadata: metadata.clone(),
+                    slots: BTreeMap::new(),
+                    positions: HashMap::new(),
+                    ids: HashSet::from([first.entry().as_uuid()]),
+                    response: None,
+                })
+            }
             _ => Err(phase_error().with_id(first.entry().as_uuid())),
         }
     }
@@ -170,6 +179,7 @@ impl ResponseDraft {
                     })
             }
             DeltaOp::ResponseMetadataUpdated { update } => {
+                ensure_usage(update.usage())?;
                 self.metadata = update.replacing(&self.metadata);
                 Ok(DeltaOutcome::Applied {})
             }

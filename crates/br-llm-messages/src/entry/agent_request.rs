@@ -4,7 +4,7 @@ use super::{RequestOrigin, check_content, collect_content};
 use crate::block::{IdSink, PlainBlock};
 use crate::error::Error;
 use crate::id::{AgentId, ConversationId, EntryId};
-use crate::value::Author;
+use crate::value::{Author, ObservedAt};
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -16,6 +16,8 @@ pub struct AgentRequest {
     source_conversation: ConversationId,
     origin: RequestOrigin,
     content: Vec<PlainBlock>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    observed_at: Option<ObservedAt>,
 }
 
 #[derive(Deserialize)]
@@ -27,6 +29,7 @@ struct AgentRequestWire {
     source_conversation: ConversationId,
     origin: RequestOrigin,
     content: Vec<PlainBlock>,
+    observed_at: Option<ObservedAt>,
 }
 
 impl AgentRequest {
@@ -46,7 +49,13 @@ impl AgentRequest {
             source_conversation,
             origin,
             content,
+            observed_at: None,
         })
+    }
+
+    pub fn with_observed_at(mut self, observed_at: ObservedAt) -> Self {
+        self.observed_at = Some(observed_at);
+        self
     }
 
     pub fn id(&self) -> EntryId {
@@ -73,6 +82,10 @@ impl AgentRequest {
         &self.content
     }
 
+    pub fn observed_at(&self) -> Option<&ObservedAt> {
+        self.observed_at.as_ref()
+    }
+
     pub(crate) fn collect_ids(&self, sink: &mut IdSink) -> Result<(), Error> {
         collect_content(self.id, &self.content, sink)
     }
@@ -82,13 +95,15 @@ impl TryFrom<AgentRequestWire> for AgentRequest {
     type Error = Error;
 
     fn try_from(wire: AgentRequestWire) -> Result<Self, Error> {
-        AgentRequest::new(
+        let mut request = AgentRequest::new(
             wire.id,
             wire.requester,
             wire.author,
             wire.source_conversation,
             wire.origin,
             wire.content,
-        )
+        )?;
+        request.observed_at = wire.observed_at;
+        Ok(request)
     }
 }

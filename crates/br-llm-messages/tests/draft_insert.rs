@@ -3,7 +3,7 @@ mod stream_support;
 
 use br_llm_messages::{
     ContentBlock, DeltaOp, ErrorCode, ProviderToolExecutionRecord, ProviderToolResult,
-    RedactedThinkingBlock, ResponseEnding, ResultExposure,
+    RedactedThinkingBlock, ResponseEnding,
 };
 use common::{bid, call, envelope, plain_text, png, result, signature, text_block};
 use stream_support::{finish, ok, refuse, run, start_text, text};
@@ -16,11 +16,8 @@ fn insert(position: u32, block: impl Into<ContentBlock>) -> DeltaOp {
 fn given_atomic_kinds_when_inserted_then_they_complete_without_any_fragment_delta() {
     let provider_result =
         ProviderToolResult::new(bid(12), bid(99), vec![plain_text(13, "found")]).unwrap();
-    let record = ProviderToolExecutionRecord::new(
-        bid(14),
-        ResultExposure::opaque(envelope(serde_json::json!({"enc": "x"}))),
-    )
-    .unwrap();
+    let record = ProviderToolExecutionRecord::new(bid(14))
+        .with_replay(envelope(serde_json::json!({"enc": "x"})));
     let redacted = RedactedThinkingBlock::new(bid(11), signature("redacted"));
     let mut draft = run(vec![
         insert(0, png(10)),
@@ -39,12 +36,12 @@ fn given_atomic_kinds_when_inserted_then_they_complete_without_any_fragment_delt
 }
 
 #[test]
-fn given_a_runtime_tool_result_when_inserted_then_disallowed_block_kind() {
+fn given_a_runtime_tool_result_when_inserted_then_disallowed_kind() {
     let mut draft = run(vec![]);
 
     let error = refuse(&mut draft, insert(0, result(10, 11, "t")));
 
-    assert_eq!(error.code(), ErrorCode::DisallowedBlockKind);
+    assert_eq!(error.code(), ErrorCode::DisallowedKind);
     assert_eq!(error.object_id(), Some(bid(10).as_uuid()));
 }
 
@@ -54,7 +51,7 @@ fn given_an_occupied_position_when_a_block_is_inserted_there_then_invalid_positi
 
     for position in [0, 1] {
         let error = refuse(&mut draft, insert(position, png(12)));
-        assert_eq!(error.code(), ErrorCode::InvalidPosition);
+        assert_eq!(error.code(), ErrorCode::InvalidRecordStructure);
         assert_eq!(error.object_id(), Some(bid(12).as_uuid()));
     }
 }
@@ -99,8 +96,8 @@ fn given_an_inserted_complete_block_when_mutated_afterwards_then_stream_phase() 
     let append = refuse(&mut draft, text(10, " more"));
     let finalize = refuse(&mut draft, stream_support::finalize(10));
 
-    assert_eq!(append.code(), ErrorCode::StreamPhase);
-    assert_eq!(finalize.code(), ErrorCode::StreamPhase);
+    assert_eq!(append.code(), ErrorCode::StreamPhaseError);
+    assert_eq!(finalize.code(), ErrorCode::StreamPhaseError);
 }
 
 #[test]
@@ -114,7 +111,7 @@ fn given_inserted_and_streamed_blocks_when_mixed_then_completion_validates_the_w
 
     ok(
         &mut draft,
-        stream_support::complete(ResponseEnding::tool_results_requested()),
+        stream_support::complete(ResponseEnding::tool_use()),
     );
 
     assert_eq!(draft.response().unwrap().runtime_calls().count(), 1);

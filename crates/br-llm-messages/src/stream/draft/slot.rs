@@ -2,9 +2,9 @@ use uuid::Uuid;
 
 use crate::block::{ContentBlock, ContentBlockKind, PlainBlock};
 use crate::id::BlockId;
-use crate::stream::ops::BlockStart;
+use crate::stream::block_start::BlockStart;
 use crate::value::{
-    Citation, ExecutionStatus, ExternalId, ProviderOperation, ReplayMaterial, ToolName,
+    Citation, ExecutionStatus, ExternalId, ObservedAt, ProviderOperation, ReplayMaterial, ToolName,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -19,6 +19,7 @@ pub(in crate::stream) struct OpenBlock {
     pub(in crate::stream) id: BlockId,
     pub(in crate::stream) body: OpenBody,
     pub(in crate::stream) replay_fragments: bool,
+    pub(in crate::stream) observed_at: Option<ObservedAt>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -78,6 +79,7 @@ impl OpenBlock {
             id,
             body: OpenBody::from_start(start),
             replay_fragments: false,
+            observed_at: start.observed_at().cloned(),
         }
     }
 
@@ -103,7 +105,9 @@ impl OpenBody {
                 replay: None,
             },
             BlockStart::StructuredContent { .. } => OpenBody::Structured { raw: String::new() },
-            BlockStart::RuntimeToolCall { name, external_id } => OpenBody::RuntimeCall {
+            BlockStart::RuntimeToolCall {
+                name, external_id, ..
+            } => OpenBody::RuntimeCall {
                 name: name.clone(),
                 external_id: external_id.clone(),
                 raw: String::new(),
@@ -112,6 +116,7 @@ impl OpenBody {
             BlockStart::ProviderToolCall {
                 operation,
                 external_id,
+                ..
             } => OpenBody::ProviderCall {
                 operation: operation.clone(),
                 external_id: external_id.clone(),
@@ -122,6 +127,7 @@ impl OpenBody {
                 operation,
                 external_id,
                 status,
+                ..
             } => OpenBody::Record {
                 operation: operation.clone(),
                 external_id: external_id.clone(),

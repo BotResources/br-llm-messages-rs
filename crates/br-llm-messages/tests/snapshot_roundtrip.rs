@@ -52,7 +52,7 @@ fn given_a_discarded_position_when_restored_then_it_stays_occupied_and_unreused(
     ));
     assert_eq!(
         restored.apply(&reuse).unwrap_err().code(),
-        ErrorCode::InvalidPosition
+        ErrorCode::InvalidRecordStructure
     );
 }
 
@@ -92,7 +92,7 @@ fn given_an_interrupted_draft_when_restored_then_phase_and_partial_content_are_e
     let later = delta(DeltaOp::text_appended(bid(10), "more"));
     assert_eq!(
         restored.apply(&later).unwrap_err().code(),
-        ErrorCode::StreamPhase
+        ErrorCode::StreamPhaseError
     );
 }
 

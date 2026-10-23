@@ -4,6 +4,7 @@ use super::refuse_author;
 use crate::block::IdSink;
 use crate::error::{Error, ErrorCode};
 use crate::id::{EntryId, RequestId};
+use crate::value::ObservedAt;
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -11,6 +12,8 @@ use crate::id::{EntryId, RequestId};
 pub struct RequestAccepted {
     id: EntryId,
     request: RequestId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    observed_at: Option<ObservedAt>,
 }
 
 #[derive(Deserialize)]
@@ -20,11 +23,21 @@ struct RequestAcceptedWire {
     request: RequestId,
     #[serde(default, deserialize_with = "super::present")]
     author: bool,
+    observed_at: Option<ObservedAt>,
 }
 
 impl RequestAccepted {
     pub fn new(id: EntryId, request: RequestId) -> Self {
-        RequestAccepted { id, request }
+        RequestAccepted {
+            id,
+            request,
+            observed_at: None,
+        }
+    }
+
+    pub fn with_observed_at(mut self, observed_at: ObservedAt) -> Self {
+        self.observed_at = Some(observed_at);
+        self
     }
 
     pub fn id(&self) -> EntryId {
@@ -33,6 +46,10 @@ impl RequestAccepted {
 
     pub fn request(&self) -> RequestId {
         self.request
+    }
+
+    pub fn observed_at(&self) -> Option<&ObservedAt> {
+        self.observed_at.as_ref()
     }
 
     pub(crate) fn collect_ids(&self, sink: &mut IdSink) -> Result<(), Error> {
@@ -45,7 +62,11 @@ impl TryFrom<RequestAcceptedWire> for RequestAccepted {
 
     fn try_from(wire: RequestAcceptedWire) -> Result<Self, Error> {
         refuse_author(wire.author, wire.id)?;
-        Ok(RequestAccepted::new(wire.id, wire.request))
+        let accepted = RequestAccepted::new(wire.id, wire.request);
+        Ok(match wire.observed_at {
+            Some(observed_at) => accepted.with_observed_at(observed_at),
+            None => accepted,
+        })
     }
 }
 
@@ -56,6 +77,8 @@ pub struct QueuePosition {
     id: EntryId,
     request: RequestId,
     position: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    observed_at: Option<ObservedAt>,
 }
 
 #[derive(Deserialize)]
@@ -66,6 +89,7 @@ struct QueuePositionWire {
     position: u32,
     #[serde(default, deserialize_with = "super::present")]
     author: bool,
+    observed_at: Option<ObservedAt>,
 }
 
 impl QueuePosition {
@@ -79,7 +103,13 @@ impl QueuePosition {
             id,
             request,
             position,
+            observed_at: None,
         })
+    }
+
+    pub fn with_observed_at(mut self, observed_at: ObservedAt) -> Self {
+        self.observed_at = Some(observed_at);
+        self
     }
 
     pub fn id(&self) -> EntryId {
@@ -94,6 +124,10 @@ impl QueuePosition {
         self.position
     }
 
+    pub fn observed_at(&self) -> Option<&ObservedAt> {
+        self.observed_at.as_ref()
+    }
+
     pub(crate) fn collect_ids(&self, sink: &mut IdSink) -> Result<(), Error> {
         sink.insert(self.id.as_uuid())
     }
@@ -104,6 +138,10 @@ impl TryFrom<QueuePositionWire> for QueuePosition {
 
     fn try_from(wire: QueuePositionWire) -> Result<Self, Error> {
         refuse_author(wire.author, wire.id)?;
-        QueuePosition::new(wire.id, wire.request, wire.position)
+        let queued = QueuePosition::new(wire.id, wire.request, wire.position)?;
+        Ok(match wire.observed_at {
+            Some(observed_at) => queued.with_observed_at(observed_at),
+            None => queued,
+        })
     }
 }

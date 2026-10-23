@@ -75,10 +75,10 @@ impl ResponseDraft {
             DraftPhase::Producing { .. } => RepresentationState::Producing,
             DraftPhase::Interrupted(_) => RepresentationState::Interrupted,
             DraftPhase::Completed { .. } => {
-                return Err(Error::new(ErrorCode::StreamPhase).with_id(self.entry.as_uuid()));
+                return Err(Error::new(ErrorCode::StreamPhaseError).with_id(self.entry.as_uuid()));
             }
         };
-        let entry = EntryRecord::new(
+        let mut entry = EntryRecord::new(
             self.entry,
             self.turn,
             TurnEntryKind::ModelResponse,
@@ -86,6 +86,9 @@ impl ResponseDraft {
             state,
             header::write(&self.metadata, &self.phase)?,
         );
+        if let Some(observed_at) = self.metadata.observed_at() {
+            entry = entry.with_observed_at(observed_at.clone());
+        }
         let blocks = self.block_rows(state)?;
         Ok(DraftSnapshot { entry, blocks })
     }

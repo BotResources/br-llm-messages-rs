@@ -33,7 +33,7 @@ fn given_a_conversation_when_decomposed_then_sibling_positions_are_explicit() {
         .filter(|entry| entry.turn() == tid(10))
         .map(|entry| entry.position())
         .collect();
-    assert_eq!(entries, [0, 1, 2, 3, 4, 5]);
+    assert_eq!(entries, [0, 1, 2, 3, 4]);
     let response_blocks: Vec<_> = set
         .blocks()
         .iter()
@@ -56,7 +56,7 @@ fn given_a_duplicate_sibling_position_when_reconstructed_then_it_is_invalid_posi
     let turn = failure(|d| row(d, "turns", uuid(10))["position"] = json!(0));
 
     for error in [entry, block, child, turn] {
-        assert_eq!(error.code(), ErrorCode::InvalidPosition);
+        assert_eq!(error.code(), ErrorCode::InvalidRecordStructure);
     }
 }
 
@@ -67,7 +67,7 @@ fn given_a_gap_in_sibling_positions_when_reconstructed_then_it_is_invalid_positi
     let turn = failure(|d| row(d, "turns", uuid(60))["position"] = json!(8));
 
     for error in [entry, child, turn] {
-        assert_eq!(error.code(), ErrorCode::InvalidPosition);
+        assert_eq!(error.code(), ErrorCode::InvalidRecordStructure);
     }
 }
 
@@ -103,12 +103,8 @@ fn given_container_rows_when_decomposed_then_payloads_do_not_embed_their_childre
 
     assert!(by_id(22).payload().raw().get("content").is_none());
     assert!(by_id(17).payload().raw().get("content").is_none());
-    assert!(
-        by_id(19).payload().raw()["exposure"]
-            .get("content")
-            .is_none()
-    );
-    assert_eq!(by_id(19).payload().raw()["exposure"]["type"], "readable");
+    assert!(by_id(19).payload().raw().get("content").is_none());
+    assert!(by_id(19).payload().raw().get("exposure").is_none());
     let serialized = serde_json::to_string(&set.to_value().unwrap().raw()).unwrap();
     assert_eq!(serialized.matches("\"found\"").count(), 1);
 }
@@ -127,7 +123,7 @@ fn given_a_parent_that_does_not_resolve_in_the_entry_when_reconstructed_then_it_
 fn given_a_parent_that_is_not_a_container_when_reconstructed_then_it_is_disallowed() {
     let error = failure(|d| row(d, "blocks", uuid(18))["parent"] = json!(text(14)));
 
-    assert_eq!(error.code(), ErrorCode::DisallowedBlockKind);
+    assert_eq!(error.code(), ErrorCode::DisallowedKind);
 }
 
 #[test]
@@ -137,7 +133,7 @@ fn given_a_non_content_block_with_a_parent_when_loaded_then_it_is_disallowed() {
     })
     .unwrap_err();
 
-    assert_eq!(error.code(), ErrorCode::DisallowedBlockKind);
+    assert_eq!(error.code(), ErrorCode::DisallowedKind);
 }
 
 #[test]
@@ -151,8 +147,8 @@ fn given_rows_that_are_each_others_parents_when_reconstructed_then_the_cycle_is_
     })
     .unwrap_err();
 
-    assert_eq!(error.code(), ErrorCode::DisallowedBlockKind);
-    assert_eq!(own_parent.code(), ErrorCode::InvalidRecord);
+    assert_eq!(error.code(), ErrorCode::DisallowedKind);
+    assert_eq!(own_parent.code(), ErrorCode::InvalidRecordStructure);
 }
 
 #[test]
@@ -162,41 +158,33 @@ fn given_children_embedded_in_a_parent_payload_when_loaded_then_the_duplicate_is
     })
     .unwrap_err();
     let record = try_edit(&rich_set(), |d| {
-        row(d, "blocks", uuid(19))["payload"]["exposure"]["content"] = json!([]);
+        row(d, "blocks", uuid(19))["payload"]["content"] = json!([]);
     })
     .unwrap_err();
 
-    assert_eq!(result.code(), ErrorCode::UnsupportedField);
-    assert_eq!(record.code(), ErrorCode::InvalidRecord);
+    assert_eq!(result.code(), ErrorCode::InvalidContent);
+    assert_eq!(record.code(), ErrorCode::InvalidContent);
 }
 
 #[test]
-fn given_children_under_an_exposure_without_content_when_reconstructed_then_it_is_refused() {
-    let error = failure(|d| {
-        row(d, "blocks", uuid(19))["payload"]["exposure"] = json!({"type": "not_exposed"});
-    });
-
-    assert_eq!(error.code(), ErrorCode::InvalidRecord);
-}
-
-#[test]
-fn given_rows_that_are_not_complete_when_reconstructed_then_they_are_invalid_record() {
+fn given_rows_that_are_not_complete_when_reconstructed_then_they_are_disallowed() {
     for state in ["producing", "interrupted"] {
-        let error = failure(|d| row(d, "blocks", uuid(14))["state"] = json!(state));
-        assert_eq!(error.code(), ErrorCode::InvalidRecord);
+        let error = failure(|d| row(d, "blocks", uuid(29))["state"] = json!(state));
+        assert_eq!(error.code(), ErrorCode::DisallowedKind);
     }
     let discarded = failure(|d| {
-        let block = row(d, "blocks", uuid(14));
+        let block = row(d, "blocks", uuid(29));
         block["state"] = json!("discarded");
         block["payload"] = json!({});
+        block.as_object_mut().unwrap().remove("observed_at");
     });
-    assert_eq!(discarded.code(), ErrorCode::InvalidRecord);
+    assert_eq!(discarded.code(), ErrorCode::DisallowedKind);
     assert_eq!(RepresentationState::Complete.as_str(), "complete");
 }
 
 #[test]
 fn given_a_reused_row_identity_when_reconstructed_then_it_is_reused_identity() {
-    let block_as_entry = failure(|d| row(d, "blocks", uuid(14))["id"] = json!(text(11)));
+    let block_as_entry = failure(|d| row(d, "blocks", uuid(14))["id"] = json!(text(12)));
     let across_turns = failure(|d| row(d, "blocks", uuid(42))["id"] = json!(text(14)));
 
     assert_eq!(block_as_entry.code(), ErrorCode::ReusedIdentity);
@@ -230,22 +218,21 @@ fn given_a_broken_tool_result_link_when_reconstructed_then_the_build_rule_code_i
     });
 
     assert_eq!(unknown_call.code(), ErrorCode::UnknownReference);
-    assert_eq!(wrong_kind.code(), ErrorCode::WrongKindReference);
-    assert_eq!(mismatched.code(), ErrorCode::ToolResultMismatch);
+    assert_eq!(wrong_kind.code(), ErrorCode::UnknownReference);
+    assert_eq!(mismatched.code(), ErrorCode::MismatchedResult);
 }
 
 #[test]
 fn given_a_response_that_breaks_a_completed_invariant_when_reconstructed_then_it_is_refused() {
     let ending = failure(|d| {
-        row(d, "entries", uuid(28))["payload"]["ending"] =
-            json!({"type": "tool_results_requested"});
+        row(d, "entries", uuid(28))["payload"]["ending"] = json!({"type": "tool_use"});
     });
     let blank = try_edit(&rich_set(), |d| {
         row(d, "blocks", uuid(29))["payload"]["text"] = json!("  ");
     })
     .unwrap_err();
 
-    assert_eq!(ending.code(), ErrorCode::MissingContent);
+    assert_eq!(ending.code(), ErrorCode::InvalidContent);
     assert_eq!(blank.code(), ErrorCode::InvalidContent);
 }
 
@@ -263,23 +250,22 @@ fn given_input_turn_rows_that_break_its_shape_when_reconstructed_then_they_are_r
         entry.as_object_mut().unwrap().remove("sender");
     });
 
-    assert_eq!(two_entries.code(), ErrorCode::InvalidRecord);
-    assert_eq!(not_incoming.code(), ErrorCode::DisallowedEntryKind);
+    assert_eq!(two_entries.code(), ErrorCode::InvalidRecordStructure);
+    assert_eq!(not_incoming.code(), ErrorCode::DisallowedKind);
 }
 
 #[test]
 fn given_a_block_row_under_a_content_less_entry_when_reconstructed_then_it_is_disallowed() {
-    let error = failure(|d| row(d, "blocks", uuid(29))["entry"] = json!(text(11)));
+    let error = failure(|d| row(d, "blocks", uuid(29))["entry"] = json!(text(30)));
 
-    assert_eq!(error.code(), ErrorCode::DisallowedBlockKind);
+    assert_eq!(error.code(), ErrorCode::DisallowedKind);
 }
 
 #[test]
 fn given_a_location_when_a_build_rule_fails_then_the_error_names_the_turn_and_entry() {
     let error = failure(|d| {
-        row(d, "entries", uuid(28))["payload"]["ending"] =
-            json!({"type": "tool_results_requested"});
+        row(d, "entries", uuid(28))["payload"]["ending"] = json!({"type": "tool_use"});
     });
 
-    assert_eq!(error.location(), Some("turns[1].entries[4].content"));
+    assert_eq!(error.location(), Some("turns[1].entries[3].content"));
 }

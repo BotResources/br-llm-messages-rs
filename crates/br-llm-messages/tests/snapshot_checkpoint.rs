@@ -99,7 +99,7 @@ fn given_a_restored_complete_row_when_finalized_or_discarded_again_then_it_is_a_
         .unwrap_err();
 
     for error in [refinalize, discard, append] {
-        assert_eq!(error.code(), ErrorCode::StreamPhase);
+        assert_eq!(error.code(), ErrorCode::StreamPhaseError);
         assert_eq!(error.object_id(), Some(bid(10).as_uuid()));
     }
 }
@@ -180,9 +180,9 @@ fn given_rows_that_break_snapshot_structure_when_loaded_then_the_rule_code_is_re
     let unknown_field = load(|document| document["cursor"] = json!(7), 24).unwrap_err();
 
     assert_eq!(foreign_entry.code(), ErrorCode::UnknownReference);
-    assert_eq!(duplicate_position.code(), ErrorCode::InvalidPosition);
+    assert_eq!(duplicate_position.code(), ErrorCode::InvalidRecordStructure);
     assert_eq!(reused_id.code(), ErrorCode::ReusedIdentity);
-    assert_eq!(unknown_field.code(), ErrorCode::UnsupportedField);
+    assert_eq!(unknown_field.code(), ErrorCode::InvalidContent);
 }
 
 #[test]
@@ -201,8 +201,8 @@ fn given_row_states_that_contradict_the_header_when_loaded_then_they_are_refused
     )
     .unwrap_err();
 
-    assert_eq!(interrupted_row.code(), ErrorCode::InvalidRecord);
-    assert_eq!(complete_header.code(), ErrorCode::StreamPhase);
+    assert_eq!(interrupted_row.code(), ErrorCode::DisallowedKind);
+    assert_eq!(complete_header.code(), ErrorCode::StreamPhaseError);
 }
 
 #[test]
@@ -212,13 +212,13 @@ fn given_a_runtime_result_row_when_loaded_as_a_draft_then_it_is_disallowed() {
             let row = block_row(document, common::v7(17));
             row["kind"] = json!("runtime_tool_result");
             row["call"] = json!(common::v7(12).to_string());
-            row["payload"] = json!({"tool_name": "lookup", "status": "success"});
+            row["payload"] = json!({"tool_name": "lookup", "is_error": false});
         },
         28,
     )
     .unwrap_err();
 
-    assert_eq!(error.code(), ErrorCode::DisallowedBlockKind);
+    assert_eq!(error.code(), ErrorCode::DisallowedKind);
 }
 
 #[test]
@@ -243,7 +243,7 @@ fn given_a_producing_row_inside_an_interrupted_snapshot_when_loaded_then_it_is_r
 
     let error = DraftSnapshot::from_value(common::oj(document)).unwrap_err();
 
-    assert_eq!(error.code(), ErrorCode::InvalidRecord);
+    assert_eq!(error.code(), ErrorCode::DisallowedKind);
 }
 
 #[test]
@@ -259,5 +259,5 @@ fn given_an_entry_row_of_another_kind_when_loaded_as_a_draft_then_it_is_refused(
     )
     .unwrap_err();
 
-    assert_eq!(error.code(), ErrorCode::InvalidRecord);
+    assert_eq!(error.code(), ErrorCode::DisallowedKind);
 }

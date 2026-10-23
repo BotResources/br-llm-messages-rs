@@ -8,6 +8,7 @@ use crate::error::{Error, ErrorCode};
 use crate::id::BlockId;
 use crate::opaque_json::OpaqueJson;
 use crate::stream::ops::Finalization;
+use crate::value::ObservedAt;
 
 fn inconsistent(location: &str) -> Error {
     Error::new(ErrorCode::InconsistentFinalization).at(location)
@@ -22,6 +23,28 @@ fn parse(raw: &str) -> Result<OpaqueJson, Error> {
 }
 
 fn accumulated(open: &OpenBlock) -> Result<ContentBlock, Error> {
+    let block = body_block(open)?;
+    Ok(match &open.observed_at {
+        Some(observed_at) => with_observed_at(block, observed_at.clone()),
+        None => block,
+    })
+}
+
+fn with_observed_at(block: ContentBlock, observed_at: ObservedAt) -> ContentBlock {
+    match block {
+        ContentBlock::Text(block) => block.with_observed_at(observed_at).into(),
+        ContentBlock::Thinking(block) => block.with_observed_at(observed_at).into(),
+        ContentBlock::StructuredContent(block) => block.with_observed_at(observed_at).into(),
+        ContentBlock::RuntimeToolCall(block) => block.with_observed_at(observed_at).into(),
+        ContentBlock::ProviderToolCall(block) => block.with_observed_at(observed_at).into(),
+        ContentBlock::ProviderToolExecutionRecord(block) => {
+            block.with_observed_at(observed_at).into()
+        }
+        other => other,
+    }
+}
+
+fn body_block(open: &OpenBlock) -> Result<ContentBlock, Error> {
     let id = open.id;
     match &open.body {
         OpenBody::Text {
@@ -42,12 +65,15 @@ fn accumulated(open: &OpenBlock) -> Result<ContentBlock, Error> {
             .into())
         }
         OpenBody::Thinking { text, replay } => {
-            let block = ThinkingBlock::new(id, text.clone());
-            Ok(match replay {
-                Some(replay) => block.with_replay(replay.clone()),
-                None => block,
-            }
-            .into())
+            let block = match replay {
+                Some(replay) if text.is_empty() => ThinkingBlock::replay_only(id, replay.clone()),
+                Some(replay) => ThinkingBlock::new(id, text.clone())
+                    .map_err(|error| error.recoded(ErrorCode::InconsistentFinalization))?
+                    .with_replay(replay.clone()),
+                None => ThinkingBlock::new(id, text.clone())
+                    .map_err(|error| error.recoded(ErrorCode::InconsistentFinalization))?,
+            };
+            Ok(block.into())
         }
         OpenBody::Structured { raw } => Ok(StructuredBlock::new(id, parse(raw)?)?.into()),
         OpenBody::RuntimeCall {

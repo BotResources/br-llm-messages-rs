@@ -1,10 +1,9 @@
 use br_llm_messages::{
-    AITurn, AgentMail, AgentRequest, ClosureReason, ContentBlock, ExecutionStatus, FailureDetail,
-    HumanMessage, InputTurn, ModelResponse, ProviderToolCall, ProviderToolExecutionRecord,
-    ProviderToolResult, QueuePosition, RequestAccepted, RequestOrigin, ResponseEnding,
-    ResponseMetadata, ResultExposure, ResultStatus, RuntimeToolResult, RuntimeToolResults,
-    TaskCompleted, TaskFailed, TaskStarted, ToolDefinition, ToolMounted, ToolUnmounted,
-    TurnClosure, TurnEntry, TurnId,
+    AITurn, AgentMail, AgentRequest, ClosureReason, ContentBlock, ExecutionStatus, HumanMessage,
+    InputTurn, ModelResponse, ProviderToolCall, ProviderToolExecutionRecord, ProviderToolResult,
+    QueuePosition, RequestAccepted, RequestOrigin, ResponseEnding, ResponseMetadata,
+    RuntimeToolResult, RuntimeToolResults, TaskCompleted, TaskFailed, TaskStarted, TurnClosure,
+    TurnEntry, TurnId,
 };
 
 use super::{aid, author, bid, call, cvid, eid, hid, kid, plain_text, rid, tool, v7};
@@ -44,21 +43,14 @@ pub fn calling(entry: u64, calls: &[(u64, &str)]) -> TurnEntry {
         .iter()
         .map(|(id, name)| call(*id, name).into())
         .collect();
-    response(entry, blocks, ResponseEnding::tool_results_requested())
+    response(entry, blocks, ResponseEnding::tool_use())
 }
 
 pub fn delivery(entry: u64, results: &[(u64, u64, &str)]) -> TurnEntry {
     let results = results
         .iter()
         .map(|(id, target, name)| {
-            RuntimeToolResult::new(
-                bid(*id),
-                bid(*target),
-                tool(name),
-                ResultStatus::Success,
-                vec![],
-            )
-            .unwrap()
+            RuntimeToolResult::new(bid(*id), bid(*target), tool(name), false, vec![]).unwrap()
         })
         .collect();
     RuntimeToolResults::new(eid(entry), results).unwrap().into()
@@ -66,18 +58,6 @@ pub fn delivery(entry: u64, results: &[(u64, u64, &str)]) -> TurnEntry {
 
 pub fn close(entry: u64, reason: ClosureReason) -> TurnEntry {
     TurnClosure::new(eid(entry), reason).into()
-}
-
-pub fn mount(entry: u64, name: &str) -> TurnEntry {
-    ToolMounted::new(
-        eid(entry),
-        ToolDefinition::versioned(tool(name), "1").unwrap(),
-    )
-    .into()
-}
-
-pub fn unmount(entry: u64, mounting: u64) -> TurnEntry {
-    ToolUnmounted::new(eid(entry), eid(mounting)).into()
 }
 
 pub fn hosted_call(n: u64) -> ContentBlock {
@@ -91,8 +71,7 @@ pub fn hosted_result(n: u64, call: u64) -> ContentBlock {
 }
 
 pub fn hosted_record(n: u64, status: ExecutionStatus) -> ContentBlock {
-    ProviderToolExecutionRecord::new(bid(n), ResultExposure::not_exposed())
-        .unwrap()
+    ProviderToolExecutionRecord::new(bid(n))
         .with_status(status)
         .into()
 }
@@ -126,6 +105,8 @@ pub fn incoming_batch(base: u64) -> Vec<TurnEntry> {
         QueuePosition::new(eid(base + 4), rid(1), 1).unwrap().into(),
         TaskStarted::new(eid(base + 5), rid(1), kid(1)).into(),
         TaskCompleted::new(eid(base + 6), kid(1)).into(),
-        TaskFailed::new(eid(base + 7), kid(1), FailureDetail::new("boom").unwrap()).into(),
+        TaskFailed::new(eid(base + 7), kid(1), "boom")
+            .unwrap()
+            .into(),
     ]
 }

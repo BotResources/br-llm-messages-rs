@@ -150,9 +150,9 @@ fn given_a_failure_detail_when_built_then_code_is_required_and_message_kept() {
     );
     assert_eq!(
         code_of::<FailureDetail>("{\"code\":\"a\",\"extra\":1}"),
-        ErrorCode::UnsupportedField
+        ErrorCode::InvalidContent
     );
-    assert_eq!(code_of::<FailureDetail>("{}"), ErrorCode::MissingContent);
+    assert_eq!(code_of::<FailureDetail>("{}"), ErrorCode::InvalidContent);
     assert_eq!(
         serde_json::to_string(&FailureDetail::new("x").unwrap()).unwrap(),
         "{\"code\":\"x\"}"

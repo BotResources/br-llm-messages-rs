@@ -6,31 +6,28 @@ use br_llm_messages::{
 };
 use common::{code_of, refused, v7};
 
-const GOLDEN: [(ErrorCode, &str); 25] = [
+const GOLDEN: [(ErrorCode, &str); 19] = [
     (ErrorCode::InvalidIdentity, "invalid_identity"),
     (ErrorCode::ReusedIdentity, "reused_identity"),
     (ErrorCode::InvalidAuthor, "invalid_author"),
     (ErrorCode::AuthorForbidden, "author_forbidden"),
-    (ErrorCode::MissingContent, "missing_content"),
     (ErrorCode::InvalidContent, "invalid_content"),
-    (ErrorCode::DisallowedEntryKind, "disallowed_entry_kind"),
-    (ErrorCode::DisallowedBlockKind, "disallowed_block_kind"),
+    (ErrorCode::DisallowedKind, "disallowed_kind"),
     (ErrorCode::UnknownReference, "unknown_reference"),
-    (ErrorCode::WrongKindReference, "wrong_kind_reference"),
-    (ErrorCode::DuplicateToolResult, "duplicate_tool_result"),
-    (ErrorCode::ToolResultMismatch, "tool_result_mismatch"),
-    (ErrorCode::TurnClosed, "turn_closed"),
+    (ErrorCode::DuplicateResult, "duplicate_result"),
+    (ErrorCode::MismatchedResult, "mismatched_result"),
+    (ErrorCode::EntryOutOfOrder, "entry_out_of_order"),
+    (ErrorCode::ClosedTurn, "closed_turn"),
     (ErrorCode::UnresolvedExecution, "unresolved_execution"),
-    (ErrorCode::ContinuationPending, "continuation_pending"),
+    (
+        ErrorCode::InvalidRecordStructure,
+        "invalid_record_structure",
+    ),
     (ErrorCode::MalformedJson, "malformed_json"),
     (ErrorCode::SchemaMismatch, "schema_mismatch"),
-    (ErrorCode::UnsupportedVariant, "unsupported_variant"),
-    (ErrorCode::UnsupportedField, "unsupported_field"),
-    (ErrorCode::InvalidPosition, "invalid_position"),
-    (ErrorCode::InvalidRecord, "invalid_record"),
-    (ErrorCode::ReplayMismatch, "replay_mismatch"),
-    (ErrorCode::StreamTarget, "stream_target"),
-    (ErrorCode::StreamPhase, "stream_phase"),
+    (ErrorCode::VariantMismatch, "variant_mismatch"),
+    (ErrorCode::StreamTargetError, "stream_target_error"),
+    (ErrorCode::StreamPhaseError, "stream_phase_error"),
     (
         ErrorCode::InconsistentFinalization,
         "inconsistent_finalization",
@@ -89,7 +86,10 @@ fn given_refused_values_holding_a_sentinel_when_errors_are_rendered_then_no_payl
 #[test]
 fn given_json_with_sentinel_payloads_when_mapped_then_the_error_names_no_value() {
     let documents = [
-        format!("{{\"format\":\"{SENTINEL}\",\"payload\":{{\"type\":\"text\",\"value\":\"s\"}}}}"),
+        format!(
+            "{{\"format\":\"{}\",\"payload\":{{\"type\":\"text\",\"value\":\"s\"}}}}",
+            SENTINEL.repeat(20)
+        ),
         format!(
             "{{\"format\":\"a\",\"payload\":{{\"type\":\"json\",\"value\":\"{SENTINEL}\"}},\"x\":\"{SENTINEL}\"}}"
         ),
@@ -99,8 +99,7 @@ fn given_json_with_sentinel_payloads_when_mapped_then_the_error_names_no_value()
         format!("{{\"format\":\"a\",\"payload\":{{\"type\":\"{SENTINEL}\",\"value\":1}}}}"),
     ];
     for document in documents {
-        let failure = serde_json::from_str::<ReplayMaterial>(&document).unwrap_err();
-        assert_clean(&Error::from_json_error(&failure));
+        assert_clean(&refused(common::decode::<ReplayMaterial>(&document)));
     }
 }
 
@@ -143,15 +142,15 @@ fn given_syntax_errors_when_mapped_then_malformed_json() {
 fn given_serde_data_errors_when_mapped_then_variant_field_and_missing_codes_are_recovered() {
     assert_eq!(
         code_of::<br_llm_messages::ExecutionStatus>("\"x\""),
-        ErrorCode::UnsupportedVariant
+        ErrorCode::VariantMismatch
     );
     assert_eq!(
         code_of::<br_llm_messages::Usage>(r#"{"nope":1}"#),
-        ErrorCode::UnsupportedField
+        ErrorCode::InvalidContent
     );
     assert_eq!(
         code_of::<br_llm_messages::TextRange>(r#"{"start":1}"#),
-        ErrorCode::MissingContent
+        ErrorCode::InvalidContent
     );
     assert_eq!(
         code_of::<br_llm_messages::TextRange>(r#"{"start":"a","end":2}"#),
@@ -170,15 +169,13 @@ fn given_embedded_library_errors_when_mapped_then_the_original_code_survives() {
     assert_eq!(code_of::<Base64Data>("\"A\""), ErrorCode::InvalidContent);
     assert_eq!(
         code_of::<br_llm_messages::MediaType>("\"image/x\""),
-        ErrorCode::UnsupportedVariant
+        ErrorCode::VariantMismatch
     );
 }
 
 #[test]
 fn given_a_syntax_error_when_mapped_then_the_location_is_a_position_and_not_the_input() {
-    let failure = serde_json::from_str::<ToolName>(&format!("\"{SENTINEL}")).unwrap_err();
-
-    let mapped = Error::from_json_error(&failure);
+    let mapped = refused(common::decode::<ToolName>(&format!("\"{SENTINEL}")));
 
     assert_eq!(mapped.code(), ErrorCode::MalformedJson);
     assert_eq!(

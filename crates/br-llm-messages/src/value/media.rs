@@ -40,7 +40,7 @@ impl std::str::FromStr for MediaType {
         ]
         .into_iter()
         .find(|media| media.as_str() == value)
-        .ok_or_else(|| Error::new(ErrorCode::UnsupportedVariant))
+        .ok_or_else(|| Error::new(ErrorCode::VariantMismatch))
     }
 }
 

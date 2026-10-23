@@ -67,10 +67,10 @@ impl Conversation {
         let position = match self.index.get(turn.as_uuid()) {
             None => return Err(reference(ErrorCode::UnknownReference)),
             Some(slot) if slot.place.class == Class::Turn => slot.turn,
-            Some(_) => return Err(reference(ErrorCode::WrongKindReference)),
+            Some(_) => return Err(reference(ErrorCode::UnknownReference)),
         };
         let Turn::AITurn(target) = &mut self.turns[position] else {
-            return Err(reference(ErrorCode::WrongKindReference));
+            return Err(reference(ErrorCode::UnknownReference));
         };
         let declared = target.check_push(&entry)?;
         if let Some((id, _)) = self.index.clash(&declared) {

@@ -19,10 +19,9 @@ pub use block::{
 };
 pub use conversation::{BlockRef, CONVERSATION_SCHEMA, Conversation, EntryRef};
 pub use entry::{
-    AgentMail, AgentRequest, BudgetKind, ClosureReason, HumanMessage, IncomingEntry,
-    MailCorrelation, ModelResponse, QueuePosition, RequestAccepted, RequestOrigin,
-    ResponseMetadata, RuntimeToolResults, TaskCompleted, TaskFailed, TaskStarted, ToolDefinition,
-    ToolMounted, ToolUnmounted, TurnClosure, TurnEntry, TurnEntryKind,
+    AgentMail, AgentRequest, ClosureReason, HumanMessage, IncomingEntry, ModelResponse,
+    QueuePosition, RequestAccepted, RequestOrigin, ResponseMetadata, RuntimeToolResults,
+    TaskCompleted, TaskFailed, TaskStarted, TurnClosure, TurnEntry, TurnEntryKind,
 };
 pub use error::{Error, ErrorCode};
 pub use id::{
@@ -45,6 +44,6 @@ pub use turn::{AITurn, InputTurn, Turn, TurnKind, TurnState};
 pub use uuid::Uuid;
 pub use value::{
     Author, Base64Data, Citation, CitationSource, ExecutionStatus, ExternalId, FailureDetail,
-    ImageSource, MediaType, ModelName, PlainText, ProviderOperation, ReplayFormat, ReplayMaterial,
-    ReplayPayload, ResponseEnding, ResultStatus, TextRange, ToolName, Usage,
+    ImageSource, ItemRef, MediaType, ModelName, ObservedAt, PlainText, ProviderOperation,
+    ReplayFormat, ReplayMaterial, ReplayPayload, ResponseEnding, TextRange, ToolName, Usage,
 };

@@ -72,5 +72,5 @@ fn given_a_completed_draft_when_snapshotted_then_it_is_a_stream_phase_error() {
 
     let error = draft.to_snapshot().unwrap_err();
 
-    assert_eq!(error.code(), ErrorCode::StreamPhase);
+    assert_eq!(error.code(), ErrorCode::StreamPhaseError);
 }

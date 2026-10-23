@@ -31,6 +31,7 @@ use crate::opaque_json::OpaqueJson;
 
 use crate::error::Error;
 use crate::id::BlockId;
+use crate::value::ObservedAt;
 pub(crate) use ids::IdSink;
 
 #[non_exhaustive]
@@ -61,6 +62,12 @@ macro_rules! per_variant {
             pub fn id(&self) -> BlockId {
                 match self {
                     $(ContentBlock::$variant(block) => block.id(),)+
+                }
+            }
+
+            pub fn observed_at(&self) -> Option<&ObservedAt> {
+                match self {
+                    $(ContentBlock::$variant(block) => block.observed_at(),)+
                 }
             }
 
@@ -111,7 +118,7 @@ impl ContentBlock {
         match self {
             ContentBlock::RuntimeToolResult(block) => block.content(),
             ContentBlock::ProviderToolResult(block) => block.content(),
-            ContentBlock::ProviderToolExecutionRecord(block) => block.exposure().content(),
+            ContentBlock::ProviderToolExecutionRecord(block) => block.content(),
             _ => &[],
         }
     }

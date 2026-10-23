@@ -57,10 +57,7 @@ fn given_malformed_text_when_parsed_then_the_text_is_refused() {
 fn given_a_repeated_key_when_read_through_serde_then_the_text_is_refused() {
     let failure = serde_json::from_str::<OpaqueJson>("{\"a\":1,\"a\":2}").unwrap_err();
 
-    assert_eq!(
-        br_llm_messages::Error::from_json_error(&failure).code(),
-        ErrorCode::MalformedJson
-    );
+    assert!(failure.to_string().starts_with("malformed_json"));
 }
 
 #[test]
@@ -89,4 +86,14 @@ fn given_a_stored_value_when_debug_printed_then_the_json_is_not_shown() {
 
     assert!(!printed.contains("SENTINEL"), "{printed}");
     assert!(!printed.contains("secret"), "{printed}");
+}
+
+#[test]
+fn given_text_nested_beyond_the_parser_recursion_limit_when_parsed_then_malformed_json() {
+    let text = format!("{}1{}", "[".repeat(300), "]".repeat(300));
+
+    assert_eq!(
+        refused(OpaqueJson::parse(&text)).code(),
+        ErrorCode::MalformedJson
+    );
 }

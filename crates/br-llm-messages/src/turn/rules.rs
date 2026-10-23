@@ -13,7 +13,7 @@ use crate::value::ResponseEnding;
 pub(crate) fn check(tracker: &Tracker, entry: &TurnEntry, index: usize) -> Result<Declared, Error> {
     let id = entry.id();
     if tracker.closure.is_some() {
-        return Err(Error::new(ErrorCode::TurnClosed).with_id(id.as_uuid()));
+        return Err(Error::new(ErrorCode::ClosedTurn).with_id(id.as_uuid()));
     }
     let declared = places_of_turn_entry(entry, index);
     check_fresh(tracker, &declared)?;
@@ -22,7 +22,6 @@ pub(crate) fn check(tracker: &Tracker, entry: &TurnEntry, index: usize) -> Resul
         TurnEntry::RuntimeToolResults(delivery) => {
             super::results::check(tracker, delivery.results())?
         }
-        TurnEntry::ToolUnmounted(unmounted) => super::mounting::check_unmount(tracker, unmounted)?,
         TurnEntry::TurnClosure(closure) => check_closure(tracker, closure.id(), closure.reason())?,
         _ => {}
     }
@@ -60,7 +59,10 @@ fn check_response(
         match class_of(tracker, declared, target) {
             None => return Err(located(ErrorCode::UnknownReference)),
             Some(Class::Block(ContentBlockKind::ProviderToolCall)) => {}
-            Some(_) => return Err(located(ErrorCode::WrongKindReference)),
+            Some(_) => return Err(located(ErrorCode::UnknownReference)),
+        }
+        if tracker.answered_provider.contains(&result.call()) {
+            return Err(located(ErrorCode::DuplicateResult));
         }
     }
     Ok(())
@@ -89,7 +91,7 @@ fn check_closure(tracker: &Tracker, id: EntryId, reason: &ClosureReason) -> Resu
             .at("reason"));
     }
     if tracker.last_ending == Some(ResponseEnding::provider_continuation()) {
-        return Err(Error::new(ErrorCode::ContinuationPending)
+        return Err(Error::new(ErrorCode::UnresolvedExecution)
             .with_id(id.as_uuid())
             .at("reason"));
     }

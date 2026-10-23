@@ -1,30 +1,26 @@
 mod agent_mail;
 mod agent_request;
 mod closure;
-mod correlation;
 mod human;
 mod incoming;
 mod kind;
 mod notice;
+mod request_origin;
 mod response;
 mod results;
 mod task;
-mod tool_definition;
-mod tool_offer;
 
 pub use agent_mail::AgentMail;
 pub use agent_request::AgentRequest;
-pub use closure::{BudgetKind, ClosureReason, TurnClosure};
-pub use correlation::{MailCorrelation, RequestOrigin};
+pub use closure::{ClosureReason, TurnClosure};
 pub use human::HumanMessage;
 pub use incoming::IncomingEntry;
 pub use kind::TurnEntryKind;
 pub use notice::{QueuePosition, RequestAccepted};
+pub use request_origin::RequestOrigin;
 pub use response::{ModelResponse, ResponseMetadata};
 pub use results::RuntimeToolResults;
 pub use task::{TaskCompleted, TaskFailed, TaskStarted};
-pub use tool_definition::ToolDefinition;
-pub use tool_offer::{ToolMounted, ToolUnmounted};
 
 use serde::de::IgnoredAny;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -34,6 +30,7 @@ use crate::opaque_json::OpaqueJson;
 use crate::block::{IdSink, PlainBlock};
 use crate::error::{Error, ErrorCode};
 use crate::id::EntryId;
+use crate::value::ObservedAt;
 
 pub(crate) fn present<'de, D: Deserializer<'de>>(deserializer: D) -> Result<bool, D::Error> {
     IgnoredAny::deserialize(deserializer).map(|_| true)
@@ -68,7 +65,7 @@ pub(crate) fn collect_content(
 
 pub(crate) fn check_content(entry: EntryId, content: &[PlainBlock]) -> Result<(), Error> {
     if content.is_empty() {
-        return Err(Error::new(ErrorCode::MissingContent)
+        return Err(Error::new(ErrorCode::InvalidContent)
             .with_id(entry.as_uuid())
             .at("content"));
     }
@@ -89,8 +86,6 @@ pub enum TurnEntry {
     TaskFailed(TaskFailed),
     ModelResponse(ModelResponse),
     RuntimeToolResults(RuntimeToolResults),
-    ToolMounted(ToolMounted),
-    ToolUnmounted(ToolUnmounted),
     TurnClosure(TurnClosure),
 }
 
@@ -106,6 +101,12 @@ macro_rules! entry_variants {
             pub fn id(&self) -> EntryId {
                 match self {
                     $(TurnEntry::$variant(entry) => entry.id(),)+
+                }
+            }
+
+            pub fn observed_at(&self) -> Option<&ObservedAt> {
+                match self {
+                    $(TurnEntry::$variant(entry) => entry.observed_at(),)+
                 }
             }
 
@@ -137,8 +138,6 @@ entry_variants!(
     TaskFailed(TaskFailed),
     ModelResponse(ModelResponse),
     RuntimeToolResults(RuntimeToolResults),
-    ToolMounted(ToolMounted),
-    ToolUnmounted(ToolUnmounted),
     TurnClosure(TurnClosure),
 );
 

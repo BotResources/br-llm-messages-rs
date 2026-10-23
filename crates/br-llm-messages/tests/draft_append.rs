@@ -26,8 +26,12 @@ fn given_text_fragments_when_appended_then_the_text_is_exactly_their_concatenati
 }
 
 #[test]
-fn given_thinking_fragments_when_appended_then_thinking_text_accumulates_and_may_stay_empty() {
+fn given_thinking_fragments_when_appended_then_text_accumulates_and_may_stay_empty_under_replay() {
     let mut draft = run(vec![start_thinking(10, 0), start_thinking(11, 1)]);
+    ok(
+        &mut draft,
+        DeltaOp::replay_material_set(bid(11), common::signature("only-replay")),
+    );
 
     ok(
         &mut draft,
@@ -70,7 +74,7 @@ fn given_a_wrong_kind_target_when_appending_then_stream_target_with_the_block_id
     for op in cases {
         let block = op.block_id().unwrap();
         let error = refuse(&mut draft, op);
-        assert_eq!(error.code(), ErrorCode::StreamTarget);
+        assert_eq!(error.code(), ErrorCode::StreamTargetError);
         assert_eq!(error.object_id(), Some(block.as_uuid()));
     }
 }
@@ -88,9 +92,21 @@ fn given_an_unknown_target_when_appending_then_stream_target() {
     ];
     for op in ops {
         let error = refuse(&mut draft, op);
-        assert_eq!(error.code(), ErrorCode::StreamTarget);
+        assert_eq!(error.code(), ErrorCode::StreamTargetError);
         assert_eq!(error.object_id(), Some(bid(99).as_uuid()));
     }
+}
+
+#[test]
+fn given_a_thinking_block_with_no_text_and_no_replay_when_finalized_then_it_is_refused() {
+    let mut draft = run(vec![start_thinking(10, 0)]);
+
+    let error = refuse(&mut draft, finalize(10));
+
+    assert_eq!(error.code(), ErrorCode::InconsistentFinalization);
+    assert_eq!(error.object_id(), Some(bid(10).as_uuid()));
+    ok(&mut draft, DeltaOp::thinking_appended(bid(10), "late"));
+    ok(&mut draft, finalize(10));
 }
 
 #[test]
@@ -100,6 +116,7 @@ fn given_a_finalized_block_when_any_fragment_arrives_then_stream_phase() {
         text(10, "done"),
         finalize(10),
         start_thinking(11, 1),
+        DeltaOp::thinking_appended(bid(11), "t"),
         finalize(11),
         start_json(12, 2),
         json(12, "1"),
@@ -115,7 +132,7 @@ fn given_a_finalized_block_when_any_fragment_arrives_then_stream_phase() {
     ];
     for op in ops {
         let error = refuse(&mut draft, op);
-        assert_eq!(error.code(), ErrorCode::StreamPhase);
+        assert_eq!(error.code(), ErrorCode::StreamPhaseError);
     }
 }
 

@@ -4,8 +4,7 @@ mod stream_support;
 use br_llm_messages::{
     AITurn, ContentBlock, Conversation, ModelResponse, OpaqueJson, ProviderOperation,
     ProviderToolCall, RecordSet, ReplayFormat, ReplayMaterial, ReplayPayload, ResponseEnding,
-    ResponseMetadata, RuntimeToolCall, StructuredBlock, ThinkingBlock, ToolDefinition, ToolMounted,
-    TurnEntry,
+    ResponseMetadata, RuntimeToolCall, StructuredBlock, ThinkingBlock, TurnEntry,
 };
 use common::{aid, author, bid, cvid, eid, tool};
 use serde_json::Value;
@@ -36,7 +35,7 @@ fn replay_json() -> ContentBlock {
         ReplayFormat::new("openai.reasoning").unwrap(),
         ReplayPayload::json(common::oj(nasty())).unwrap(),
     );
-    ThinkingBlock::new(bid(3), "").with_replay(material).into()
+    ThinkingBlock::replay_only(bid(3), material).into()
 }
 
 fn provider_call() -> ContentBlock {
@@ -55,16 +54,11 @@ fn response() -> TurnEntry {
     ModelResponse::new(
         eid(10),
         every_opaque_block(),
-        ResponseEnding::tool_results_requested(),
+        ResponseEnding::tool_use(),
         ResponseMetadata::new(),
     )
     .unwrap()
     .into()
-}
-
-fn mounting() -> TurnEntry {
-    let definition = ToolDefinition::inline(tool("lookup"), "finds", common::oj(nasty())).unwrap();
-    ToolMounted::new(eid(11), definition).into()
 }
 
 fn conversation() -> Conversation {
@@ -72,7 +66,7 @@ fn conversation() -> Conversation {
         common::turns::tid(100),
         aid(1),
         author("Codex"),
-        vec![mounting(), response()],
+        vec![response()],
     )
     .unwrap();
     Conversation::from_parts(cvid(1000), vec![turn.into()]).unwrap()
@@ -164,15 +158,14 @@ fn given_each_opaque_block_when_round_tripped_then_the_canonical_text_is_stable(
 
 #[test]
 fn given_opaque_values_in_entries_when_round_tripped_then_the_canonical_text_is_stable() {
-    for entry in [response(), mounting()] {
-        let text = entry.to_json().unwrap();
+    let entry = response();
+    let text = entry.to_json().unwrap();
 
-        let back = TurnEntry::from_json(&text).unwrap();
+    let back = TurnEntry::from_json(&text).unwrap();
 
-        assert!(text.contains(CANONICAL), "{text}");
-        assert_eq!(back, entry);
-        assert_eq!(back.to_json().unwrap(), text);
-    }
+    assert!(text.contains(CANONICAL), "{text}");
+    assert_eq!(back, entry);
+    assert_eq!(back.to_json().unwrap(), text);
 }
 
 #[test]
@@ -184,7 +177,7 @@ fn given_a_conversation_with_opaque_values_when_round_tripped_then_the_document_
 
     assert_eq!(back, original);
     assert_eq!(back.to_json().unwrap(), text);
-    assert_eq!(text.matches(CANONICAL).count(), 5);
+    assert_eq!(text.matches(CANONICAL).count(), 4);
 }
 
 #[test]

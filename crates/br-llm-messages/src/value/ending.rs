@@ -9,17 +9,20 @@ pub enum ResponseEnding {
     #[non_exhaustive]
     Finished {},
     #[non_exhaustive]
-    ToolResultsRequested {},
+    ToolUse {},
     #[non_exhaustive]
     ProviderContinuation {},
     #[non_exhaustive]
-    OutputExhausted {},
+    OutputExhaustion {},
     #[non_exhaustive]
-    StopSequence {},
+    StopSequence {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        sequence: Option<String>,
+    },
     #[non_exhaustive]
     Refusal {},
     #[non_exhaustive]
-    Filtered {},
+    Filtering {},
     #[non_exhaustive]
     Unclassified { reason: String },
 }
@@ -30,6 +33,7 @@ struct EndingWire {
     #[serde(rename = "type")]
     kind: String,
     reason: Option<String>,
+    sequence: Option<String>,
 }
 
 impl ResponseEnding {
@@ -37,28 +41,38 @@ impl ResponseEnding {
         ResponseEnding::Finished {}
     }
 
-    pub fn tool_results_requested() -> Self {
-        ResponseEnding::ToolResultsRequested {}
+    pub fn tool_use() -> Self {
+        ResponseEnding::ToolUse {}
     }
 
     pub fn provider_continuation() -> Self {
         ResponseEnding::ProviderContinuation {}
     }
 
-    pub fn output_exhausted() -> Self {
-        ResponseEnding::OutputExhausted {}
+    pub fn output_exhaustion() -> Self {
+        ResponseEnding::OutputExhaustion {}
     }
 
     pub fn stop_sequence() -> Self {
-        ResponseEnding::StopSequence {}
+        ResponseEnding::StopSequence { sequence: None }
+    }
+
+    pub fn matched_stop_sequence(sequence: impl Into<String>) -> Result<Self, Error> {
+        let sequence = sequence.into();
+        if sequence.is_empty() {
+            return Err(Error::new(ErrorCode::InvalidContent).at("sequence"));
+        }
+        Ok(ResponseEnding::StopSequence {
+            sequence: Some(sequence),
+        })
     }
 
     pub fn refusal() -> Self {
         ResponseEnding::Refusal {}
     }
 
-    pub fn filtered() -> Self {
-        ResponseEnding::Filtered {}
+    pub fn filtering() -> Self {
+        ResponseEnding::Filtering {}
     }
 
     pub fn unclassified(reason: impl Into<String>) -> Result<Self, Error> {
@@ -68,31 +82,55 @@ impl ResponseEnding {
         }
         Ok(ResponseEnding::Unclassified { reason })
     }
+
+    pub fn matched_sequence(&self) -> Option<&str> {
+        match self {
+            ResponseEnding::StopSequence { sequence } => sequence.as_deref(),
+            _ => None,
+        }
+    }
 }
 
 impl TryFrom<EndingWire> for ResponseEnding {
     type Error = Error;
 
     fn try_from(wire: EndingWire) -> Result<Self, Error> {
-        if wire.kind == "unclassified" {
-            let reason = wire
-                .reason
-                .ok_or_else(|| Error::new(ErrorCode::MissingContent).at("reason"))?;
-            return ResponseEnding::unclassified(reason);
-        }
-        let ending = match wire.kind.as_str() {
-            "finished" => ResponseEnding::finished(),
-            "tool_results_requested" => ResponseEnding::tool_results_requested(),
-            "provider_continuation" => ResponseEnding::provider_continuation(),
-            "output_exhausted" => ResponseEnding::output_exhausted(),
-            "stop_sequence" => ResponseEnding::stop_sequence(),
-            "refusal" => ResponseEnding::refusal(),
-            "filtered" => ResponseEnding::filtered(),
-            _ => return Err(Error::new(ErrorCode::UnsupportedVariant)),
+        let forbid = |present: bool, field: &str| {
+            if present {
+                Err(Error::new(ErrorCode::InvalidContent).at(field))
+            } else {
+                Ok(())
+            }
         };
-        if wire.reason.is_some() {
-            return Err(Error::new(ErrorCode::UnsupportedField).at("reason"));
+        match wire.kind.as_str() {
+            "unclassified" => {
+                forbid(wire.sequence.is_some(), "sequence")?;
+                let reason = wire
+                    .reason
+                    .ok_or_else(|| Error::new(ErrorCode::InvalidContent).at("reason"))?;
+                ResponseEnding::unclassified(reason)
+            }
+            "stop_sequence" => {
+                forbid(wire.reason.is_some(), "reason")?;
+                match wire.sequence {
+                    Some(sequence) => ResponseEnding::matched_stop_sequence(sequence),
+                    None => Ok(ResponseEnding::stop_sequence()),
+                }
+            }
+            other => {
+                let ending = match other {
+                    "finished" => ResponseEnding::finished(),
+                    "tool_use" => ResponseEnding::tool_use(),
+                    "provider_continuation" => ResponseEnding::provider_continuation(),
+                    "output_exhaustion" => ResponseEnding::output_exhaustion(),
+                    "refusal" => ResponseEnding::refusal(),
+                    "filtering" => ResponseEnding::filtering(),
+                    _ => return Err(Error::new(ErrorCode::VariantMismatch)),
+                };
+                forbid(wire.reason.is_some(), "reason")?;
+                forbid(wire.sequence.is_some(), "sequence")?;
+                Ok(ending)
+            }
         }
-        Ok(ending)
     }
 }

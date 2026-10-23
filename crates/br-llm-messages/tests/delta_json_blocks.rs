@@ -5,7 +5,7 @@ mod stream_support;
 use br_llm_messages::{
     ContentBlock, DeltaOp, ErrorCode, ExecutionStatus, ExternalId, Finalization,
     ProviderToolExecutionRecord, ProviderToolResult, RedactedThinkingBlock, ResponseDelta,
-    ResultExposure, RuntimeToolCall, TextBlock,
+    RuntimeToolCall, TextBlock,
 };
 use common::{bid, envelope, plain_text, png, signature, tool};
 use serde_json::json;
@@ -20,17 +20,14 @@ fn every_block() -> Vec<ContentBlock> {
             .with_external_id(ExternalId::new("srv_1").unwrap())
             .with_replay(envelope(json!({"enc": [1, 2]})))
             .into(),
-        ProviderToolExecutionRecord::new(
-            bid(14),
-            ResultExposure::mixed(vec![plain_text(15, "out")], signature("s")).unwrap(),
-        )
-        .unwrap()
-        .with_operation(operation("code_run"))
-        .with_status(ExecutionStatus::Completed)
-        .into(),
-        ProviderToolExecutionRecord::new(bid(16), ResultExposure::not_exposed())
+        ProviderToolExecutionRecord::new(bid(14))
+            .with_content(vec![plain_text(15, "out")])
             .unwrap()
+            .with_replay(signature("s"))
+            .with_operation(operation("code_run"))
+            .with_status(ExecutionStatus::Completed)
             .into(),
+        ProviderToolExecutionRecord::new(bid(16)).into(),
         RuntimeToolCall::new(
             bid(17),
             tool("lookup"),
@@ -78,7 +75,7 @@ fn given_an_inserted_blank_text_block_when_loaded_then_invalid_content_survives_
 }
 
 #[test]
-fn given_an_inserted_block_with_a_disallowed_nested_kind_when_loaded_then_disallowed_block_kind() {
+fn given_an_inserted_block_with_a_disallowed_nested_kind_when_loaded_then_disallowed_kind() {
     let mut value = delta(DeltaOp::block_inserted(0, png(10)))
         .to_value()
         .unwrap()
@@ -92,5 +89,5 @@ fn given_an_inserted_block_with_a_disallowed_nested_kind_when_loaded_then_disall
 
     let error = ResponseDelta::from_value(common::oj(value)).unwrap_err();
 
-    assert_eq!(error.code(), ErrorCode::DisallowedBlockKind);
+    assert_eq!(error.code(), ErrorCode::DisallowedKind);
 }

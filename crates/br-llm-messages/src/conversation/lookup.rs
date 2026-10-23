@@ -64,7 +64,7 @@ impl Conversation {
         match self.index.get(id) {
             None => Err(Error::new(ErrorCode::UnknownReference).with_id(id)),
             Some(slot) if accepts(slot.place.class) => Ok(slot),
-            Some(_) => Err(Error::new(ErrorCode::WrongKindReference).with_id(id)),
+            Some(_) => Err(Error::new(ErrorCode::UnknownReference).with_id(id)),
         }
     }
 
@@ -109,7 +109,7 @@ impl Conversation {
     pub fn runtime_call(&self, id: &BlockId) -> Result<&RuntimeToolCall, Error> {
         match self.block(id)? {
             BlockRef::Content(ContentBlock::RuntimeToolCall(call)) => Ok(call),
-            _ => Err(Error::new(ErrorCode::WrongKindReference).with_id(id.as_uuid())),
+            _ => Err(Error::new(ErrorCode::UnknownReference).with_id(id.as_uuid())),
         }
     }
 }

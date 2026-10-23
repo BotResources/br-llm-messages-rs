@@ -3,7 +3,8 @@ use super::{ResponseDraft, target_error};
 use crate::block::{ContentBlock, ContentBlockKind};
 use crate::error::{Error, ErrorCode};
 use crate::id::BlockId;
-use crate::stream::ops::{BlockMetadataUpdate, BlockStart};
+use crate::stream::block_start::BlockStart;
+use crate::stream::ops::BlockMetadataUpdate;
 
 impl ResponseDraft {
     pub(super) fn start_block(
@@ -26,7 +27,7 @@ impl ResponseDraft {
         block: &ContentBlock,
     ) -> Result<(), Error> {
         if block.kind() == ContentBlockKind::RuntimeToolResult {
-            return Err(Error::new(ErrorCode::DisallowedBlockKind));
+            return Err(Error::new(ErrorCode::DisallowedKind));
         }
         let ids = block_ids(block);
         self.ensure_free(&ids, position)?;
@@ -109,7 +110,7 @@ impl ResponseDraft {
             return Err(Error::new(ErrorCode::ReusedIdentity));
         }
         if self.slots.contains_key(&position) {
-            return Err(Error::new(ErrorCode::InvalidPosition).at("position"));
+            return Err(Error::new(ErrorCode::InvalidRecordStructure).at("position"));
         }
         Ok(())
     }

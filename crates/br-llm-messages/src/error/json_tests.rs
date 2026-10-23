@@ -23,7 +23,7 @@ struct Bare;
 
 impl<'de> Deserialize<'de> for Bare {
     fn deserialize<D: Deserializer<'de>>(_: D) -> Result<Self, D::Error> {
-        Err(D::Error::custom(Error::new(ErrorCode::TurnClosed)))
+        Err(D::Error::custom(Error::new(ErrorCode::ClosedTurn)))
     }
 }
 
@@ -47,7 +47,7 @@ fn given_custom_serde_error_with_code_only_when_mapped_then_no_id_or_location_ap
 
     let mapped = Error::from_json_error(&failure);
 
-    assert_eq!(mapped.code(), ErrorCode::TurnClosed);
+    assert_eq!(mapped.code(), ErrorCode::ClosedTurn);
     assert_eq!(mapped.object_id(), None);
     assert_eq!(mapped.location(), None);
 }

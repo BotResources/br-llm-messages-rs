@@ -64,15 +64,56 @@ fn given_a_provider_result_in_a_later_response_when_pushed_then_the_link_by_iden
 }
 
 #[test]
-fn given_a_provider_result_before_its_call_in_one_response_when_pushed_then_accepted() {
+fn given_a_provider_call_already_answered_when_a_second_result_is_pushed_then_duplicate_result() {
     let mut turn = open_turn(1);
+    pushed(
+        &mut turn,
+        vec![response(
+            10,
+            vec![hosted_call(11), hosted_result(12, 11)],
+            ResponseEnding::provider_continuation(),
+        )],
+    );
 
-    turn.push_entry(response(
-        10,
-        vec![hosted_result(11, 12), hosted_call(12)],
+    let error = refused(turn.push_entry(response(
+        20,
+        vec![hosted_result(21, 11)],
         ResponseEnding::finished(),
-    ))
-    .unwrap();
+    )));
+
+    assert_eq!(error.code(), ErrorCode::DuplicateResult);
+    assert_eq!(error.object_id(), Some(bid(11).as_uuid()));
+    assert_eq!(error.location(), Some("content[0].call"));
+    assert_eq!(turn.entries().len(), 1);
+}
+
+#[test]
+fn given_a_provider_call_answered_in_a_later_response_when_a_third_result_is_pushed_then_it_is_refused()
+ {
+    let mut turn = open_turn(1);
+    pushed(
+        &mut turn,
+        vec![
+            response(
+                10,
+                vec![hosted_call(11)],
+                ResponseEnding::provider_continuation(),
+            ),
+            response(
+                20,
+                vec![hosted_result(21, 11)],
+                ResponseEnding::provider_continuation(),
+            ),
+        ],
+    );
+
+    let error = refused(turn.push_entry(response(
+        30,
+        vec![hosted_result(31, 11)],
+        ResponseEnding::finished(),
+    )));
+
+    assert_eq!(error.code(), ErrorCode::DuplicateResult);
 }
 
 #[test]
@@ -91,14 +132,14 @@ fn given_a_provider_result_linking_nothing_when_pushed_then_unknown_reference() 
 }
 
 #[test]
-fn given_a_provider_result_linking_a_wrong_kind_when_pushed_then_wrong_kind_reference() {
+fn given_a_provider_result_linking_a_wrong_kind_when_pushed_then_unknown_reference() {
     let mut turn = open_turn(1);
     pushed(
         &mut turn,
         vec![response(
             10,
             vec![call(11, "t").into(), text_block(12, "x").into()],
-            ResponseEnding::tool_results_requested(),
+            ResponseEnding::tool_use(),
         )],
     );
     pushed(&mut turn, vec![delivery(20, &[(21, 11, "t")])]);
@@ -109,7 +150,7 @@ fn given_a_provider_result_linking_a_wrong_kind_when_pushed_then_wrong_kind_refe
             vec![hosted_result(40 + target, target)],
             ResponseEnding::finished(),
         )));
-        assert_eq!(error.code(), ErrorCode::WrongKindReference);
+        assert_eq!(error.code(), ErrorCode::UnknownReference);
     }
 }
 
@@ -170,7 +211,7 @@ fn given_a_call_under_a_non_requesting_ending_when_more_is_pushed_then_no_result
     for ending in [
         ResponseEnding::finished(),
         ResponseEnding::provider_continuation(),
-        ResponseEnding::output_exhausted(),
+        ResponseEnding::output_exhaustion(),
         ResponseEnding::stop_sequence(),
     ] {
         let mut turn = open_turn(1);
@@ -189,11 +230,7 @@ fn given_a_call_under_a_requesting_ending_when_more_is_pushed_then_both_are_bloc
     let mut turn = open_turn(1);
     pushed(
         &mut turn,
-        vec![call_ending(
-            10,
-            11,
-            ResponseEnding::tool_results_requested(),
-        )],
+        vec![call_ending(10, 11, ResponseEnding::tool_use())],
     );
 
     assert_eq!(turn.state().outstanding_runtime_calls(), &[bid(11)]);
@@ -218,11 +255,11 @@ fn given_a_call_under_a_non_requesting_ending_when_a_result_arrives_then_it_is_c
 
     assert_eq!(
         refused(turn.push_entry(delivery(20, &[(21, 11, "wrong")]))).code(),
-        ErrorCode::ToolResultMismatch
+        ErrorCode::MismatchedResult
     );
     turn.push_entry(delivery(22, &[(23, 11, "a")])).unwrap();
     assert_eq!(
         refused(turn.push_entry(delivery(24, &[(25, 11, "a")]))).code(),
-        ErrorCode::DuplicateToolResult
+        ErrorCode::DuplicateResult
     );
 }

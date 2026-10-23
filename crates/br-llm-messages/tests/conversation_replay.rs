@@ -6,7 +6,7 @@ use br_llm_messages::{
 };
 use common::turns::{
     calling, close, delivery, finished, hosted_call, hosted_record, hosted_result, human,
-    input_turn, mount, response, tid, unmount,
+    input_turn, response, tid,
 };
 use common::{aid, author, cvid, refused};
 use serde_json::{Value, json};
@@ -24,7 +24,7 @@ fn cases() -> Vec<Case> {
         Case {
             name: "entry after closure",
             entries: vec![human(10), completed(), human(12)],
-            code: ErrorCode::TurnClosed,
+            code: ErrorCode::ClosedTurn,
             index: 2,
         },
         Case {
@@ -33,7 +33,7 @@ fn cases() -> Vec<Case> {
                 completed(),
                 close(91, br_llm_messages::ClosureReason::completed()),
             ],
-            code: ErrorCode::TurnClosed,
+            code: ErrorCode::ClosedTurn,
             index: 1,
         },
         Case {
@@ -54,7 +54,7 @@ fn cases() -> Vec<Case> {
                 response(10, vec![hosted_call(11)], ResponseEnding::finished()),
                 delivery(20, &[(21, 11, "a")]),
             ],
-            code: ErrorCode::WrongKindReference,
+            code: ErrorCode::UnknownReference,
             index: 1,
         },
         Case {
@@ -64,13 +64,13 @@ fn cases() -> Vec<Case> {
                 delivery(20, &[(21, 11, "a")]),
                 delivery(30, &[(31, 11, "a")]),
             ],
-            code: ErrorCode::DuplicateToolResult,
+            code: ErrorCode::DuplicateResult,
             index: 2,
         },
         Case {
             name: "result naming another tool",
             entries: vec![calling(10, &[(11, "a")]), delivery(20, &[(21, 11, "b")])],
-            code: ErrorCode::ToolResultMismatch,
+            code: ErrorCode::MismatchedResult,
             index: 1,
         },
         Case {
@@ -108,20 +108,8 @@ fn cases() -> Vec<Case> {
                 response(10, vec![], ResponseEnding::provider_continuation()),
                 completed(),
             ],
-            code: ErrorCode::ContinuationPending,
+            code: ErrorCode::UnresolvedExecution,
             index: 1,
-        },
-        Case {
-            name: "double unmount",
-            entries: vec![mount(10, "a"), unmount(11, 10), unmount(12, 10)],
-            code: ErrorCode::InvalidContent,
-            index: 2,
-        },
-        Case {
-            name: "unmount of an unknown mounting",
-            entries: vec![unmount(10, 99)],
-            code: ErrorCode::UnknownReference,
-            index: 0,
         },
         Case {
             name: "entry id used twice",
@@ -231,7 +219,7 @@ fn given_a_shape_error_in_an_entry_when_loaded_then_the_location_still_names_it(
 
     let error = refused(Conversation::from_value(common::oj(document(vec![turn]))));
 
-    assert_eq!(error.code(), ErrorCode::MissingContent);
+    assert_eq!(error.code(), ErrorCode::InvalidContent);
     assert!(error.location().unwrap().starts_with("turns[0].entries[1]"));
 }
 

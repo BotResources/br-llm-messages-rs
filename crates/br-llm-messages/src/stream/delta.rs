@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+use super::block_start::BlockStart;
 use super::kind::{DeltaTarget, ResponseDeltaKind};
 use super::metadata::ResponseMetadataUpdate;
-use super::ops::{BlockMetadataUpdate, BlockStart, Finalization, InterruptionReason};
+use super::ops::{BlockMetadataUpdate, Finalization, InterruptionReason};
 use crate::block::ContentBlock;
 use crate::entry::ResponseMetadata;
 use crate::id::{BlockId, EntryId, TurnId};

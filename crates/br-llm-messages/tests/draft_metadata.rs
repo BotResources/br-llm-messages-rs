@@ -143,7 +143,7 @@ fn given_a_citation_update_on_a_non_text_block_when_applied_then_stream_target()
                 BlockMetadataUpdate::citation_added(citation(50, 0, 1)),
             ),
         );
-        assert_eq!(error.code(), ErrorCode::StreamTarget);
+        assert_eq!(error.code(), ErrorCode::StreamTargetError);
     }
 }
 
@@ -197,7 +197,7 @@ fn given_updates_for_the_wrong_block_kind_when_applied_then_stream_target() {
             &mut draft,
             DeltaOp::block_metadata_updated(bid(block), update),
         );
-        assert_eq!(error.code(), ErrorCode::StreamTarget);
+        assert_eq!(error.code(), ErrorCode::StreamTargetError);
         assert_eq!(error.object_id(), Some(bid(block).as_uuid()));
     }
 }
@@ -256,5 +256,5 @@ fn given_a_finalized_block_when_metadata_arrives_then_stream_phase() {
         ),
     );
 
-    assert_eq!(error.code(), ErrorCode::StreamPhase);
+    assert_eq!(error.code(), ErrorCode::StreamPhaseError);
 }

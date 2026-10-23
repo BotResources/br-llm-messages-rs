@@ -4,7 +4,7 @@ use uuid::Uuid;
 use super::{Error, ErrorCode};
 
 impl Error {
-    pub fn from_json_error(error: &(dyn std::error::Error + 'static)) -> Error {
+    pub(crate) fn from_json_error(error: &(dyn std::error::Error + 'static)) -> Error {
         match error.downcast_ref::<serde_json::Error>() {
             Some(error) => Error::from_serde_json(error),
             None => from_data_message(&error.to_string()),
@@ -35,13 +35,10 @@ fn from_data_message(message: &str) -> Error {
         return Error::new(ErrorCode::MalformedJson);
     }
     if message.starts_with("unknown variant") {
-        return Error::new(ErrorCode::UnsupportedVariant);
-    }
-    if message.starts_with("unknown field") {
-        return Error::new(ErrorCode::UnsupportedField);
+        return Error::new(ErrorCode::VariantMismatch);
     }
     if let Some(field) = missing_field(message) {
-        let mut missing = Error::new(ErrorCode::MissingContent);
+        let mut missing = Error::new(ErrorCode::InvalidContent);
         missing.location = Some(field.to_owned());
         return missing;
     }

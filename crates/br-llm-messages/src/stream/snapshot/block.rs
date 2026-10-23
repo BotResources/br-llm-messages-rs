@@ -67,14 +67,11 @@ pub(super) fn open_row(
             status: status.clone(),
         }),
     }?;
-    Ok(BlockRecord::new(
-        open.id,
-        entry,
-        open.body.kind(),
-        position,
-        state,
-        payload,
-    ))
+    let row = BlockRecord::new(open.id, entry, open.body.kind(), position, state, payload);
+    Ok(match &open.observed_at {
+        Some(observed_at) => row.with_observed_at(observed_at.clone()),
+        None => row,
+    })
 }
 
 pub(super) fn open_from_row(row: &BlockRecord) -> Result<OpenBlock, Error> {
@@ -133,7 +130,7 @@ pub(super) fn open_from_row(row: &BlockRecord) -> Result<OpenBlock, Error> {
             }
         }
         _ => {
-            return Err(Error::new(ErrorCode::InvalidRecord)
+            return Err(Error::new(ErrorCode::DisallowedKind)
                 .with_id(row.id().as_uuid())
                 .at("kind"));
         }
@@ -142,6 +139,7 @@ pub(super) fn open_from_row(row: &BlockRecord) -> Result<OpenBlock, Error> {
         id: row.id(),
         body,
         replay_fragments,
+        observed_at: row.observed_at().cloned(),
     };
     check_fragments(&block)?;
     Ok(block)
@@ -158,7 +156,7 @@ fn check_fragments(block: &OpenBlock) -> Result<(), Error> {
     if assembled {
         Ok(())
     } else {
-        Err(Error::new(ErrorCode::InvalidRecord)
+        Err(Error::new(ErrorCode::InvalidRecordStructure)
             .with_id(block.id.as_uuid())
             .at("payload.replay_fragments"))
     }

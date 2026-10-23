@@ -44,35 +44,38 @@ fn refusals() -> Vec<(DeltaOp, ErrorCode)> {
     vec![
         (
             DeltaOp::response_started(ResponseMetadata::new()),
-            ErrorCode::StreamPhase,
+            ErrorCode::StreamPhaseError,
         ),
-        (text(99, "x"), ErrorCode::StreamTarget),
-        (text(11, "x"), ErrorCode::StreamTarget),
+        (text(99, "x"), ErrorCode::StreamTargetError),
+        (text(11, "x"), ErrorCode::StreamTargetError),
         (
             DeltaOp::thinking_appended(bid(10), "x"),
-            ErrorCode::StreamTarget,
+            ErrorCode::StreamTargetError,
         ),
-        (json(10, "{}"), ErrorCode::StreamTarget),
-        (text(14, "x"), ErrorCode::StreamPhase),
-        (finalize(14), ErrorCode::StreamPhase),
-        (DeltaOp::block_discarded(bid(14)), ErrorCode::StreamPhase),
-        (text(15, "x"), ErrorCode::StreamPhase),
-        (finalize(15), ErrorCode::StreamPhase),
+        (json(10, "{}"), ErrorCode::StreamTargetError),
+        (text(14, "x"), ErrorCode::StreamPhaseError),
+        (finalize(14), ErrorCode::StreamPhaseError),
+        (
+            DeltaOp::block_discarded(bid(14)),
+            ErrorCode::StreamPhaseError,
+        ),
+        (text(15, "x"), ErrorCode::StreamPhaseError),
+        (finalize(15), ErrorCode::StreamPhaseError),
         (
             DeltaOp::replay_fragment_appended(bid(11), other_format.clone(), "x"),
-            ErrorCode::ReplayMismatch,
+            ErrorCode::StreamTargetError,
         ),
         (
             DeltaOp::replay_fragment_appended(bid(10), other_format, "x"),
-            ErrorCode::ReplayMismatch,
+            ErrorCode::StreamTargetError,
         ),
         (
             DeltaOp::replay_material_set(bid(11), signature("x")),
-            ErrorCode::ReplayMismatch,
+            ErrorCode::StreamTargetError,
         ),
         (
             DeltaOp::replay_material_set(bid(12), signature("x")),
-            ErrorCode::StreamTarget,
+            ErrorCode::StreamTargetError,
         ),
         (
             DeltaOp::block_metadata_updated(
@@ -86,14 +89,14 @@ fn refusals() -> Vec<(DeltaOp, ErrorCode)> {
                 bid(12),
                 BlockMetadataUpdate::citation_added(citation(51, 0, 1)),
             ),
-            ErrorCode::StreamTarget,
+            ErrorCode::StreamTargetError,
         ),
         (start_text(10, 20), ErrorCode::ReusedIdentity),
-        (start_text(30, 0), ErrorCode::InvalidPosition),
-        (start_text(30, 5), ErrorCode::InvalidPosition),
+        (start_text(30, 0), ErrorCode::InvalidRecordStructure),
+        (start_text(30, 5), ErrorCode::InvalidRecordStructure),
         (
             DeltaOp::block_inserted(0, png(30)),
-            ErrorCode::InvalidPosition,
+            ErrorCode::InvalidRecordStructure,
         ),
         (
             DeltaOp::block_inserted(9, png(10)),
@@ -101,7 +104,7 @@ fn refusals() -> Vec<(DeltaOp, ErrorCode)> {
         ),
         (
             DeltaOp::block_inserted(9, result(30, 13, "lookup")),
-            ErrorCode::DisallowedBlockKind,
+            ErrorCode::DisallowedKind,
         ),
         (
             DeltaOp::block_finalized(
@@ -149,7 +152,7 @@ fn given_any_refused_delta_when_applied_then_the_draft_equals_its_previous_clone
         assert_eq!(error.object_id(), Some(target));
         codes.insert(expected.as_str());
     }
-    assert!(codes.len() >= 8);
+    assert!(codes.len() >= 7);
 }
 
 #[test]
@@ -164,7 +167,7 @@ fn given_a_foreign_turn_or_entry_when_applied_then_refused_and_unchanged() {
 
     for delta in foreign {
         let error = draft.apply(&delta).unwrap_err();
-        assert_eq!(error.code(), ErrorCode::StreamTarget);
+        assert_eq!(error.code(), ErrorCode::StreamTargetError);
         assert!(error.object_id().is_some());
         assert_eq!(draft, before);
     }
@@ -174,12 +177,9 @@ fn given_a_foreign_turn_or_entry_when_applied_then_refused_and_unchanged() {
 fn given_a_completion_that_direct_construction_refuses_when_applied_then_the_draft_is_unchanged() {
     let mut draft = run(vec![start_text(10, 0), text(10, "x"), finalize(10)]);
 
-    let error = refuse(
-        &mut draft,
-        complete(ResponseEnding::tool_results_requested()),
-    );
+    let error = refuse(&mut draft, complete(ResponseEnding::tool_use()));
 
-    assert_eq!(error.code(), ErrorCode::MissingContent);
+    assert_eq!(error.code(), ErrorCode::InvalidContent);
     assert_eq!(error.object_id(), Some(draft.entry().as_uuid()));
 }
 
@@ -195,7 +195,7 @@ fn given_a_gap_when_completing_then_refused_unchanged_and_the_gap_can_still_be_f
     ok(&mut draft, finalize(11));
 
     let error = refuse(&mut draft, finish());
-    assert_eq!(error.code(), ErrorCode::InvalidPosition);
+    assert_eq!(error.code(), ErrorCode::InvalidRecordStructure);
 
     ok(&mut draft, DeltaOp::block_inserted(1, text_block(12, "y")));
     ok(&mut draft, finish());
@@ -206,7 +206,7 @@ fn given_a_gap_when_completing_then_refused_unchanged_and_the_gap_can_still_be_f
 fn given_a_first_delta_that_is_not_a_start_when_beginning_then_the_error_names_the_entry() {
     let error = br_llm_messages::ResponseDraft::begin(&delta(finish())).unwrap_err();
 
-    assert_eq!(error.code(), ErrorCode::StreamPhase);
+    assert_eq!(error.code(), ErrorCode::StreamPhaseError);
     assert_eq!(error.object_id(), Some(common::eid(2).as_uuid()));
 }
 
@@ -226,7 +226,7 @@ fn given_a_terminal_draft_when_any_delta_arrives_then_refused_and_unchanged() {
             finish(),
             DeltaOp::block_discarded(bid(15)),
         ] {
-            assert_eq!(refuse(draft, op).code(), ErrorCode::StreamPhase);
+            assert_eq!(refuse(draft, op).code(), ErrorCode::StreamPhaseError);
         }
     }
 }

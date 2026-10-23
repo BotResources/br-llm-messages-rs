@@ -6,7 +6,7 @@ use super::{AITurn, InputTurn, Turn, TurnKind};
 use crate::entry::{IncomingEntry, TurnEntry};
 use crate::error::{Error, ErrorCode};
 use crate::id::{AgentId, TurnId};
-use crate::value::Author;
+use crate::value::{Author, ObservedAt};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -17,6 +17,7 @@ struct InputWire {
     entry: Value,
     #[serde(default, deserialize_with = "crate::entry::present")]
     author: bool,
+    observed_at: Option<ObservedAt>,
 }
 
 #[derive(Deserialize)]
@@ -28,11 +29,12 @@ struct AiWire {
     agent: AgentId,
     author: Author,
     entries: Vec<Value>,
+    observed_at: Option<ObservedAt>,
 }
 
 pub(crate) fn kind_of(value: &Value) -> Result<TurnKind, Error> {
     match value.get("type") {
-        None => Err(Error::new(ErrorCode::MissingContent).at("type")),
+        None => Err(Error::new(ErrorCode::InvalidContent).at("type")),
         Some(Value::String(name)) => name.parse().map_err(|error: Error| error.at("type")),
         Some(_) => Err(Error::new(ErrorCode::InvalidContent).at("type")),
     }
@@ -42,7 +44,7 @@ fn expect(value: &Value, wanted: TurnKind) -> Result<(), Error> {
     if kind_of(value)? == wanted {
         Ok(())
     } else {
-        Err(Error::new(ErrorCode::UnsupportedVariant).at("type"))
+        Err(Error::new(ErrorCode::VariantMismatch).at("type"))
     }
 }
 
@@ -63,7 +65,11 @@ pub(crate) fn input_from_value(value: Value) -> Result<InputTurn, Error> {
     }
     let entry = crate::json::decode_value::<IncomingEntry>(wire.entry)
         .map_err(|error| error.at("entry"))?;
-    InputTurn::new(wire.id, entry)
+    let turn = InputTurn::new(wire.id, entry)?;
+    Ok(match wire.observed_at {
+        Some(observed_at) => turn.with_observed_at(observed_at),
+        None => turn,
+    })
 }
 
 pub(crate) fn ai_from_value(value: Value) -> Result<AITurn, Error> {
@@ -75,5 +81,9 @@ pub(crate) fn ai_from_value(value: Value) -> Result<AITurn, Error> {
             .map_err(|error| error.at(format!("entries[{index}]")))?;
         entries.push(entry);
     }
-    AITurn::from_parts(wire.id, wire.agent, wire.author, entries)
+    let turn = AITurn::from_parts(wire.id, wire.agent, wire.author, entries)?;
+    Ok(match wire.observed_at {
+        Some(observed_at) => turn.with_observed_at(observed_at),
+        None => turn,
+    })
 }

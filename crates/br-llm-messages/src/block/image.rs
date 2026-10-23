@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use super::ids::IdSink;
 use crate::error::Error;
 use crate::id::BlockId;
-use crate::value::ImageSource;
+use crate::value::{ImageSource, ObservedAt};
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -11,11 +11,22 @@ use crate::value::ImageSource;
 pub struct ImageBlock {
     id: BlockId,
     source: ImageSource,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    observed_at: Option<ObservedAt>,
 }
 
 impl ImageBlock {
     pub fn new(id: BlockId, source: ImageSource) -> Self {
-        ImageBlock { id, source }
+        ImageBlock {
+            id,
+            source,
+            observed_at: None,
+        }
+    }
+
+    pub fn with_observed_at(mut self, observed_at: ObservedAt) -> Self {
+        self.observed_at = Some(observed_at);
+        self
     }
 
     pub fn id(&self) -> BlockId {
@@ -24,6 +35,10 @@ impl ImageBlock {
 
     pub fn source(&self) -> &ImageSource {
         &self.source
+    }
+
+    pub fn observed_at(&self) -> Option<&ObservedAt> {
+        self.observed_at.as_ref()
     }
 
     pub(crate) fn collect_ids(&self, sink: &mut IdSink) -> Result<(), Error> {

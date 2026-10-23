@@ -4,6 +4,7 @@
       "entry": "ab000000-0000-7000-8000-000000000002",
       "id": "ab000000-0000-7000-8000-00000000000b",
       "kind": "thinking",
+      "observed_at": "2026-10-23T08:00:03.75Z",
       "payload": {
         "replay": {
           "format": "anthropic.signature",
@@ -22,6 +23,7 @@
       "entry": "ab000000-0000-7000-8000-000000000002",
       "id": "ab000000-0000-7000-8000-000000000011",
       "kind": "image",
+      "observed_at": "2026-10-23T08:00:05.75Z",
       "payload": {
         "source": {
           "data": "QUJD",
@@ -36,6 +38,7 @@
       "entry": "ab000000-0000-7000-8000-000000000002",
       "id": "ab000000-0000-7000-8000-00000000000c",
       "kind": "runtime_tool_call",
+      "observed_at": "2026-10-23T08:00:04.75Z",
       "payload": {
         "external_id": "toolu_1",
         "name": "lookup",
@@ -48,6 +51,7 @@
       "entry": "ab000000-0000-7000-8000-000000000002",
       "id": "ab000000-0000-7000-8000-00000000000a",
       "kind": "text",
+      "observed_at": "2026-10-23T08:00:02.75Z",
       "payload": {
         "citations": [
           {
@@ -109,6 +113,7 @@
   "entry": {
     "id": "ab000000-0000-7000-8000-000000000002",
     "kind": "model_response",
+    "observed_at": "2026-10-23T08:00:01.5Z",
     "payload": {
       "interruption": {
         "failure": {

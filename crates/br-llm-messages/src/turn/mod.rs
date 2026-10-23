@@ -3,7 +3,6 @@ mod declared;
 mod input;
 mod json;
 mod kind;
-mod mounting;
 mod results;
 mod rules;
 mod state;
@@ -23,6 +22,7 @@ use crate::opaque_json::OpaqueJson;
 
 use crate::error::Error;
 use crate::id::TurnId;
+use crate::value::ObservedAt;
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -37,6 +37,13 @@ impl Turn {
         match self {
             Turn::InputTurn(turn) => turn.id(),
             Turn::AITurn(turn) => turn.id(),
+        }
+    }
+
+    pub fn observed_at(&self) -> Option<&ObservedAt> {
+        match self {
+            Turn::InputTurn(turn) => turn.observed_at(),
+            Turn::AITurn(turn) => turn.observed_at(),
         }
     }
 

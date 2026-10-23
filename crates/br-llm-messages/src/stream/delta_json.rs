@@ -63,7 +63,7 @@ impl ResponseDelta {
         }
         let wire: Wire = crate::json::decode_value(value)?;
         if wire.target != wire.op.target() {
-            let mut mismatch = Error::new(ErrorCode::StreamTarget).at("target");
+            let mut mismatch = Error::new(ErrorCode::StreamTargetError).at("target");
             mismatch = mismatch.with_id(
                 wire.op
                     .block_id()

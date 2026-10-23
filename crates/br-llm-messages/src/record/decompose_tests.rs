@@ -12,5 +12,5 @@ fn given_an_index_within_u32_when_converted_then_the_position_is_kept() {
 fn given_an_index_beyond_u32_when_converted_then_invalid_position_is_returned() {
     let error = position(u32::MAX as usize + 1).unwrap_err();
 
-    assert_eq!(error.code(), ErrorCode::InvalidPosition);
+    assert_eq!(error.code(), ErrorCode::InvalidRecordStructure);
 }

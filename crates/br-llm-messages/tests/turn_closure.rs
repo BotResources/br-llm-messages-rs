@@ -1,8 +1,6 @@
 mod common;
 
-use br_llm_messages::{
-    BudgetKind, ClosureReason, ErrorCode, ExecutionStatus, FailureDetail, ResponseEnding, TurnEntry,
-};
+use br_llm_messages::{ClosureReason, ErrorCode, ExecutionStatus, ResponseEnding, TurnEntry};
 use common::turns::{
     calling, close, delivery, finished, hosted_call, hosted_record, open_turn, pushed, response,
 };
@@ -62,7 +60,7 @@ fn given_settled_provider_executions_when_completed_closure_pushed_then_accepted
 }
 
 #[test]
-fn given_a_last_response_ending_in_provider_continuation_when_completed_then_continuation_pending()
+fn given_a_last_response_ending_in_provider_continuation_when_completed_then_unresolved_execution()
 {
     let mut turn = open_turn(1);
     pushed(
@@ -76,7 +74,7 @@ fn given_a_last_response_ending_in_provider_continuation_when_completed_then_con
 
     let error = refused(turn.push_entry(close(20, ClosureReason::completed())));
 
-    assert_eq!(error.code(), ErrorCode::ContinuationPending);
+    assert_eq!(error.code(), ErrorCode::UnresolvedExecution);
 }
 
 #[test]
@@ -110,10 +108,12 @@ fn given_results_delivered_and_no_further_response_when_completed_then_accepted(
 #[test]
 fn given_outstanding_calls_when_abnormal_closure_pushed_then_accepted_without_synthetic_results() {
     let reasons = [
-        ClosureReason::cancelled(None).unwrap(),
-        ClosureReason::interrupted(FailureDetail::new("kill").unwrap()),
-        ClosureReason::budget_exhausted(BudgetKind::Tokens),
-        ClosureReason::failed(FailureDetail::new("boom").unwrap()),
+        ClosureReason::cancelled(),
+        ClosureReason::interrupted().with_detail("kill").unwrap(),
+        ClosureReason::budget_exhausted()
+            .with_detail("tokens")
+            .unwrap(),
+        ClosureReason::failed("boom").unwrap(),
     ];
     for reason in reasons {
         let mut turn = open_turn(1);
@@ -145,7 +145,7 @@ fn given_abnormal_closure_after_a_continuation_when_pushed_then_accepted() {
         )],
     );
 
-    turn.push_entry(close(20, ClosureReason::cancelled(None).unwrap()))
+    turn.push_entry(close(20, ClosureReason::cancelled()))
         .unwrap();
 }
 
@@ -172,7 +172,7 @@ fn given_runtime_calls_and_provider_executions_when_state_read_then_each_fact_is
                 hosted_record(13, ExecutionStatus::Completed),
                 hosted_call(14),
             ],
-            ResponseEnding::tool_results_requested(),
+            ResponseEnding::tool_use(),
         )],
     );
 
@@ -180,10 +180,7 @@ fn given_runtime_calls_and_provider_executions_when_state_read_then_each_fact_is
 
     assert_eq!(state.outstanding_runtime_calls(), [bid(11)]);
     assert_eq!(state.pending_provider_executions(), [bid(12)]);
-    assert_eq!(
-        state.last_ending(),
-        Some(&ResponseEnding::tool_results_requested())
-    );
+    assert_eq!(state.last_ending(), Some(&ResponseEnding::tool_use()));
     assert_eq!(state.closure(), None);
 }
 

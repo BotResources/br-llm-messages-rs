@@ -84,7 +84,7 @@ pub(crate) fn encode<T: Serialize>(partial: &T) -> Result<OpaqueJson, Error> {
 
 pub(crate) fn check(kind: ContentBlockKind, payload: &OpaqueJson) -> Result<(), Error> {
     if !payload.inner().is_object() {
-        return Err(Error::new(ErrorCode::InvalidRecord).at("payload"));
+        return Err(Error::new(ErrorCode::InvalidContent).at("payload"));
     }
     match kind {
         ContentBlockKind::Text => decode::<TextPartial>(payload).map(drop),
@@ -93,7 +93,7 @@ pub(crate) fn check(kind: ContentBlockKind, payload: &OpaqueJson) -> Result<(), 
         ContentBlockKind::RuntimeToolCall => decode::<RuntimeCallPartial>(payload).map(drop),
         ContentBlockKind::ProviderToolCall => decode::<ProviderCallPartial>(payload).map(drop),
         ContentBlockKind::ProviderToolExecutionRecord => decode::<RecordPartial>(payload).map(drop),
-        _ => Err(Error::new(ErrorCode::InvalidRecord).at("kind")),
+        _ => Err(Error::new(ErrorCode::DisallowedKind).at("kind")),
     }
     .map_err(|error| error.at("payload"))
 }

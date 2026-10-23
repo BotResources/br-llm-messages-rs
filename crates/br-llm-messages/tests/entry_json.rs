@@ -2,14 +2,11 @@ mod common;
 use common::Raw as _;
 
 use br_llm_messages::{
-    AgentMail, ContentBlock, ErrorCode, ExternalId, MailCorrelation, ModelName, ModelResponse,
-    ResponseEnding, ResponseMetadata, TaskStarted, ToolDefinition, ToolMounted, TurnEntry,
-    TurnEntryKind, Usage,
+    AgentMail, ContentBlock, ErrorCode, ExternalId, ModelName, ModelResponse, ResponseEnding,
+    ResponseMetadata, TaskStarted, TurnEntry, TurnEntryKind, Usage,
 };
 use common::entries::all_entries;
-use common::{
-    aid, author, bid, call, cvid, eid, hid, kid, plain_text, refused, rid, signature, tool,
-};
+use common::{aid, author, bid, call, cvid, eid, hid, kid, plain_text, refused, rid, signature};
 use serde_json::{Value, json};
 
 fn s(id: impl ToString) -> String {
@@ -32,14 +29,12 @@ fn goldens() -> Vec<Value> {
         json!({"type": "queue_position", "id": s(eid(5)), "request": s(rid(1)), "position": 1}),
         json!({"type": "task_started", "id": s(eid(6)), "request": s(rid(1)), "task": s(kid(1))}),
         json!({"type": "task_completed", "id": s(eid(7)), "task": s(kid(1))}),
-        json!({"type": "task_failed", "id": s(eid(8)), "task": s(kid(1)), "failure": {"code": "boom"}}),
+        json!({"type": "task_failed", "id": s(eid(8)), "task": s(kid(1)), "reason": "boom"}),
         json!({"type": "model_response", "id": s(eid(9)), "ending": {"type": "finished"}, "content": []}),
         json!({"type": "runtime_tool_results", "id": s(eid(10)), "results": [
             {"type": "runtime_tool_result", "id": s(bid(600)), "call": s(bid(601)), "tool_name": "t",
-             "status": "success", "content": []}]}),
-        json!({"type": "tool_mounted", "id": s(eid(11)), "definition": {"type": "versioned", "name": "t", "version": "1"}}),
-        json!({"type": "tool_unmounted", "id": s(eid(12)), "mounting": s(eid(11))}),
-        json!({"type": "turn_closure", "id": s(eid(13)), "reason": {"type": "completed"}}),
+             "is_error": false, "content": []}]}),
+        json!({"type": "turn_closure", "id": s(eid(11)), "reason": {"type": "completed"}}),
     ]
 }
 
@@ -52,34 +47,35 @@ fn rich() -> Vec<(TurnEntry, Value)> {
         vec![plain_text(4, "m")],
     )
     .unwrap()
-    .with_in_reply_to(MailCorrelation::request(rid(2)));
+    .with_in_reply_to(eid(2));
     let started = TaskStarted::new(eid(6), rid(1), kid(1)).with_conversation(cvid(9));
     let response = ModelResponse::new(
         eid(9),
         vec![
-            br_llm_messages::ThinkingBlock::new(bid(10), "")
-                .with_replay(signature("sig"))
-                .into(),
+            br_llm_messages::ThinkingBlock::replay_only(bid(10), signature("sig")).into(),
             ContentBlock::from(
                 call(11, "search").with_external_id(ExternalId::new("toolu_1").unwrap()),
             ),
         ],
-        ResponseEnding::tool_results_requested(),
+        ResponseEnding::tool_use(),
         ResponseMetadata::new()
             .with_usage(Usage::new().with_input_tokens(1).with_output_tokens(2))
             .with_model(ModelName::new("m").unwrap())
             .with_provider_response_id(ExternalId::new("resp_1").unwrap()),
     )
     .unwrap();
-    let mounted = ToolMounted::new(
-        eid(11),
-        ToolDefinition::inline(tool("t"), "d", common::oj(json!({"type": "object"}))).unwrap(),
-    );
+    let stopped = ModelResponse::new(
+        eid(12),
+        vec![],
+        ResponseEnding::matched_stop_sequence("</done>").unwrap(),
+        ResponseMetadata::new(),
+    )
+    .unwrap();
     vec![
         (
             mail.into(),
             json!({"type": "agent_mail", "id": s(eid(3)), "sender": s(aid(1)), "author": "Codex GPT-6.1-Sol high",
-                "source_conversation": s(cvid(1)), "in_reply_to": {"type": "request", "id": s(rid(2))},
+                "source_conversation": s(cvid(1)), "in_reply_to": s(eid(2)),
                 "content": [text_node(4, "m")]}),
         ),
         (
@@ -89,7 +85,7 @@ fn rich() -> Vec<(TurnEntry, Value)> {
         ),
         (
             response.into(),
-            json!({"type": "model_response", "id": s(eid(9)), "ending": {"type": "tool_results_requested"},
+            json!({"type": "model_response", "id": s(eid(9)), "ending": {"type": "tool_use"},
             "usage": {"input_tokens": 1, "output_tokens": 2}, "model": "m", "provider_response_id": "resp_1",
             "content": [
                 {"type": "thinking", "id": s(bid(10)), "text": "", "replay": {"format": "anthropic.signature", "payload": {"type": "text", "value": "sig"}}},
@@ -97,9 +93,9 @@ fn rich() -> Vec<(TurnEntry, Value)> {
             ]}),
         ),
         (
-            mounted.into(),
-            json!({"type": "tool_mounted", "id": s(eid(11)), "definition": {"type": "inline", "name": "t",
-                "description": "d", "input_schema": {"type": "object"}}}),
+            stopped.into(),
+            json!({"type": "model_response", "id": s(eid(12)),
+                "ending": {"type": "stop_sequence", "sequence": "</done>"}, "content": []}),
         ),
     ]
 }
@@ -139,7 +135,7 @@ fn given_entries_with_every_optional_field_set_when_round_tripped_then_goldens_h
 }
 
 #[test]
-fn given_the_goldens_when_listed_then_all_thirteen_kinds_are_covered_once() {
+fn given_the_goldens_when_listed_then_all_eleven_kinds_are_covered_once() {
     let kinds: Vec<TurnEntryKind> = goldens()
         .iter()
         .map(|g| g["type"].as_str().unwrap().parse().unwrap())
@@ -149,7 +145,7 @@ fn given_the_goldens_when_listed_then_all_thirteen_kinds_are_covered_once() {
 }
 
 #[test]
-fn given_an_unknown_field_on_any_entry_kind_when_loaded_then_unsupported_field() {
+fn given_an_unknown_field_on_any_entry_kind_when_loaded_then_invalid_content() {
     for golden in goldens()
         .into_iter()
         .chain(rich().into_iter().map(|(_, g)| g))
@@ -161,7 +157,7 @@ fn given_an_unknown_field_on_any_entry_kind_when_loaded_then_unsupported_field()
 
         assert_eq!(
             error.code(),
-            ErrorCode::UnsupportedField,
+            ErrorCode::InvalidContent,
             "{}",
             golden["type"]
         );
@@ -169,7 +165,7 @@ fn given_an_unknown_field_on_any_entry_kind_when_loaded_then_unsupported_field()
 }
 
 #[test]
-fn given_a_missing_required_field_on_any_entry_kind_when_loaded_then_missing_content() {
+fn given_a_missing_required_field_on_any_entry_kind_when_loaded_then_invalid_content() {
     for golden in goldens() {
         let fields: Vec<String> = golden
             .as_object()
@@ -190,14 +186,14 @@ fn given_a_missing_required_field_on_any_entry_kind_when_loaded_then_missing_con
 
             assert!(outcome.is_ok() == optional, "{} {field}", golden["type"]);
             if !optional {
-                assert_eq!(refused(outcome).code(), ErrorCode::MissingContent);
+                assert_eq!(refused(outcome).code(), ErrorCode::InvalidContent);
             }
         }
     }
 }
 
 #[test]
-fn given_a_missing_or_unknown_type_tag_when_loaded_then_missing_content_or_unsupported_variant() {
+fn given_a_missing_or_unknown_type_tag_when_loaded_then_invalid_content_or_variant_mismatch() {
     let mut untagged = goldens().remove(3);
     untagged.as_object_mut().unwrap().remove("type");
     let mut unknown = goldens().remove(3);
@@ -205,11 +201,11 @@ fn given_a_missing_or_unknown_type_tag_when_loaded_then_missing_content_or_unsup
 
     assert_eq!(
         refused(TurnEntry::from_value(common::oj(untagged))).code(),
-        ErrorCode::MissingContent
+        ErrorCode::InvalidContent
     );
     assert_eq!(
         refused(TurnEntry::from_value(common::oj(unknown))).code(),
-        ErrorCode::UnsupportedVariant
+        ErrorCode::VariantMismatch
     );
 }
 
@@ -236,5 +232,19 @@ fn given_a_non_v7_or_non_canonical_id_in_entry_json_when_loaded_then_invalid_ide
         let error = refused(TurnEntry::from_value(common::oj(value)));
 
         assert_eq!(error.code(), ErrorCode::InvalidIdentity, "{bad}");
+    }
+}
+
+#[test]
+fn given_the_retired_tool_offering_kinds_when_loaded_then_variant_mismatch() {
+    for retired in ["tool_mounted", "tool_unmounted"] {
+        let value = json!({"type": retired, "id": s(eid(1))});
+
+        assert_eq!(
+            refused(TurnEntry::from_value(common::oj(value))).code(),
+            ErrorCode::VariantMismatch,
+            "{retired}"
+        );
+        assert!(retired.parse::<TurnEntryKind>().is_err());
     }
 }

@@ -37,6 +37,7 @@ fn direct() -> ModelResponse {
             .with_replay(signature("AbCdEf"))
             .into(),
         ThinkingBlock::new(bid(11), THINKING)
+            .unwrap()
             .with_replay(signature("ThinkSig"))
             .into(),
         RuntimeToolCall::new(
@@ -60,13 +61,7 @@ fn direct() -> ModelResponse {
     let metadata = ResponseMetadata::new()
         .with_usage(usage())
         .with_model(br_llm_messages::ModelName::new("model-x").unwrap());
-    ModelResponse::new(
-        eid(2),
-        blocks,
-        ResponseEnding::tool_results_requested(),
-        metadata,
-    )
-    .unwrap()
+    ModelResponse::new(eid(2), blocks, ResponseEnding::tool_use(), metadata).unwrap()
 }
 
 fn declarations() -> Vec<DeltaOp> {
@@ -169,7 +164,7 @@ fn tail() -> Vec<DeltaOp> {
                 .with_usage(usage())
                 .with_model(br_llm_messages::ModelName::new("model-x").unwrap()),
         ),
-        DeltaOp::response_completed(ResponseEnding::tool_results_requested()),
+        DeltaOp::response_completed(ResponseEnding::tool_use()),
     ]
 }
 

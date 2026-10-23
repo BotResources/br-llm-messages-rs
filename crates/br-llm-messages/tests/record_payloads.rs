@@ -22,7 +22,7 @@ fn code<T>(result: Result<T, br_llm_messages::Error>) -> ErrorCode {
 }
 
 #[test]
-fn given_an_agent_mail_row_without_author_when_checked_then_it_is_missing_content() {
+fn given_an_agent_mail_row_without_author_when_checked_then_it_is_invalid_content() {
     let row = entry(
         TurnEntryKind::AgentMail,
         RepresentationState::Complete,
@@ -30,7 +30,7 @@ fn given_an_agent_mail_row_without_author_when_checked_then_it_is_missing_conten
     )
     .with_sender(ActorRef::agent(aid(1)));
 
-    assert_eq!(code(row.check_local()), ErrorCode::MissingContent);
+    assert_eq!(code(row.check_local()), ErrorCode::InvalidContent);
     assert!(row.with_author(author("A")).check_local().is_ok());
 }
 
@@ -57,12 +57,12 @@ fn given_an_author_on_kinds_that_forbid_it_when_checked_then_it_is_author_forbid
 }
 
 #[test]
-fn given_an_ai_turn_row_without_agent_or_author_when_checked_then_it_is_missing_content() {
+fn given_an_ai_turn_row_without_agent_or_author_when_checked_then_it_is_invalid_content() {
     let no_author = TurnRecord::new(tid(1), TurnKind::AITurn, 0).with_agent(aid(1));
     let no_agent = TurnRecord::new(tid(1), TurnKind::AITurn, 0).with_author(author("A"));
 
-    assert_eq!(code(no_author.check_local()), ErrorCode::MissingContent);
-    assert_eq!(code(no_agent.check_local()), ErrorCode::MissingContent);
+    assert_eq!(code(no_author.check_local()), ErrorCode::InvalidContent);
+    assert_eq!(code(no_agent.check_local()), ErrorCode::InvalidContent);
 }
 
 #[test]
@@ -85,16 +85,19 @@ fn given_a_wrong_sender_kind_when_checked_then_the_row_is_refused() {
         json!({}),
     );
 
-    assert_eq!(code(human_by_agent.check_local()), ErrorCode::InvalidRecord);
+    assert_eq!(
+        code(human_by_agent.check_local()),
+        ErrorCode::DisallowedKind
+    );
     assert_eq!(
         code(notice_with_sender.check_local()),
-        ErrorCode::InvalidRecord
+        ErrorCode::DisallowedKind
     );
-    assert_eq!(code(human_without.check_local()), ErrorCode::MissingContent);
+    assert_eq!(code(human_without.check_local()), ErrorCode::InvalidContent);
 }
 
 #[test]
-fn given_a_payload_of_the_wrong_shape_when_checked_then_it_is_invalid_record() {
+fn given_a_payload_of_the_wrong_shape_when_checked_then_it_is_invalid_content() {
     let string_payload = entry(
         TurnEntryKind::QueuePosition,
         RepresentationState::Complete,
@@ -106,12 +109,15 @@ fn given_a_payload_of_the_wrong_shape_when_checked_then_it_is_invalid_record() {
         json!([1, 2]),
     );
 
-    assert_eq!(code(string_payload.check_local()), ErrorCode::InvalidRecord);
-    assert_eq!(code(array_block.check_local()), ErrorCode::InvalidRecord);
+    assert_eq!(
+        code(string_payload.check_local()),
+        ErrorCode::InvalidContent
+    );
+    assert_eq!(code(array_block.check_local()), ErrorCode::InvalidContent);
 }
 
 #[test]
-fn given_an_unknown_payload_field_when_checked_then_it_is_unsupported_field() {
+fn given_an_unknown_payload_field_when_checked_then_it_is_invalid_content() {
     let extra = entry(
         TurnEntryKind::RequestAccepted,
         RepresentationState::Complete,
@@ -129,19 +135,19 @@ fn given_an_unknown_payload_field_when_checked_then_it_is_unsupported_field() {
     )
     .with_sender(ActorRef::human(hid(1)));
 
-    assert_eq!(code(extra.check_local()), ErrorCode::UnsupportedField);
+    assert_eq!(code(extra.check_local()), ErrorCode::InvalidContent);
     assert_eq!(
         code(column_collision.check_local()),
-        ErrorCode::UnsupportedField
+        ErrorCode::InvalidContent
     );
     assert_eq!(
         code(author_collision.check_local()),
-        ErrorCode::UnsupportedField
+        ErrorCode::InvalidContent
     );
 }
 
 #[test]
-fn given_a_payload_missing_a_required_field_when_checked_then_it_is_missing_content() {
+fn given_a_payload_missing_a_required_field_when_checked_then_it_is_invalid_content() {
     let queue = entry(
         TurnEntryKind::QueuePosition,
         RepresentationState::Complete,
@@ -153,8 +159,8 @@ fn given_a_payload_missing_a_required_field_when_checked_then_it_is_missing_cont
         json!({}),
     );
 
-    assert_eq!(code(queue.check_local()), ErrorCode::MissingContent);
-    assert_eq!(code(text.check_local()), ErrorCode::MissingContent);
+    assert_eq!(code(queue.check_local()), ErrorCode::InvalidContent);
+    assert_eq!(code(text.check_local()), ErrorCode::InvalidContent);
 }
 
 #[test]
@@ -176,7 +182,7 @@ fn given_a_payload_that_breaks_a_field_rule_when_checked_then_the_field_rule_cod
 
 #[test]
 fn given_the_call_column_when_checked_then_it_is_required_on_results_only() {
-    let result_payload = json!({"tool_name": "lookup", "status": "success"});
+    let result_payload = json!({"tool_name": "lookup", "is_error": false});
     let missing = block(
         ContentBlockKind::RuntimeToolResult,
         RepresentationState::Complete,
@@ -190,9 +196,9 @@ fn given_the_call_column_when_checked_then_it_is_required_on_results_only() {
     )
     .with_call(bid(7));
 
-    assert_eq!(code(missing.check_local()), ErrorCode::MissingContent);
+    assert_eq!(code(missing.check_local()), ErrorCode::InvalidContent);
     assert!(present.check_local().is_ok());
-    assert_eq!(code(on_text.check_local()), ErrorCode::InvalidRecord);
+    assert_eq!(code(on_text.check_local()), ErrorCode::DisallowedKind);
 }
 
 #[test]
@@ -207,6 +213,6 @@ fn given_a_json_document_with_a_bad_row_when_loaded_then_the_row_code_is_reporte
         row(document, "blocks", id)["call"] = json!(bid(5).to_string());
     });
 
-    assert_eq!(code(unknown_field), ErrorCode::UnsupportedField);
-    assert_eq!(code(wrong_column), ErrorCode::InvalidRecord);
+    assert_eq!(code(unknown_field), ErrorCode::InvalidContent);
+    assert_eq!(code(wrong_column), ErrorCode::DisallowedKind);
 }

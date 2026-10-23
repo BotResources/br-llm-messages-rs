@@ -2,8 +2,8 @@ mod common;
 
 use br_llm_messages::{
     Citation, CitationSource, ContentBlock, ContentBlockKind, ErrorCode, ExternalId, PlainBlock,
-    RedactedThinkingBlock, ResultStatus, RuntimeToolCall, RuntimeToolResult, StructuredBlock,
-    TextBlock, TextRange, ThinkingBlock,
+    RedactedThinkingBlock, RuntimeToolCall, RuntimeToolResult, StructuredBlock, TextBlock,
+    TextRange, ThinkingBlock,
 };
 use common::Raw as _;
 use common::{bid, cid, envelope, plain_text, png, refused, signature, text_block, tool, v7};
@@ -18,13 +18,7 @@ fn result_with(
     id: u64,
     content: Vec<PlainBlock>,
 ) -> Result<RuntimeToolResult, br_llm_messages::Error> {
-    RuntimeToolResult::new(
-        bid(id),
-        bid(99),
-        tool("search"),
-        ResultStatus::Success,
-        content,
-    )
+    RuntimeToolResult::new(bid(id), bid(99), tool("search"), false, content)
 }
 
 #[test]
@@ -85,7 +79,7 @@ fn given_a_citation_id_equal_to_a_sibling_block_id_when_checked_then_reused_iden
         .unwrap()
         .with_citations(vec![cite(2, 0, 2)])
         .unwrap();
-    let sibling = ThinkingBlock::new(bid(2), "");
+    let sibling = ThinkingBlock::new(bid(2), "t").unwrap();
 
     let error = refused(ContentBlock::ensure_distinct_ids(&[
         cited.into(),
@@ -178,17 +172,46 @@ fn given_any_json_value_when_structured_then_kept_exactly() {
 }
 
 #[test]
-fn given_empty_thinking_when_built_with_or_without_replay_then_kept_verbatim() {
-    let replay_only = ThinkingBlock::new(bid(1), "").with_replay(envelope(json!({"enc": "AAA="})));
-    let bare = ThinkingBlock::new(bid(2), "");
+fn given_empty_thinking_text_when_it_carries_replay_then_it_is_kept_verbatim() {
+    let replay_only = ThinkingBlock::replay_only(bid(1), envelope(json!({"enc": "AAA="})));
+    let verbose = ThinkingBlock::new(bid(3), "  x\n").unwrap();
 
     assert_eq!(replay_only.text(), "");
     assert_eq!(
         replay_only.replay(),
         Some(&envelope(json!({"enc": "AAA="})))
     );
-    assert_eq!(bare.replay(), None);
-    assert_eq!(ThinkingBlock::new(bid(3), "  x\n").text(), "  x\n");
+    assert_eq!(verbose.text(), "  x\n");
+    assert_eq!(verbose.replay(), None);
+}
+
+#[test]
+fn given_empty_thinking_text_and_no_replay_when_built_then_invalid_content() {
+    let error = refused(ThinkingBlock::new(bid(2), ""));
+
+    assert_eq!(error.code(), ErrorCode::InvalidContent);
+    assert_eq!(error.object_id(), Some(v7(2)));
+    assert_eq!(error.location(), Some("text"));
+}
+
+#[test]
+fn given_whitespace_only_thinking_when_built_then_it_is_kept_because_only_exactly_empty_is_refused()
+{
+    let block = ThinkingBlock::new(bid(2), " \n").unwrap();
+
+    assert_eq!(block.text(), " \n");
+}
+
+#[test]
+fn given_empty_thinking_without_replay_in_json_when_loaded_then_invalid_content() {
+    let bare = json!({"type": "thinking", "id": v7(2).to_string(), "text": ""});
+    let sealed = json!({"type": "thinking", "id": v7(2).to_string(), "text": "",
+        "replay": {"format": "f", "payload": {"type": "text", "value": "s"}}});
+
+    let refusal = ContentBlock::from_json(&bare.to_string()).unwrap_err();
+
+    assert_eq!(refusal.code(), ErrorCode::InvalidContent);
+    assert!(ContentBlock::from_json(&sealed.to_string()).is_ok());
 }
 
 #[test]
@@ -203,14 +226,14 @@ fn given_redacted_thinking_when_built_then_material_is_preserved_unchanged() {
 #[test]
 fn given_a_runtime_call_when_built_then_its_id_is_the_call_identity_and_externals_are_optional() {
     let bare = RuntimeToolCall::new(bid(1), tool("search"), common::oj(json!({"q": "x"}))).unwrap();
-    let full = RuntimeToolCall::new(bid(2), tool("search"), common::oj(Value::Null))
+    let full = RuntimeToolCall::new(bid(2), tool("search"), common::oj(json!({})))
         .unwrap()
         .with_external_id(ExternalId::new("toolu_01").unwrap());
 
     assert_eq!(bare.id(), bid(1));
     assert_eq!(bare.external_id(), None);
     assert_eq!(full.external_id().map(|e| e.as_str()), Some("toolu_01"));
-    assert_eq!(full.arguments().raw(), Value::Null);
+    assert_eq!(full.arguments().raw(), json!({}));
     assert_eq!(bare.name().as_str(), "search");
 }
 
@@ -221,7 +244,7 @@ fn given_empty_result_content_when_built_then_accepted_and_call_linked() {
     assert!(result.content().is_empty());
     assert_eq!(result.call(), bid(99));
     assert_eq!(result.tool_name().as_str(), "search");
-    assert_eq!(result.status(), ResultStatus::Success);
+    assert!(!result.is_error());
 }
 
 #[test]

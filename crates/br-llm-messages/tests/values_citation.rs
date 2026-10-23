@@ -115,12 +115,9 @@ fn given_an_incomplete_citation_document_when_loaded_then_refused() {
 
     assert_eq!(
         code_of::<Citation>(&without_source),
-        ErrorCode::MissingContent
+        ErrorCode::InvalidContent
     );
-    assert_eq!(
-        code_of::<Citation>(&with_extra),
-        ErrorCode::UnsupportedField
-    );
+    assert_eq!(code_of::<Citation>(&with_extra), ErrorCode::InvalidContent);
     assert_eq!(
         code_of::<CitationSource>(r#"{"reference":"","title":"t"}"#),
         ErrorCode::InvalidContent

@@ -31,7 +31,7 @@ fn ensure_unique(set: &RecordSet) -> Result<(), Error> {
 
 fn ensure_complete(set: &RecordSet) -> Result<(), Error> {
     let incomplete = |id: Uuid, location: &str| {
-        Error::new(ErrorCode::InvalidRecord)
+        Error::new(ErrorCode::DisallowedKind)
             .with_id(id)
             .at(location)
     };
@@ -96,19 +96,32 @@ fn build_turn(
     match row.kind() {
         TurnKind::AITurn => {
             let (Some(agent), Some(author)) = (row.agent(), row.author().cloned()) else {
-                return Err(Error::new(ErrorCode::MissingContent).with_id(row.id().as_uuid()));
+                return Err(Error::new(ErrorCode::InvalidContent).with_id(row.id().as_uuid()));
             };
-            AITurn::from_parts(row.id(), agent, author, built).map(Turn::AITurn)
+            let turn = AITurn::from_parts(row.id(), agent, author, built)?;
+            Ok(Turn::AITurn(match row.observed_at() {
+                Some(observed_at) => turn.with_observed_at(observed_at.clone()),
+                None => turn,
+            }))
         }
         _ => {
             let mut built = built.into_iter();
-            let (Some(entry), None) = (built.next(), built.next()) else {
-                return Err(Error::new(ErrorCode::InvalidRecord)
+            let Some(entry) = built.next() else {
+                return Err(Error::new(ErrorCode::InvalidContent)
                     .with_id(row.id().as_uuid())
                     .at("entries"));
             };
+            if built.next().is_some() {
+                return Err(Error::new(ErrorCode::InvalidRecordStructure)
+                    .with_id(row.id().as_uuid())
+                    .at("entries"));
+            }
             let entry = IncomingEntry::try_from(entry).map_err(|error| error.at("entries[0]"))?;
-            InputTurn::new(row.id(), entry).map(Turn::InputTurn)
+            let turn = InputTurn::new(row.id(), entry)?;
+            Ok(Turn::InputTurn(match row.observed_at() {
+                Some(observed_at) => turn.with_observed_at(observed_at.clone()),
+                None => turn,
+            }))
         }
     }
 }

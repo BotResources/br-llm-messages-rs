@@ -19,9 +19,8 @@ impl ResponseDraft {
         let mut blocks: Vec<ContentBlock> = Vec::with_capacity(self.slots.len());
         for (expected, (position, slot)) in self.slots.iter().enumerate() {
             if u32::try_from(expected) != Ok(*position) {
-                return Err(
-                    Error::new(ErrorCode::InvalidPosition).at(format!("content[{expected}]"))
-                );
+                return Err(Error::new(ErrorCode::InvalidRecordStructure)
+                    .at(format!("content[{expected}]")));
             }
             if let Slot::Final(block) = slot {
                 blocks.push(block.clone());

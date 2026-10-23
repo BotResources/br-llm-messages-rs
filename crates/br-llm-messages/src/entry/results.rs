@@ -6,6 +6,7 @@ use super::{locate, refuse_author};
 use crate::block::{ContentBlock, IdSink, RuntimeToolResult};
 use crate::error::{Error, ErrorCode};
 use crate::id::EntryId;
+use crate::value::ObservedAt;
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -14,6 +15,8 @@ pub struct RuntimeToolResults {
     id: EntryId,
     #[serde(serialize_with = "serialize_results")]
     results: Vec<RuntimeToolResult>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    observed_at: Option<ObservedAt>,
 }
 
 #[derive(Serialize)]
@@ -36,13 +39,23 @@ struct RuntimeToolResultsWire {
     results: Vec<ContentBlock>,
     #[serde(default, deserialize_with = "super::present")]
     author: bool,
+    observed_at: Option<ObservedAt>,
 }
 
 impl RuntimeToolResults {
     pub fn new(id: EntryId, results: Vec<RuntimeToolResult>) -> Result<Self, Error> {
-        let entry = RuntimeToolResults { id, results };
+        let entry = RuntimeToolResults {
+            id,
+            results,
+            observed_at: None,
+        };
         entry.validate().map_err(|error| locate(error, id))?;
         Ok(entry)
+    }
+
+    pub fn with_observed_at(mut self, observed_at: ObservedAt) -> Self {
+        self.observed_at = Some(observed_at);
+        self
     }
 
     pub fn id(&self) -> EntryId {
@@ -51,6 +64,10 @@ impl RuntimeToolResults {
 
     pub fn results(&self) -> &[RuntimeToolResult] {
         &self.results
+    }
+
+    pub fn observed_at(&self) -> Option<&ObservedAt> {
+        self.observed_at.as_ref()
     }
 
     pub(crate) fn collect_ids(&self, sink: &mut IdSink) -> Result<(), Error> {
@@ -65,13 +82,13 @@ impl RuntimeToolResults {
 
     fn validate(&self) -> Result<(), Error> {
         if self.results.is_empty() {
-            return Err(Error::new(ErrorCode::MissingContent).at("results"));
+            return Err(Error::new(ErrorCode::InvalidContent).at("results"));
         }
         self.collect_ids(&mut IdSink::default())?;
         let mut answered = HashSet::new();
         for (index, result) in self.results.iter().enumerate() {
             if !answered.insert(result.call()) {
-                return Err(Error::new(ErrorCode::DuplicateToolResult)
+                return Err(Error::new(ErrorCode::DuplicateResult)
                     .with_id(result.call().as_uuid())
                     .at(format!("results[{index}]")));
             }
@@ -90,12 +107,16 @@ impl TryFrom<RuntimeToolResultsWire> for RuntimeToolResults {
             match block {
                 ContentBlock::RuntimeToolResult(result) => results.push(result),
                 other => {
-                    return Err(Error::new(ErrorCode::DisallowedBlockKind)
+                    return Err(Error::new(ErrorCode::DisallowedKind)
                         .with_id(other.id().as_uuid())
                         .at(format!("results[{index}]")));
                 }
             }
         }
-        RuntimeToolResults::new(wire.id, results)
+        let entry = RuntimeToolResults::new(wire.id, results)?;
+        Ok(match wire.observed_at {
+            Some(observed_at) => entry.with_observed_at(observed_at),
+            None => entry,
+        })
     }
 }

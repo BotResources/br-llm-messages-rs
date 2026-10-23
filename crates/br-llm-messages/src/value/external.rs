@@ -42,3 +42,4 @@ macro_rules! external_string {
 external_string!(ExternalId, |value| !value.is_empty());
 external_string!(ModelName, |value| !value.is_empty());
 external_string!(ProviderOperation, |value| !value.is_empty());
+external_string!(ItemRef, |value| !value.is_empty());

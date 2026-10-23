@@ -4,7 +4,7 @@ mod stream_support;
 use br_llm_messages::{
     AITurn, ContentBlock, Conversation, ErrorCode, ModelResponse, ProviderToolCall, RecordSet,
     ReplayFormat, ReplayMaterial, ReplayPayload, ResponseEnding, ResponseMetadata, RuntimeToolCall,
-    StructuredBlock, ThinkingBlock, ToolDefinition, ToolMounted,
+    StructuredBlock, ThinkingBlock,
 };
 use common::{aid, author, bid, cvid, eid, refused, tool};
 use serde_json::{Value, json};
@@ -31,7 +31,6 @@ fn every_constructor(value: &Value) -> Vec<Result<(), br_llm_messages::Error>> {
             .with_arguments(common::oj(value.clone()))
             .map(drop),
         ReplayPayload::json(common::oj(value.clone())).map(drop),
-        ToolDefinition::inline(tool("t"), "d", common::oj(value.clone())).map(drop),
     ]
 }
 
@@ -51,24 +50,20 @@ fn conversation_holding(value: &Value) -> Conversation {
             .with_arguments(common::oj(value.clone()))
             .unwrap()
             .into(),
-        ThinkingBlock::new(bid(4), "").with_replay(material).into(),
+        ThinkingBlock::replay_only(bid(4), material).into(),
     ];
     let response = ModelResponse::new(
         eid(10),
         blocks,
-        ResponseEnding::tool_results_requested(),
+        ResponseEnding::tool_use(),
         ResponseMetadata::new(),
     )
     .unwrap();
-    let definition = ToolDefinition::inline(tool("t"), "d", common::oj(value.clone())).unwrap();
     let turn = AITurn::from_parts(
         common::turns::tid(100),
         aid(1),
         author("Codex"),
-        vec![
-            ToolMounted::new(eid(11), definition).into(),
-            response.into(),
-        ],
+        vec![response.into()],
     )
     .unwrap();
     Conversation::from_parts(cvid(1000), vec![turn.into()]).unwrap()

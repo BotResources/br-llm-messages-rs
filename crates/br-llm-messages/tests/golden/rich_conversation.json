@@ -20,15 +20,18 @@
               }
             ],
             "id": "ab000000-0000-7000-8000-000000000003",
+            "observed_at": "2026-10-23T08:00:01.12Z",
             "text": "cited text",
             "type": "text"
           }
         ],
         "human": "ab000000-0000-7000-8000-000000000001",
         "id": "ab000000-0000-7000-8000-000000000002",
+        "observed_at": "2026-10-23T08:00:02.123Z",
         "type": "human_message"
       },
       "id": "ab000000-0000-7000-8000-000000000001",
+      "observed_at": "2026-10-23T08:00:03.1234Z",
       "type": "input_turn"
     },
     {
@@ -36,21 +39,10 @@
       "author": "Codex GPT-6.1-Sol high",
       "entries": [
         {
-          "definition": {
-            "description": "finds things",
-            "input_schema": {
-              "type": "object"
-            },
-            "name": "lookup",
-            "type": "inline"
-          },
-          "id": "ab000000-0000-7000-8000-00000000000b",
-          "type": "tool_mounted"
-        },
-        {
           "content": [
             {
               "id": "ab000000-0000-7000-8000-00000000000d",
+              "observed_at": "2026-10-23T08:00:04.12345Z",
               "replay": {
                 "format": "anthropic.signature",
                 "payload": {
@@ -63,6 +55,8 @@
             },
             {
               "id": "ab000000-0000-7000-8000-00000000000e",
+              "item_ref": "msg_1",
+              "observed_at": "2026-10-23T08:00:05.123456Z",
               "text": "calling",
               "type": "text"
             },
@@ -72,7 +66,9 @@
               },
               "external_id": "toolu_1",
               "id": "ab000000-0000-7000-8000-00000000000f",
+              "item_ref": "fc_1",
               "name": "lookup",
+              "observed_at": "2026-10-23T08:00:06.1234567Z",
               "type": "runtime_tool_call"
             },
             {
@@ -80,6 +76,7 @@
                 "query": "x"
               },
               "id": "ab000000-0000-7000-8000-000000000010",
+              "observed_at": "2026-10-23T08:00:07.12345678Z",
               "operation": "web_search",
               "type": "provider_tool_call"
             },
@@ -93,29 +90,29 @@
                 }
               ],
               "id": "ab000000-0000-7000-8000-000000000011",
+              "observed_at": "2026-10-23T08:00:08.123456789Z",
               "type": "provider_tool_result"
             },
             {
-              "exposure": {
-                "content": [
-                  {
-                    "id": "ab000000-0000-7000-8000-000000000014",
-                    "text": "log",
-                    "type": "text"
-                  }
-                ],
-                "type": "readable"
-              },
+              "content": [
+                {
+                  "id": "ab000000-0000-7000-8000-000000000014",
+                  "text": "log",
+                  "type": "text"
+                }
+              ],
               "id": "ab000000-0000-7000-8000-000000000013",
+              "observed_at": "2026-10-23T08:00:09.1Z",
               "status": "completed",
               "type": "provider_tool_execution_record"
             }
           ],
           "ending": {
-            "type": "tool_results_requested"
+            "type": "tool_use"
           },
           "id": "ab000000-0000-7000-8000-00000000000c",
           "model": "gpt-6.1",
+          "observed_at": "2026-10-23T08:00:10.12Z",
           "provider_response_id": "resp_1",
           "type": "model_response",
           "usage": {
@@ -125,6 +122,7 @@
         },
         {
           "id": "ab000000-0000-7000-8000-000000000015",
+          "observed_at": "2026-10-23T08:00:14.123456Z",
           "results": [
             {
               "call": "ab000000-0000-7000-8000-00000000000f",
@@ -144,11 +142,13 @@
                     }
                   ],
                   "id": "ab000000-0000-7000-8000-000000000017",
+                  "observed_at": "2026-10-23T08:00:01.12Z",
                   "text": "cited text",
                   "type": "text"
                 },
                 {
                   "id": "ab000000-0000-7000-8000-000000000018",
+                  "observed_at": "2026-10-23T08:00:12.1234Z",
                   "source": {
                     "data": "QUJD",
                     "media_type": "image/png",
@@ -158,6 +158,7 @@
                 },
                 {
                   "id": "ab000000-0000-7000-8000-000000000019",
+                  "observed_at": "2026-10-23T08:00:13.12345Z",
                   "type": "structured_content",
                   "value": {
                     "k": [
@@ -168,7 +169,8 @@
                 }
               ],
               "id": "ab000000-0000-7000-8000-000000000016",
-              "status": "success",
+              "is_error": false,
+              "observed_at": "2026-10-23T08:00:11.123Z",
               "tool_name": "lookup",
               "type": "runtime_tool_result"
             }
@@ -185,6 +187,7 @@
             }
           ],
           "id": "ab000000-0000-7000-8000-00000000001a",
+          "observed_at": "2026-10-23T08:00:15.1234567Z",
           "sender": "ab000000-0000-7000-8000-000000000002",
           "source_conversation": "ab000000-0000-7000-8000-000000000002",
           "type": "agent_mail"
@@ -193,6 +196,7 @@
           "content": [
             {
               "id": "ab000000-0000-7000-8000-00000000001d",
+              "observed_at": "2026-10-23T08:00:16.12345678Z",
               "text": "done",
               "type": "text"
             }
@@ -201,10 +205,12 @@
             "type": "finished"
           },
           "id": "ab000000-0000-7000-8000-00000000001c",
+          "observed_at": "2026-10-23T08:00:17.123456789Z",
           "type": "model_response"
         },
         {
           "id": "ab000000-0000-7000-8000-00000000001e",
+          "observed_at": "2026-10-23T08:00:18.1Z",
           "reason": {
             "type": "completed"
           },
@@ -212,6 +218,7 @@
         }
       ],
       "id": "ab000000-0000-7000-8000-00000000000a",
+      "observed_at": "2026-10-23T08:00:19.12Z",
       "type": "ai_turn"
     },
     {
@@ -225,6 +232,7 @@
           }
         ],
         "id": "ab000000-0000-7000-8000-000000000029",
+        "observed_at": "2026-10-23T08:00:20.123Z",
         "origin": {
           "block": "ab000000-0000-7000-8000-000000000384",
           "type": "tool_call"
@@ -234,6 +242,7 @@
         "type": "agent_request"
       },
       "id": "ab000000-0000-7000-8000-000000000028",
+      "observed_at": "2026-10-23T08:00:21.1234Z",
       "type": "input_turn"
     },
     {
@@ -242,28 +251,33 @@
       "entries": [
         {
           "id": "ab000000-0000-7000-8000-000000000033",
+          "observed_at": "2026-10-23T08:00:22.12345Z",
           "request": "ab000000-0000-7000-8000-000000000001",
           "type": "request_accepted"
         },
         {
           "conversation": "ab000000-0000-7000-8000-000000000003",
           "id": "ab000000-0000-7000-8000-000000000034",
+          "observed_at": "2026-10-23T08:00:23.123456Z",
           "request": "ab000000-0000-7000-8000-000000000001",
           "task": "ab000000-0000-7000-8000-000000000001",
           "type": "task_started"
         }
       ],
       "id": "ab000000-0000-7000-8000-000000000032",
+      "observed_at": "2026-10-23T08:00:24.1234567Z",
       "type": "ai_turn"
     },
     {
       "entry": {
         "id": "ab000000-0000-7000-8000-00000000003d",
+        "observed_at": "2026-10-23T08:00:25.12345678Z",
         "position": 2,
         "request": "ab000000-0000-7000-8000-000000000001",
         "type": "queue_position"
       },
       "id": "ab000000-0000-7000-8000-00000000003c",
+      "observed_at": "2026-10-23T08:00:26.123456789Z",
       "type": "input_turn"
     }
   ]

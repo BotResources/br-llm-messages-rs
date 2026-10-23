@@ -4,7 +4,7 @@ use crate::id::BlockId;
 use crate::value::{ReplayFormat, ReplayMaterial, ReplayPayload};
 
 fn mismatch() -> Error {
-    Error::new(ErrorCode::ReplayMismatch)
+    Error::new(ErrorCode::StreamTargetError)
 }
 
 impl ResponseDraft {
@@ -29,16 +29,7 @@ impl ResponseDraft {
                 if !open.replay_fragments {
                     return Err(mismatch().at("mode"));
                 }
-                if material.format() != format {
-                    return Err(mismatch().at("format"));
-                }
-                match material.text_mut() {
-                    Some(text) => {
-                        text.push_str(fragment);
-                        Ok(())
-                    }
-                    None => Err(mismatch().at("payload")),
-                }
+                material.append(format, fragment)
             }
         }
     }

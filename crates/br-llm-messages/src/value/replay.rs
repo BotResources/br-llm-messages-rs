@@ -4,7 +4,7 @@ use super::opaque;
 use crate::error::{Error, ErrorCode};
 use crate::opaque_json::OpaqueJson;
 
-const MAX_FORMAT_LEN: usize = 64;
+const MAX_FORMAT_SCALARS: usize = 256;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(try_from = "String")]
@@ -25,13 +25,7 @@ impl ReplayFormat {
 }
 
 fn is_valid(value: &str) -> bool {
-    let bytes = value.as_bytes();
-    if bytes.is_empty() || bytes.len() > MAX_FORMAT_LEN || !bytes[0].is_ascii_lowercase() {
-        return false;
-    }
-    bytes[1..]
-        .iter()
-        .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(*b, b'_' | b'.' | b'-'))
+    !value.is_empty() && value.chars().count() <= MAX_FORMAT_SCALARS
 }
 
 impl TryFrom<String> for ReplayFormat {
@@ -104,10 +98,22 @@ impl ReplayMaterial {
         &self.payload
     }
 
-    pub(crate) fn text_mut(&mut self) -> Option<&mut String> {
+    pub(crate) fn append(&mut self, format: &ReplayFormat, fragment: &str) -> Result<(), Error> {
+        if self.format != *format {
+            return Err(Error::new(ErrorCode::StreamTargetError).at("format"));
+        }
         match &mut self.payload {
-            ReplayPayload::Text { value } => Some(value),
-            _ => None,
+            ReplayPayload::Text { value } => {
+                value.push_str(fragment);
+                Ok(())
+            }
+            ReplayPayload::Json { .. } => {
+                Err(Error::new(ErrorCode::StreamTargetError).at("payload"))
+            }
         }
     }
 }
+
+#[cfg(test)]
+#[path = "replay_tests.rs"]
+mod tests;

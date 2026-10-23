@@ -1,15 +1,14 @@
 mod common;
 
 use br_llm_messages::{
-    AgentMail, AgentRequest, ErrorCode, HumanMessage, MailCorrelation, RequestOrigin, TurnEntry,
-    TurnEntryKind,
+    AgentMail, AgentRequest, ErrorCode, HumanMessage, RequestOrigin, TurnEntry, TurnEntryKind,
 };
 use common::entries::all_entries;
 use common::{aid, author, bid, cvid, eid, hid, plain_text, png, refused, rid};
 use serde_json::{Value, json};
 
 #[test]
-fn given_the_thirteen_kinds_when_named_then_snake_case_discriminants_are_golden() {
+fn given_the_eleven_kinds_when_named_then_snake_case_discriminants_are_golden() {
     let expected = [
         "human_message",
         "agent_request",
@@ -21,8 +20,6 @@ fn given_the_thirteen_kinds_when_named_then_snake_case_discriminants_are_golden(
         "task_failed",
         "model_response",
         "runtime_tool_results",
-        "tool_mounted",
-        "tool_unmounted",
         "turn_closure",
     ];
 
@@ -45,16 +42,16 @@ fn given_every_entry_when_inspected_then_each_has_its_own_id_and_matching_kind()
     let ids: Vec<_> = entries.iter().map(|e| e.id()).collect();
     let kinds: Vec<_> = entries.iter().map(|e| e.kind()).collect();
 
-    assert_eq!(ids.len(), 13);
-    assert_eq!(ids, (1..=13).map(eid).collect::<Vec<_>>());
+    assert_eq!(ids.len(), 11);
+    assert_eq!(ids, (1..=11).map(eid).collect::<Vec<_>>());
     assert_eq!(kinds, TurnEntryKind::ALL.to_vec());
 }
 
 #[test]
-fn given_a_human_message_without_blocks_when_built_then_missing_content() {
+fn given_a_human_message_without_blocks_when_built_then_invalid_content() {
     let error = refused(HumanMessage::new(eid(1), hid(1), vec![]));
 
-    assert_eq!(error.code(), ErrorCode::MissingContent);
+    assert_eq!(error.code(), ErrorCode::InvalidContent);
     assert_eq!(error.object_id(), Some(eid(1).as_uuid()));
 }
 
@@ -74,13 +71,13 @@ fn given_a_human_message_when_blocks_are_text_image_structured_then_accepted_in_
 }
 
 #[test]
-fn given_a_human_message_json_with_thinking_content_when_loaded_then_disallowed_block_kind() {
+fn given_a_human_message_json_with_thinking_content_when_loaded_then_disallowed_kind() {
     let value = json!({"type": "human_message", "id": eid(1).to_string(), "human": hid(1).to_string(),
         "content": [{"type": "thinking", "id": bid(2).to_string(), "text": ""}]});
 
     let error = refused(TurnEntry::from_value(common::oj(value)));
 
-    assert_eq!(error.code(), ErrorCode::DisallowedBlockKind);
+    assert_eq!(error.code(), ErrorCode::DisallowedKind);
 }
 
 #[test]
@@ -137,7 +134,7 @@ fn given_an_agent_request_when_built_then_requester_author_source_and_origin_are
 }
 
 #[test]
-fn given_an_agent_request_without_content_when_built_then_missing_content() {
+fn given_an_agent_request_without_content_when_built_then_invalid_content() {
     let error = refused(AgentRequest::new(
         eid(1),
         aid(1),
@@ -147,11 +144,11 @@ fn given_an_agent_request_without_content_when_built_then_missing_content() {
         vec![],
     ));
 
-    assert_eq!(error.code(), ErrorCode::MissingContent);
+    assert_eq!(error.code(), ErrorCode::InvalidContent);
 }
 
 #[test]
-fn given_an_agent_request_json_missing_a_required_field_when_loaded_then_missing_content() {
+fn given_an_agent_request_json_missing_a_required_field_when_loaded_then_invalid_content() {
     let full = json!({"type": "agent_request", "id": eid(1).to_string(), "requester": aid(1).to_string(),
         "author": "A", "source_conversation": cvid(1).to_string(),
         "origin": {"type": "tool_call", "block": bid(5).to_string()},
@@ -170,7 +167,7 @@ fn given_an_agent_request_json_missing_a_required_field_when_loaded_then_missing
 
         let error = refused(TurnEntry::from_value(common::oj(stripped)));
 
-        assert_eq!(error.code(), ErrorCode::MissingContent, "{field}");
+        assert_eq!(error.code(), ErrorCode::InvalidContent, "{field}");
     }
 }
 
@@ -187,7 +184,7 @@ fn given_an_agent_request_json_with_a_blank_author_when_loaded_then_invalid_auth
 }
 
 #[test]
-fn given_an_agent_request_json_with_an_unknown_origin_when_loaded_then_unsupported_variant() {
+fn given_an_agent_request_json_with_an_unknown_origin_when_loaded_then_variant_mismatch() {
     let value = json!({"type": "agent_request", "id": eid(1).to_string(), "requester": aid(1).to_string(),
         "author": "A", "source_conversation": cvid(1).to_string(),
         "origin": {"type": "carrier_pigeon"},
@@ -195,7 +192,7 @@ fn given_an_agent_request_json_with_an_unknown_origin_when_loaded_then_unsupport
 
     let error = refused(TurnEntry::from_value(common::oj(value)));
 
-    assert_eq!(error.code(), ErrorCode::UnsupportedVariant);
+    assert_eq!(error.code(), ErrorCode::VariantMismatch);
 }
 
 #[test]
@@ -208,30 +205,29 @@ fn given_an_agent_mail_when_built_then_correlation_is_optional_and_kept() {
         vec![plain_text(2, "m")],
     )
     .unwrap();
-    let replying = plain
-        .clone()
-        .with_in_reply_to(MailCorrelation::message(eid(77)));
+    let replying = plain.clone().with_in_reply_to(eid(77));
 
     assert_eq!(plain.in_reply_to(), None);
+    assert_eq!(replying.in_reply_to(), Some(eid(77)));
     assert_eq!(
-        replying.in_reply_to(),
-        Some(&MailCorrelation::message(eid(77)))
+        serde_json::to_value(&replying).unwrap()["in_reply_to"],
+        json!(eid(77).to_string())
     );
 }
 
 #[test]
-fn given_an_agent_mail_json_when_it_has_a_source_message_id_then_unsupported_field() {
+fn given_an_agent_mail_json_when_it_has_a_source_message_id_then_invalid_content() {
     let value = json!({"type": "agent_mail", "id": eid(1).to_string(), "sender": aid(1).to_string(),
         "author": "A", "source_conversation": cvid(1).to_string(), "source_message": eid(9).to_string(),
         "content": [{"type": "text", "id": bid(2).to_string(), "text": "hi"}]});
 
     let error = refused(TurnEntry::from_value(common::oj(value)));
 
-    assert_eq!(error.code(), ErrorCode::UnsupportedField);
+    assert_eq!(error.code(), ErrorCode::InvalidContent);
 }
 
 #[test]
-fn given_an_agent_mail_json_without_author_or_source_when_loaded_then_missing_content() {
+fn given_an_agent_mail_json_without_author_or_source_when_loaded_then_invalid_content() {
     let full = json!({"type": "agent_mail", "id": eid(1).to_string(), "sender": aid(1).to_string(),
         "author": "A", "source_conversation": cvid(1).to_string(),
         "content": [{"type": "text", "id": bid(2).to_string(), "text": "hi"}]});
@@ -243,6 +239,6 @@ fn given_an_agent_mail_json_without_author_or_source_when_loaded_then_missing_co
 
         let error = refused(TurnEntry::from_value(common::oj(stripped)));
 
-        assert_eq!(error.code(), ErrorCode::MissingContent, "{field}");
+        assert_eq!(error.code(), ErrorCode::InvalidContent, "{field}");
     }
 }

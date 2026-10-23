@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use super::{MailCorrelation, check_content, collect_content};
+use super::{check_content, collect_content};
 use crate::block::{IdSink, PlainBlock};
 use crate::error::Error;
 use crate::id::{AgentId, ConversationId, EntryId};
-use crate::value::Author;
+use crate::value::{Author, ObservedAt};
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -15,8 +15,10 @@ pub struct AgentMail {
     author: Author,
     source_conversation: ConversationId,
     #[serde(skip_serializing_if = "Option::is_none")]
-    in_reply_to: Option<MailCorrelation>,
+    in_reply_to: Option<EntryId>,
     content: Vec<PlainBlock>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    observed_at: Option<ObservedAt>,
 }
 
 #[derive(Deserialize)]
@@ -26,8 +28,9 @@ struct AgentMailWire {
     sender: AgentId,
     author: Author,
     source_conversation: ConversationId,
-    in_reply_to: Option<MailCorrelation>,
+    in_reply_to: Option<EntryId>,
     content: Vec<PlainBlock>,
+    observed_at: Option<ObservedAt>,
 }
 
 impl AgentMail {
@@ -46,11 +49,17 @@ impl AgentMail {
             source_conversation,
             in_reply_to: None,
             content,
+            observed_at: None,
         })
     }
 
-    pub fn with_in_reply_to(mut self, correlation: MailCorrelation) -> Self {
-        self.in_reply_to = Some(correlation);
+    pub fn with_observed_at(mut self, observed_at: ObservedAt) -> Self {
+        self.observed_at = Some(observed_at);
+        self
+    }
+
+    pub fn with_in_reply_to(mut self, entry: EntryId) -> Self {
+        self.in_reply_to = Some(entry);
         self
     }
 
@@ -70,12 +79,16 @@ impl AgentMail {
         self.source_conversation
     }
 
-    pub fn in_reply_to(&self) -> Option<&MailCorrelation> {
-        self.in_reply_to.as_ref()
+    pub fn in_reply_to(&self) -> Option<EntryId> {
+        self.in_reply_to
     }
 
     pub fn content(&self) -> &[PlainBlock] {
         &self.content
+    }
+
+    pub fn observed_at(&self) -> Option<&ObservedAt> {
+        self.observed_at.as_ref()
     }
 
     pub(crate) fn collect_ids(&self, sink: &mut IdSink) -> Result<(), Error> {
@@ -94,8 +107,12 @@ impl TryFrom<AgentMailWire> for AgentMail {
             wire.source_conversation,
             wire.content,
         )?;
-        Ok(match wire.in_reply_to {
-            Some(correlation) => mail.with_in_reply_to(correlation),
+        let mail = match wire.in_reply_to {
+            Some(entry) => mail.with_in_reply_to(entry),
+            None => mail,
+        };
+        Ok(match wire.observed_at {
+            Some(observed_at) => mail.with_observed_at(observed_at),
             None => mail,
         })
     }

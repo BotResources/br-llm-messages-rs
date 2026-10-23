@@ -30,7 +30,7 @@ fn given_every_incoming_kind_when_input_turn_built_then_it_holds_exactly_that_en
 }
 
 #[test]
-fn given_a_non_incoming_entry_in_input_turn_json_when_loaded_then_disallowed_entry_kind() {
+fn given_a_non_incoming_entry_in_input_turn_json_when_loaded_then_disallowed_kind() {
     for entry in all_entries().into_iter().filter(|e| !e.is_incoming()) {
         let json = json!({
             "type": "input_turn",
@@ -40,7 +40,7 @@ fn given_a_non_incoming_entry_in_input_turn_json_when_loaded_then_disallowed_ent
 
         let error = refused(Turn::from_value(common::oj(json)));
 
-        assert_eq!(error.code(), ErrorCode::DisallowedEntryKind);
+        assert_eq!(error.code(), ErrorCode::DisallowedKind);
         assert_eq!(error.location(), Some("entry"));
     }
 }
@@ -106,13 +106,13 @@ fn given_the_same_label_on_two_agents_when_turns_opened_then_the_agents_stay_dis
 }
 
 #[test]
-fn given_ai_turn_json_without_author_when_loaded_then_missing_content() {
+fn given_ai_turn_json_without_author_when_loaded_then_invalid_content() {
     let mut json = open_turn(1).to_value().unwrap().raw();
     json.as_object_mut().unwrap().remove("author");
 
     assert_eq!(
         refused(Turn::from_value(common::oj(json))).code(),
-        ErrorCode::MissingContent
+        ErrorCode::InvalidContent
     );
 }
 
@@ -129,7 +129,7 @@ fn given_ai_turn_json_with_a_blank_author_or_no_agent_when_loaded_then_refused()
     );
     assert_eq!(
         refused(Turn::from_value(common::oj(no_agent))).code(),
-        ErrorCode::MissingContent
+        ErrorCode::InvalidContent
     );
 }
 
@@ -142,7 +142,7 @@ fn given_a_closed_turn_when_any_entry_kind_is_pushed_then_turn_closed() {
 
         let error = refused(turn.push_entry(entry.clone()));
 
-        assert_eq!(error.code(), ErrorCode::TurnClosed, "{}", entry.kind());
+        assert_eq!(error.code(), ErrorCode::ClosedTurn, "{}", entry.kind());
         assert_eq!(error.object_id(), Some(entry.id().as_uuid()));
         assert_eq!(turn.entries().len(), 1);
     }
@@ -154,9 +154,9 @@ fn given_a_closure_when_a_second_one_is_pushed_then_turn_closed() {
     turn.push_entry(close(10, ClosureReason::completed()))
         .unwrap();
 
-    let error = refused(turn.push_entry(close(11, ClosureReason::cancelled(None).unwrap())));
+    let error = refused(turn.push_entry(close(11, ClosureReason::cancelled())));
 
-    assert_eq!(error.code(), ErrorCode::TurnClosed);
+    assert_eq!(error.code(), ErrorCode::ClosedTurn);
 }
 
 #[test]
@@ -172,7 +172,7 @@ fn given_a_closure_in_the_middle_of_entries_json_when_loaded_then_turn_closed_at
 
     let error = refused(AITurn::from_value(common::oj(json)));
 
-    assert_eq!(error.code(), ErrorCode::TurnClosed);
+    assert_eq!(error.code(), ErrorCode::ClosedTurn);
     assert_eq!(error.location(), Some("entries[1]"));
 }
 
@@ -203,6 +203,6 @@ fn given_the_turn_kind_when_named_then_discriminants_are_input_turn_and_ai_turn(
     assert_eq!("ai_turn".parse::<TurnKind>().unwrap(), TurnKind::AITurn);
     assert_eq!(
         refused("a_i_turn".parse::<TurnKind>()).code(),
-        ErrorCode::UnsupportedVariant
+        ErrorCode::VariantMismatch
     );
 }

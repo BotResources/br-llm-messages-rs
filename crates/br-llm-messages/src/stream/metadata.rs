@@ -49,6 +49,9 @@ impl ResponseMetadataUpdate {
 
     pub(crate) fn replacing(&self, base: &ResponseMetadata) -> ResponseMetadata {
         let mut merged = ResponseMetadata::new();
+        if let Some(observed_at) = base.observed_at() {
+            merged = merged.with_observed_at(observed_at.clone());
+        }
         if let Some(usage) = self.usage.clone().or_else(|| base.usage().cloned()) {
             merged = merged.with_usage(usage);
         }

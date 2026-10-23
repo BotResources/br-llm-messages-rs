@@ -28,7 +28,7 @@ fn given_the_four_media_types_when_round_tripped_then_strings_are_stable() {
 }
 
 #[test]
-fn given_other_media_types_when_parsed_then_unsupported_variant() {
+fn given_other_media_types_when_parsed_then_variant_mismatch() {
     for other in [
         "image/bmp",
         "image/svg+xml",
@@ -39,12 +39,12 @@ fn given_other_media_types_when_parsed_then_unsupported_variant() {
     ] {
         assert_eq!(
             refused(other.parse::<MediaType>()).code(),
-            ErrorCode::UnsupportedVariant
+            ErrorCode::VariantMismatch
         );
     }
     assert_eq!(
         code_of::<MediaType>("\"image/tiff\""),
-        ErrorCode::UnsupportedVariant
+        ErrorCode::VariantMismatch
     );
 }
 
@@ -107,58 +107,66 @@ fn given_a_malformed_image_source_when_loaded_then_the_precise_code_surfaces() {
     );
     assert_eq!(
         code_of::<ImageSource>(r#"{"type":"inline","media_type":"image/bmp","data":"AAAA"}"#),
-        ErrorCode::UnsupportedVariant
+        ErrorCode::VariantMismatch
     );
     assert_eq!(
         code_of::<ImageSource>(r#"{"type":"url","media_type":"image/png","data":"AAAA"}"#),
-        ErrorCode::UnsupportedVariant
+        ErrorCode::VariantMismatch
     );
     assert_eq!(
         code_of::<ImageSource>(r#"{"type":"inline","media_type":"image/png"}"#),
-        ErrorCode::MissingContent
+        ErrorCode::InvalidContent
     );
     assert_eq!(
         code_of::<ImageSource>(
             r#"{"type":"inline","media_type":"image/png","data":"AAAA","extra":1}"#
         ),
-        ErrorCode::UnsupportedField
+        ErrorCode::InvalidContent
     );
 }
 
 #[test]
-fn given_replay_format_grammar_when_checked_then_only_lowercase_identifiers_pass() {
-    let longest = format!("a{}", "b".repeat(63));
+fn given_replay_format_when_checked_then_any_non_empty_string_up_to_256_scalars_passes_unchanged() {
+    let longest = "é".repeat(256);
     for valid in [
         "a",
-        "anthropic.signature",
-        "openai.reasoning",
-        "x-y_z.9",
+        "Anthropic Signature/v2",
+        "OpenAI:reasoning#1",
+        " spaced ",
+        "1a",
+        "\u{1F600}\u{0301}",
         longest.as_str(),
     ] {
-        assert_eq!(ReplayFormat::new(valid).unwrap().as_str(), valid);
+        let format = ReplayFormat::new(valid).unwrap();
+
+        assert_eq!(format.as_str(), valid);
+        assert_eq!(format, ReplayFormat::new(valid).unwrap());
     }
-    let too_long = format!("a{}", "b".repeat(64));
-    for invalid in [
-        "",
-        "A",
-        "1a",
-        ".a",
-        "-a",
-        "a b",
-        "a/b",
-        "é",
-        "Anthropic",
-        too_long.as_str(),
-    ] {
+    assert_ne!(
+        ReplayFormat::new("a").unwrap(),
+        ReplayFormat::new("A").unwrap()
+    );
+}
+
+#[test]
+fn given_replay_format_when_empty_or_longer_than_256_scalars_then_invalid_content() {
+    let too_long = "é".repeat(257);
+    for invalid in ["", too_long.as_str()] {
         assert_eq!(
             refused(ReplayFormat::new(invalid)).code(),
-            ErrorCode::InvalidContent,
-            "{invalid:?}"
+            ErrorCode::InvalidContent
         );
     }
+    assert_eq!(code_of::<ReplayFormat>("\"\""), ErrorCode::InvalidContent);
     assert_eq!(
-        code_of::<ReplayFormat>("\"Bad\""),
+        code_of::<ReplayFormat>(&format!("\"{too_long}\"")),
         ErrorCode::InvalidContent
+    );
+    assert_eq!(
+        serde_json::from_str::<ReplayFormat>("\"Bad Format\"")
+            .unwrap()
+            .as_str(),
+        "Bad Format"
     );
 }
 
@@ -204,26 +212,26 @@ fn given_replay_material_the_format_is_never_inferred_from_the_payload() {
 fn given_malformed_replay_material_when_loaded_then_refused_with_the_precise_code() {
     assert_eq!(
         code_of::<ReplayMaterial>(r#"{"format":"a","payload":{"type":"text","value":"s"},"x":1}"#),
-        ErrorCode::UnsupportedField
+        ErrorCode::InvalidContent
     );
     assert_eq!(
         code_of::<ReplayMaterial>(r#"{"format":"a","payload":{"type":"text","value":"s","x":1}}"#),
-        ErrorCode::UnsupportedField
+        ErrorCode::InvalidContent
     );
     assert_eq!(
         code_of::<ReplayMaterial>(r#"{"format":"a","payload":{"type":"text"}}"#),
-        ErrorCode::MissingContent
+        ErrorCode::InvalidContent
     );
     assert_eq!(
         code_of::<ReplayMaterial>(r#"{"format":"a","payload":{"type":"binary","value":"s"}}"#),
-        ErrorCode::UnsupportedVariant
+        ErrorCode::VariantMismatch
     );
     assert_eq!(
         code_of::<ReplayMaterial>(r#"{"payload":{"type":"text","value":"s"}}"#),
-        ErrorCode::MissingContent
+        ErrorCode::InvalidContent
     );
     assert_eq!(
-        code_of::<ReplayMaterial>(r#"{"format":"A","payload":{"type":"text","value":"s"}}"#),
+        code_of::<ReplayMaterial>(r#"{"format":"","payload":{"type":"text","value":"s"}}"#),
         ErrorCode::InvalidContent
     );
     assert_eq!(

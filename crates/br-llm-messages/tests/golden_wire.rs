@@ -209,6 +209,35 @@ fn given_the_frozen_rich_conversation_when_loaded_then_it_reserializes_byte_iden
 }
 
 #[test]
+fn given_the_frozen_documents_when_inspected_then_observed_at_reaches_every_wire_shape() {
+    let deltas = stream();
+    let started = |wanted: &str| {
+        deltas
+            .iter()
+            .filter_map(|delta| delta.to_value().ok().map(|value| value.raw()))
+            .filter(|value| value["op"]["type"] == wanted)
+            .any(|value| value.to_string().contains("observed_at"))
+    };
+    assert!(started("response_started"));
+    assert!(started("block_started"));
+    assert!(started("block_inserted"));
+    assert!(started("block_finalized"));
+    let set = document(RECORD_SET);
+    for collection in ["turns", "entries", "blocks"] {
+        let rows = set[collection].as_array().unwrap();
+        assert!(rows.iter().any(|row| row.get("observed_at").is_some()));
+        assert!(rows.iter().any(|row| row.get("observed_at").is_none()));
+    }
+    for text in [DRAFT_OPEN, DRAFT_INTERRUPTED] {
+        let snapshot = document(text);
+        assert!(snapshot["entry"].get("observed_at").is_some());
+        let blocks = snapshot["blocks"].as_array().unwrap();
+        assert!(blocks.iter().any(|row| row.get("observed_at").is_some()));
+    }
+    assert!(RICH_CONVERSATION.matches("\"observed_at\"").count() >= 20);
+}
+
+#[test]
 fn given_the_golden_directory_when_listed_then_every_file_is_frozen_by_a_loader_assertion() {
     let directory = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/golden");
 
@@ -245,9 +274,9 @@ fn given_a_frozen_document_edited_beyond_the_loader_when_loaded_then_it_is_refus
     assert_eq!(
         refused,
         [
-            Some(ErrorCode::UnsupportedField),
+            Some(ErrorCode::InvalidContent),
             Some(ErrorCode::SchemaMismatch),
-            Some(ErrorCode::UnsupportedField),
+            Some(ErrorCode::InvalidContent),
         ]
     );
 }

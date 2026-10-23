@@ -47,7 +47,7 @@ fn given_a_partial_row_of_a_kind_that_cannot_be_partial_when_checked_then_it_is_
     ] {
         let row = block(kind, RepresentationState::Producing, json!({})).with_call(bid(1));
 
-        assert_eq!(code(row.check_local()), ErrorCode::InvalidRecord);
+        assert_eq!(code(row.check_local()), ErrorCode::DisallowedKind);
     }
 }
 
@@ -70,8 +70,14 @@ fn given_discarded_rows_when_checked_then_only_empty_text_rows_are_valid() {
     );
 
     assert!(good.check_local().is_ok());
-    assert_eq!(code(wrong_kind.check_local()), ErrorCode::InvalidRecord);
-    assert_eq!(code(with_payload.check_local()), ErrorCode::InvalidRecord);
+    assert_eq!(
+        code(wrong_kind.check_local()),
+        ErrorCode::InvalidRecordStructure
+    );
+    assert_eq!(
+        code(with_payload.check_local()),
+        ErrorCode::InvalidRecordStructure
+    );
 }
 
 #[test]
@@ -101,11 +107,11 @@ fn given_a_response_header_row_when_checked_locally_then_interruption_depends_on
     assert!(interrupted.check_local().is_ok());
     assert_eq!(
         code(producing_with_reason.check_local()),
-        ErrorCode::UnsupportedField
+        ErrorCode::InvalidContent
     );
     assert_eq!(
         code(interrupted_without_reason.check_local()),
-        ErrorCode::MissingContent
+        ErrorCode::InvalidContent
     );
 }
 
@@ -125,7 +131,7 @@ fn given_a_non_response_entry_in_a_partial_state_when_checked_then_it_is_refused
 
     assert_eq!(
         code(producing_human.check_local()),
-        ErrorCode::InvalidRecord
+        ErrorCode::DisallowedKind
     );
-    assert_eq!(code(discarded.check_local()), ErrorCode::InvalidRecord);
+    assert_eq!(code(discarded.check_local()), ErrorCode::DisallowedKind);
 }

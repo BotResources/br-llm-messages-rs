@@ -81,7 +81,7 @@ impl FromStr for ResponseDeltaKind {
             .iter()
             .copied()
             .find(|kind| kind.as_str() == value)
-            .ok_or_else(|| Error::new(ErrorCode::UnsupportedVariant))
+            .ok_or_else(|| Error::new(ErrorCode::VariantMismatch))
     }
 }
 

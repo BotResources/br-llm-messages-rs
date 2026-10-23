@@ -1,4 +1,7 @@
-#![allow(dead_code)] // each integration test crate uses a different subset of these helpers
+#![allow(
+    dead_code,
+    reason = "each integration test crate uses a different subset of these helpers"
+)]
 
 use br_llm_messages::{Error, ErrorCode, Uuid};
 use uuid::{Builder, Variant, Version};
@@ -17,6 +20,11 @@ pub fn v7(n: u64) -> Uuid {
     uuid_with(n, Version::SortRand, Variant::RFC4122)
 }
 
+pub fn at(n: u32) -> br_llm_messages::ObservedAt {
+    let fraction = &"123456789"[..(n % 9 + 1) as usize];
+    br_llm_messages::ObservedAt::new(format!("2026-10-23T08:00:{:02}.{fraction}Z", n % 60)).unwrap()
+}
+
 pub fn oj(value: serde_json::Value) -> br_llm_messages::OpaqueJson {
     br_llm_messages::OpaqueJson::from_serialize(&value).unwrap()
 }
@@ -31,11 +39,12 @@ impl Raw for br_llm_messages::OpaqueJson {
     }
 }
 
+pub fn decode<T: serde::de::DeserializeOwned>(json: &str) -> Result<T, Error> {
+    br_llm_messages::OpaqueJson::parse(json)?.deserialize_into()
+}
+
 pub fn code_of<T: serde::de::DeserializeOwned>(json: &str) -> ErrorCode {
-    let failure = serde_json::from_str::<T>(json)
-        .err()
-        .expect("must be refused");
-    Error::from_json_error(&failure).code()
+    refused(decode::<T>(json)).code()
 }
 
 pub fn refused<T, E: std::fmt::Debug>(result: Result<T, E>) -> E {
@@ -122,14 +131,7 @@ pub fn call(n: u64, name: &str) -> br_llm_messages::RuntimeToolCall {
 }
 
 pub fn result(n: u64, call: u64, name: &str) -> br_llm_messages::RuntimeToolResult {
-    br_llm_messages::RuntimeToolResult::new(
-        bid(n),
-        bid(call),
-        tool(name),
-        br_llm_messages::ResultStatus::Success,
-        vec![],
-    )
-    .unwrap()
+    br_llm_messages::RuntimeToolResult::new(bid(n), bid(call), tool(name), false, vec![]).unwrap()
 }
 
 pub mod conversations;

@@ -46,7 +46,7 @@ fn given_a_gap_in_positions_when_completing_then_invalid_position() {
 
     let error = refuse(&mut draft, finish());
 
-    assert_eq!(error.code(), ErrorCode::InvalidPosition);
+    assert_eq!(error.code(), ErrorCode::InvalidRecordStructure);
     assert_eq!(error.object_id(), Some(eid(2).as_uuid()));
 }
 
@@ -56,7 +56,7 @@ fn given_positions_not_starting_at_zero_when_completing_then_invalid_position() 
 
     assert_eq!(
         refuse(&mut draft, finish()).code(),
-        ErrorCode::InvalidPosition
+        ErrorCode::InvalidRecordStructure
     );
 }
 
@@ -65,32 +65,23 @@ fn given_an_ending_the_blocks_cannot_support_when_completing_then_direct_constru
  {
     let mut draft = run(vec![start_text(10, 0), text(10, "x"), finalize(10)]);
 
-    let error = refuse(
-        &mut draft,
-        complete(ResponseEnding::tool_results_requested()),
-    );
+    let error = refuse(&mut draft, complete(ResponseEnding::tool_use()));
 
-    assert_eq!(error.code(), ErrorCode::MissingContent);
+    assert_eq!(error.code(), ErrorCode::InvalidContent);
     assert!(matches!(draft.phase(), DraftPhase::Producing { .. }));
 
     ok(&mut draft, start_call(11, 1, Some("t"), None));
     ok(&mut draft, json(11, "{}"));
     ok(&mut draft, finalize(11));
-    ok(
-        &mut draft,
-        complete(ResponseEnding::tool_results_requested()),
-    );
+    ok(&mut draft, complete(ResponseEnding::tool_use()));
     assert!(draft.response().is_some());
 }
 
 #[test]
 fn given_an_empty_response_when_completed_then_allowed_for_any_ending_but_a_tool_request() {
     let mut draft = run(vec![]);
-    let error = refuse(
-        &mut draft,
-        complete(ResponseEnding::tool_results_requested()),
-    );
-    assert_eq!(error.code(), ErrorCode::MissingContent);
+    let error = refuse(&mut draft, complete(ResponseEnding::tool_use()));
+    assert_eq!(error.code(), ErrorCode::InvalidContent);
 
     ok(
         &mut draft,
@@ -120,7 +111,7 @@ fn given_a_completed_draft_when_any_delta_arrives_then_stream_phase_and_the_resp
         start_text(11, 1),
         DeltaOp::response_interrupted(InterruptionReason::cancelled()),
     ] {
-        assert_eq!(refuse(&mut draft, op).code(), ErrorCode::StreamPhase);
+        assert_eq!(refuse(&mut draft, op).code(), ErrorCode::StreamPhaseError);
     }
 
     assert_eq!(draft.response(), Some(&sealed));
@@ -206,7 +197,7 @@ fn given_an_interrupted_draft_when_more_deltas_arrive_then_stream_phase() {
     );
 
     for op in [text(10, "x"), finalize(10), finish(), start_text(11, 1)] {
-        assert_eq!(refuse(&mut draft, op).code(), ErrorCode::StreamPhase);
+        assert_eq!(refuse(&mut draft, op).code(), ErrorCode::StreamPhaseError);
     }
     assert!(draft.response().is_none());
 }

@@ -44,7 +44,7 @@ fn given_material_with_another_format_when_a_fragment_arrives_then_replay_mismat
 
     let error = refuse(&mut draft, fragment(10, "openai.reasoning", "b"));
 
-    assert_eq!(error.code(), ErrorCode::ReplayMismatch);
+    assert_eq!(error.code(), ErrorCode::StreamTargetError);
     assert_eq!(error.object_id(), Some(bid(10).as_uuid()));
 }
 
@@ -57,7 +57,7 @@ fn given_json_material_when_a_fragment_arrives_then_replay_mismatch_and_objects_
 
     let error = refuse(&mut draft, fragment(10, "openai.reasoning", "tail"));
 
-    assert_eq!(error.code(), ErrorCode::ReplayMismatch);
+    assert_eq!(error.code(), ErrorCode::StreamTargetError);
     ok(&mut draft, finalize(10));
     match &draft.view().slot(bid(10)).unwrap().final_block() {
         Some(ContentBlock::Thinking(block)) => {
@@ -89,8 +89,8 @@ fn given_present_material_when_set_arrives_then_replay_mismatch() {
         DeltaOp::replay_material_set(bid(11), signature("c")),
     );
 
-    assert_eq!(after_fragment.code(), ErrorCode::ReplayMismatch);
-    assert_eq!(after_set.code(), ErrorCode::ReplayMismatch);
+    assert_eq!(after_fragment.code(), ErrorCode::StreamTargetError);
+    assert_eq!(after_set.code(), ErrorCode::StreamTargetError);
 }
 
 #[test]
@@ -103,8 +103,8 @@ fn given_a_target_without_a_replay_slot_when_replay_arrives_then_stream_target()
             DeltaOp::replay_material_set(bid(block), signature("s")),
         );
         let piece = refuse(&mut draft, fragment(block, "anthropic.signature", "s"));
-        assert_eq!(set.code(), ErrorCode::StreamTarget);
-        assert_eq!(piece.code(), ErrorCode::StreamTarget);
+        assert_eq!(set.code(), ErrorCode::StreamTargetError);
+        assert_eq!(piece.code(), ErrorCode::StreamTargetError);
     }
 }
 

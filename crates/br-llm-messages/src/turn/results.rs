@@ -17,13 +17,13 @@ pub(crate) fn check(tracker: &Tracker, results: &[RuntimeToolResult]) -> Result<
         match tracker.ids.get(&call.as_uuid()).map(|place| place.class) {
             None => return Err(fail(ErrorCode::UnknownReference)),
             Some(Class::Block(ContentBlockKind::RuntimeToolCall)) => {}
-            Some(_) => return Err(fail(ErrorCode::WrongKindReference)),
+            Some(_) => return Err(fail(ErrorCode::UnknownReference)),
         }
         if tracker.answered.contains(&call) || !delivered.insert(call) {
-            return Err(fail(ErrorCode::DuplicateToolResult));
+            return Err(fail(ErrorCode::DuplicateResult));
         }
         if tracker.calls.get(&call) != Some(result.tool_name()) {
-            return Err(fail(ErrorCode::ToolResultMismatch));
+            return Err(fail(ErrorCode::MismatchedResult));
         }
     }
     Ok(())

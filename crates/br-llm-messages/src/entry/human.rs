@@ -4,6 +4,7 @@ use super::{check_content, collect_content, refuse_author};
 use crate::block::{IdSink, PlainBlock};
 use crate::error::Error;
 use crate::id::{EntryId, HumanId};
+use crate::value::ObservedAt;
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -12,6 +13,8 @@ pub struct HumanMessage {
     id: EntryId,
     human: HumanId,
     content: Vec<PlainBlock>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    observed_at: Option<ObservedAt>,
 }
 
 #[derive(Deserialize)]
@@ -22,12 +25,23 @@ struct HumanMessageWire {
     content: Vec<PlainBlock>,
     #[serde(default, deserialize_with = "super::present")]
     author: bool,
+    observed_at: Option<ObservedAt>,
 }
 
 impl HumanMessage {
     pub fn new(id: EntryId, human: HumanId, content: Vec<PlainBlock>) -> Result<Self, Error> {
         check_content(id, &content)?;
-        Ok(HumanMessage { id, human, content })
+        Ok(HumanMessage {
+            id,
+            human,
+            content,
+            observed_at: None,
+        })
+    }
+
+    pub fn with_observed_at(mut self, observed_at: ObservedAt) -> Self {
+        self.observed_at = Some(observed_at);
+        self
     }
 
     pub fn id(&self) -> EntryId {
@@ -42,6 +56,10 @@ impl HumanMessage {
         &self.content
     }
 
+    pub fn observed_at(&self) -> Option<&ObservedAt> {
+        self.observed_at.as_ref()
+    }
+
     pub(crate) fn collect_ids(&self, sink: &mut IdSink) -> Result<(), Error> {
         collect_content(self.id, &self.content, sink)
     }
@@ -52,6 +70,8 @@ impl TryFrom<HumanMessageWire> for HumanMessage {
 
     fn try_from(wire: HumanMessageWire) -> Result<Self, Error> {
         refuse_author(wire.author, wire.id)?;
-        HumanMessage::new(wire.id, wire.human, wire.content)
+        let mut message = HumanMessage::new(wire.id, wire.human, wire.content)?;
+        message.observed_at = wire.observed_at;
+        Ok(message)
     }
 }

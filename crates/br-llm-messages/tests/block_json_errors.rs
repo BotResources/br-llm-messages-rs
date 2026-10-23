@@ -29,7 +29,7 @@ fn sample(kind: &str) -> (Value, &'static [&'static str]) {
             &["id", "value"],
         ),
         "thinking" => (
-            json!({"type": "thinking", "id": id(1), "text": ""}),
+            json!({"type": "thinking", "id": id(1), "text": "t"}),
             &["id", "text"],
         ),
         "redacted_thinking" => (
@@ -41,8 +41,8 @@ fn sample(kind: &str) -> (Value, &'static [&'static str]) {
             &["id", "name", "arguments"],
         ),
         "runtime_tool_result" => (
-            json!({"type": "runtime_tool_result", "id": id(1), "call": id(2), "tool_name": "t", "status": "success", "content": []}),
-            &["id", "call", "tool_name", "status", "content"],
+            json!({"type": "runtime_tool_result", "id": id(1), "call": id(2), "tool_name": "t", "is_error": false, "content": []}),
+            &["id", "call", "tool_name", "is_error", "content"],
         ),
         "provider_tool_call" => (json!({"type": "provider_tool_call", "id": id(1)}), &["id"]),
         "provider_tool_result" => (
@@ -50,8 +50,8 @@ fn sample(kind: &str) -> (Value, &'static [&'static str]) {
             &["id", "call"],
         ),
         _ => (
-            json!({"type": "provider_tool_execution_record", "id": id(1), "exposure": {"type": "not_exposed"}}),
-            &["id", "exposure"],
+            json!({"type": "provider_tool_execution_record", "id": id(1)}),
+            &["id"],
         ),
     }
 }
@@ -70,17 +70,17 @@ const KINDS: [&str; 10] = [
 ];
 
 #[test]
-fn given_an_extra_field_on_any_kind_when_loaded_then_unsupported_field() {
+fn given_an_extra_field_on_any_kind_when_loaded_then_invalid_content() {
     for kind in KINDS {
         let (mut value, _) = sample(kind);
         value["bogus"] = json!(1);
 
-        assert_eq!(code(&value), ErrorCode::UnsupportedField, "{kind}");
+        assert_eq!(code(&value), ErrorCode::InvalidContent, "{kind}");
     }
 }
 
 #[test]
-fn given_a_missing_required_field_on_any_kind_when_loaded_then_missing_content() {
+fn given_a_missing_required_field_on_any_kind_when_loaded_then_invalid_content() {
     for kind in KINDS {
         let (value, required) = sample(kind);
         assert!(
@@ -91,20 +91,20 @@ fn given_a_missing_required_field_on_any_kind_when_loaded_then_missing_content()
             let mut stripped = value.clone();
             stripped.as_object_mut().unwrap().remove(*field);
 
-            assert_eq!(code(&stripped), ErrorCode::MissingContent, "{kind}.{field}");
+            assert_eq!(code(&stripped), ErrorCode::InvalidContent, "{kind}.{field}");
         }
     }
 }
 
 #[test]
-fn given_a_bad_or_missing_type_when_loaded_then_unsupported_variant_or_missing_content() {
+fn given_a_bad_or_missing_type_when_loaded_then_variant_mismatch_or_invalid_content() {
     assert_eq!(
         code(&json!({"type": "tool_use", "id": id(1)})),
-        ErrorCode::UnsupportedVariant
+        ErrorCode::VariantMismatch
     );
     assert_eq!(
         code(&json!({"id": id(1), "text": "x"})),
-        ErrorCode::MissingContent
+        ErrorCode::InvalidContent
     );
     assert_eq!(
         code_of::<ContentBlock>("{\"type\":"),
@@ -149,7 +149,7 @@ fn given_image_data_or_media_type_invalid_when_loaded_then_refused() {
         code(&image(
             json!({"type": "inline", "media_type": "image/bmp", "data": "QUJD"})
         )),
-        ErrorCode::UnsupportedVariant
+        ErrorCode::VariantMismatch
     );
     assert_eq!(
         code(&image(
@@ -159,11 +159,11 @@ fn given_image_data_or_media_type_invalid_when_loaded_then_refused() {
     );
     assert_eq!(
         code(&image(json!({"type": "inline", "data": "QUJD"}))),
-        ErrorCode::MissingContent
+        ErrorCode::InvalidContent
     );
     assert_eq!(
         code(&image(json!({"type": "url", "url": "x"}))),
-        ErrorCode::UnsupportedVariant
+        ErrorCode::VariantMismatch
     );
 }
 

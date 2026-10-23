@@ -27,7 +27,7 @@ pub fn goldens() -> Vec<(ContentBlockKind, Value)> {
             ContentBlockKind::Text,
             json!({"type": "text", "id": id(1), "text": " hello é😀 ", "citations": [
                 {"id": cid(2).to_string(), "source": {"reference": "doc1", "title": "T"}, "range": {"start": 0, "end": 5}}
-            ], "replay": sig()}),
+            ], "item_ref": "msg_01", "replay": sig()}),
         ),
         (
             ContentBlockKind::Image,
@@ -47,11 +47,11 @@ pub fn goldens() -> Vec<(ContentBlockKind, Value)> {
         ),
         (
             ContentBlockKind::RuntimeToolCall,
-            json!({"type": "runtime_tool_call", "id": id(1), "external_id": "toolu_01", "name": "search", "arguments": {"q": "x"}, "replay": sig()}),
+            json!({"type": "runtime_tool_call", "id": id(1), "external_id": "toolu_01", "item_ref": "fc_01", "name": "search", "arguments": {"q": "x"}, "replay": sig()}),
         ),
         (
             ContentBlockKind::RuntimeToolResult,
-            json!({"type": "runtime_tool_result", "id": id(2), "call": id(1), "tool_name": "search", "status": "error", "content": [
+            json!({"type": "runtime_tool_result", "id": id(2), "call": id(1), "tool_name": "search", "is_error": true, "content": [
                 text_node(3),
                 {"type": "image", "id": id(4), "source": {"type": "inline", "media_type": "image/webp", "data": "QQ=="}},
                 {"type": "structured_content", "id": id(5), "value": null}
@@ -59,7 +59,7 @@ pub fn goldens() -> Vec<(ContentBlockKind, Value)> {
         ),
         (
             ContentBlockKind::ProviderToolCall,
-            json!({"type": "provider_tool_call", "id": id(1), "external_id": "srv_1", "operation": "web_search", "arguments": null, "replay": sig()}),
+            json!({"type": "provider_tool_call", "id": id(1), "external_id": "srv_1", "item_ref": "ws_01", "operation": "web_search", "arguments": null, "replay": sig()}),
         ),
         (
             ContentBlockKind::ProviderToolResult,
@@ -68,7 +68,7 @@ pub fn goldens() -> Vec<(ContentBlockKind, Value)> {
         (
             ContentBlockKind::ProviderToolExecutionRecord,
             json!({"type": "provider_tool_execution_record", "id": id(1), "external_id": "ex_1", "operation": "code_execution", "status": "incomplete",
-                "exposure": {"type": "mixed", "content": [text_node(2)], "material": sig()}}),
+                "content": [text_node(2)], "replay": sig()}),
         ),
     ]
 }
@@ -102,16 +102,16 @@ fn given_the_ten_kinds_when_named_then_snake_case_discriminants_are_golden() {
 }
 
 #[test]
-fn given_an_unknown_kind_name_when_parsed_then_unsupported_variant() {
+fn given_an_unknown_kind_name_when_parsed_then_variant_mismatch() {
     for other in ["Text", "tool_call", "", "text ", "provider_tool"] {
         assert_eq!(
             refused(other.parse::<ContentBlockKind>()).code(),
-            ErrorCode::UnsupportedVariant
+            ErrorCode::VariantMismatch
         );
     }
     assert_eq!(
         common::code_of::<ContentBlockKind>("\"nope\""),
-        ErrorCode::UnsupportedVariant
+        ErrorCode::VariantMismatch
     );
 }
 
@@ -131,26 +131,33 @@ fn given_each_golden_json_when_loaded_then_kind_matches_and_it_serializes_back_i
 }
 
 #[test]
-fn given_exposure_variants_when_round_tripped_then_each_wire_form_is_golden() {
-    let record = |exposure: Value| json!({"type": "provider_tool_execution_record", "id": id(1), "exposure": exposure});
-    for exposure in [
-        json!({"type": "readable", "content": [text_node(2)]}),
-        json!({"type": "opaque", "material": envelope()}),
-        json!({"type": "mixed", "content": [text_node(2)], "material": sig()}),
-        json!({"type": "not_exposed"}),
+fn given_every_content_and_replay_combination_when_round_tripped_then_the_wire_has_no_exposure_key()
+{
+    let record = |extra: Value| {
+        let mut base = json!({"type": "provider_tool_execution_record", "id": id(1)});
+        base.as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
+        base
+    };
+    for golden in [
+        record(json!({"content": [text_node(2)]})),
+        record(json!({"replay": envelope()})),
+        record(json!({"content": [text_node(2)], "replay": sig()})),
+        record(json!({})),
     ] {
-        let golden = record(exposure);
         let block = ContentBlock::from_value(common::oj(golden.clone())).unwrap();
 
         assert_eq!(block.to_value().unwrap().raw(), golden);
+        assert!(block.to_json().unwrap().find("exposure").is_none());
     }
 }
 
 #[test]
 fn given_minimal_optional_fields_when_serialized_then_absent_ones_are_omitted() {
     let call = json!({"type": "provider_tool_call", "id": id(1)});
-    let thinking = json!({"type": "thinking", "id": id(1), "text": ""});
-    let empty_result = json!({"type": "runtime_tool_result", "id": id(1), "call": id(2), "tool_name": "t", "status": "success", "content": []});
+    let thinking = json!({"type": "thinking", "id": id(1), "text": "x"});
+    let empty_result = json!({"type": "runtime_tool_result", "id": id(1), "call": id(2), "tool_name": "t", "is_error": false, "content": []});
 
     for golden in [call, thinking, empty_result] {
         let block = ContentBlock::from_value(common::oj(golden.clone())).unwrap();

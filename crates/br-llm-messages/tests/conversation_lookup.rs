@@ -27,10 +27,6 @@ fn given_a_rich_conversation_when_looked_up_by_identity_then_each_kind_is_return
         conversation.entry(&eid(30)).unwrap().kind(),
         TurnEntryKind::TurnClosure
     );
-    assert_eq!(
-        conversation.entry(&eid(11)).unwrap().kind(),
-        TurnEntryKind::ToolMounted
-    );
 }
 
 #[test]
@@ -81,18 +77,18 @@ fn given_a_runtime_call_id_when_looked_up_then_the_call_is_returned() {
 }
 
 #[test]
-fn given_a_non_call_id_when_looked_up_as_a_call_then_wrong_kind_reference() {
+fn given_a_non_call_id_when_looked_up_as_a_call_then_unknown_reference() {
     let conversation = rich();
 
     for id in [14, 16, 22, 24] {
         let error = refused(conversation.runtime_call(&bid(id)));
-        assert_eq!(error.code(), ErrorCode::WrongKindReference, "block {id}");
+        assert_eq!(error.code(), ErrorCode::UnknownReference, "block {id}");
         assert_eq!(error.object_id(), Some(bid(id).as_uuid()));
     }
     let entry_id = BlockId::from_uuid(eid(12).as_uuid()).unwrap();
     assert_eq!(
         refused(conversation.runtime_call(&entry_id)).code(),
-        ErrorCode::WrongKindReference
+        ErrorCode::UnknownReference
     );
     assert_eq!(
         refused(conversation.runtime_call(&bid(999))).code(),
@@ -101,7 +97,7 @@ fn given_a_non_call_id_when_looked_up_as_a_call_then_wrong_kind_reference() {
 }
 
 #[test]
-fn given_ids_of_another_kind_when_looked_up_then_wrong_kind_reference() {
+fn given_ids_of_another_kind_when_looked_up_then_unknown_reference() {
     let conversation = rich();
     let block_as_entry = EntryId::from_uuid(bid(14).as_uuid()).unwrap();
     let entry_as_turn = TurnId::from_uuid(eid(12).as_uuid()).unwrap();
@@ -109,15 +105,15 @@ fn given_ids_of_another_kind_when_looked_up_then_wrong_kind_reference() {
 
     assert_eq!(
         refused(conversation.entry(&block_as_entry)).code(),
-        ErrorCode::WrongKindReference
+        ErrorCode::UnknownReference
     );
     assert_eq!(
         refused(conversation.turn(&entry_as_turn)).code(),
-        ErrorCode::WrongKindReference
+        ErrorCode::UnknownReference
     );
     assert_eq!(
         refused(conversation.block(&citation_as_block)).code(),
-        ErrorCode::WrongKindReference
+        ErrorCode::UnknownReference
     );
     assert_eq!(
         refused(conversation.turn(&tid(999))).code(),

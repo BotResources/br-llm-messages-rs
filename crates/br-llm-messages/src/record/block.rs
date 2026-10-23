@@ -7,6 +7,7 @@ use crate::block::ContentBlockKind;
 use crate::error::{Error, ErrorCode};
 use crate::id::{BlockId, EntryId};
 use crate::opaque_json::OpaqueJson;
+use crate::value::ObservedAt;
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -21,6 +22,8 @@ pub struct BlockRecord {
     state: RepresentationState,
     #[serde(skip_serializing_if = "Option::is_none")]
     call: Option<BlockId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    observed_at: Option<ObservedAt>,
     payload: OpaqueJson,
 }
 
@@ -34,6 +37,7 @@ struct BlockRecordWire {
     position: u32,
     state: RepresentationState,
     call: Option<BlockId>,
+    observed_at: Option<ObservedAt>,
     payload: OpaqueJson,
 }
 
@@ -54,6 +58,7 @@ impl BlockRecord {
             position,
             state,
             call: None,
+            observed_at: None,
             payload,
         }
     }
@@ -65,6 +70,11 @@ impl BlockRecord {
 
     pub fn with_call(mut self, call: BlockId) -> Self {
         self.call = Some(call);
+        self
+    }
+
+    pub fn with_observed_at(mut self, observed_at: ObservedAt) -> Self {
+        self.observed_at = Some(observed_at);
         self
     }
 
@@ -96,6 +106,10 @@ impl BlockRecord {
         self.call
     }
 
+    pub fn observed_at(&self) -> Option<&ObservedAt> {
+        self.observed_at.as_ref()
+    }
+
     pub fn payload(&self) -> &OpaqueJson {
         &self.payload
     }
@@ -113,19 +127,24 @@ impl BlockRecord {
         match self.state {
             RepresentationState::Complete => {
                 let object = as_object(self.payload.inner())?;
-                check_object(object, &block_fields(self.kind)).map_err(|error| error.at("payload"))
+                check_object(object, &block_fields(self.kind))
+                    .and_then(|()| check_combination(self.kind, object))
+                    .map_err(|error| error.at("payload"))
             }
             RepresentationState::Producing | RepresentationState::Interrupted => {
                 partial::check(self.kind, &self.payload)
             }
             RepresentationState::Discarded => {
+                if self.observed_at.is_some() {
+                    return Err(Error::new(ErrorCode::DisallowedKind).at("observed_at"));
+                }
                 let empty = self
                     .payload
                     .inner()
                     .as_object()
                     .is_some_and(|o| o.is_empty());
                 if self.kind != ContentBlockKind::Text || !empty {
-                    return Err(Error::new(ErrorCode::InvalidRecord).at("payload"));
+                    return Err(Error::new(ErrorCode::InvalidRecordStructure).at("payload"));
                 }
                 Ok(())
             }
@@ -138,8 +157,8 @@ impl BlockRecord {
             ContentBlockKind::RuntimeToolResult | ContentBlockKind::ProviderToolResult
         );
         match (needs_call, self.call) {
-            (true, None) => Err(Error::new(ErrorCode::MissingContent).at("call")),
-            (false, Some(_)) => Err(Error::new(ErrorCode::InvalidRecord).at("call")),
+            (true, None) => Err(Error::new(ErrorCode::InvalidContent).at("call")),
+            (false, Some(_)) => Err(Error::new(ErrorCode::DisallowedKind).at("call")),
             _ => Ok(()),
         }
     }
@@ -149,16 +168,30 @@ impl BlockRecord {
             return Ok(());
         };
         if parent == self.id {
-            return Err(Error::new(ErrorCode::InvalidRecord).at("parent"));
+            return Err(Error::new(ErrorCode::InvalidRecordStructure).at("parent"));
         }
         if !self.kind.is_plain() {
-            return Err(Error::new(ErrorCode::DisallowedBlockKind).at("parent"));
+            return Err(Error::new(ErrorCode::DisallowedKind).at("parent"));
         }
         if self.state != RepresentationState::Complete {
-            return Err(Error::new(ErrorCode::InvalidRecord).at("state"));
+            return Err(Error::new(ErrorCode::InvalidRecordStructure).at("state"));
         }
         Ok(())
     }
+}
+
+fn check_combination(
+    kind: ContentBlockKind,
+    object: &serde_json::Map<String, serde_json::Value>,
+) -> Result<(), Error> {
+    let empty_text = object
+        .get("text")
+        .and_then(serde_json::Value::as_str)
+        .is_some_and(str::is_empty);
+    if kind == ContentBlockKind::Thinking && empty_text && !object.contains_key("replay") {
+        return Err(Error::new(ErrorCode::InvalidContent).at("text"));
+    }
+    Ok(())
 }
 
 impl TryFrom<BlockRecordWire> for BlockRecord {
@@ -173,6 +206,7 @@ impl TryFrom<BlockRecordWire> for BlockRecord {
             position: wire.position,
             state: wire.state,
             call: wire.call,
+            observed_at: wire.observed_at,
             payload: wire.payload,
         };
         record.check_local()?;

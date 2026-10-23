@@ -9,12 +9,12 @@ use crate::error::{Error, ErrorCode};
 use crate::id::BlockId;
 use crate::json::encode_value;
 use crate::opaque_json::OpaqueJson;
-use crate::value::Author;
+use crate::value::{Author, ObservedAt};
 
 fn into_object(value: Value) -> Result<Map<String, Value>, Error> {
     match value {
         Value::Object(object) => Ok(object),
-        _ => Err(Error::new(ErrorCode::InvalidRecord)),
+        _ => Err(Error::new(ErrorCode::InvalidContent)),
     }
 }
 
@@ -28,17 +28,14 @@ pub(crate) fn call_of(block: &ContentBlock) -> Option<BlockId> {
 
 pub(crate) fn block_payload(block: &ContentBlock) -> Result<OpaqueJson, Error> {
     let mut object = into_object(encode_value(block)?)?;
-    for key in ["type", "id", "call"] {
+    for key in ["type", "id", "call", "observed_at"] {
         object.remove(key);
     }
     match block {
-        ContentBlock::RuntimeToolResult(_) | ContentBlock::ProviderToolResult(_) => {
+        ContentBlock::RuntimeToolResult(_)
+        | ContentBlock::ProviderToolResult(_)
+        | ContentBlock::ProviderToolExecutionRecord(_) => {
             object.remove("content");
-        }
-        ContentBlock::ProviderToolExecutionRecord(_) => {
-            if let Some(Value::Object(exposure)) = object.get_mut("exposure") {
-                exposure.remove("content");
-            }
         }
         _ => {}
     }
@@ -52,58 +49,38 @@ pub(crate) fn block_value(row: &BlockRecord, children: Vec<Value>) -> Result<Val
         .inner()
         .as_object()
         .cloned()
-        .ok_or_else(|| located(Error::new(ErrorCode::InvalidRecord).at("payload")))?;
+        .ok_or_else(|| located(Error::new(ErrorCode::InvalidContent).at("payload")))?;
     object.insert("type".into(), Value::String(row.kind().as_str().into()));
     object.insert("id".into(), encode_value(&row.id())?);
     if let Some(call) = row.call() {
         object.insert("call".into(), encode_value(&call)?);
     }
+    if let Some(observed_at) = row.observed_at() {
+        object.insert("observed_at".into(), encode_value(observed_at)?);
+    }
     match row.kind() {
         ContentBlockKind::RuntimeToolResult => {
             object.insert("content".into(), Value::Array(children));
         }
-        ContentBlockKind::ProviderToolResult => {
+        ContentBlockKind::ProviderToolResult | ContentBlockKind::ProviderToolExecutionRecord => {
             if !children.is_empty() {
                 object.insert("content".into(), Value::Array(children));
             }
         }
-        ContentBlockKind::ProviderToolExecutionRecord => {
-            attach_exposure_content(&mut object, children).map_err(located)?;
-        }
         _ => {
             if !children.is_empty() {
-                return Err(located(Error::new(ErrorCode::DisallowedBlockKind)));
+                return Err(located(Error::new(ErrorCode::DisallowedKind)));
             }
         }
     }
     Ok(Value::Object(object))
 }
 
-fn attach_exposure_content(
-    object: &mut Map<String, Value>,
-    children: Vec<Value>,
-) -> Result<(), Error> {
-    let Some(Value::Object(exposure)) = object.get_mut("exposure") else {
-        return Err(Error::new(ErrorCode::InvalidRecord).at("payload.exposure"));
-    };
-    let carries_content = matches!(
-        exposure.get("type").and_then(Value::as_str),
-        Some("readable" | "mixed")
-    );
-    match (carries_content, children.is_empty()) {
-        (true, _) => {
-            exposure.insert("content".into(), Value::Array(children));
-            Ok(())
-        }
-        (false, true) => Ok(()),
-        (false, false) => Err(Error::new(ErrorCode::InvalidRecord).at("payload.exposure")),
-    }
-}
-
 pub(crate) struct EntryParts {
     pub(crate) payload: OpaqueJson,
     pub(crate) sender: Option<ActorRef>,
     pub(crate) author: Option<Author>,
+    pub(crate) observed_at: Option<ObservedAt>,
 }
 
 pub(crate) fn split_entry(entry: &TurnEntry) -> Result<EntryParts, Error> {
@@ -117,6 +94,7 @@ pub(crate) fn split_entry(entry: &TurnEntry) -> Result<EntryParts, Error> {
         "requester",
         "sender",
         "author",
+        "observed_at",
     ] {
         object.remove(key);
     }
@@ -136,6 +114,7 @@ pub(crate) fn split_entry(entry: &TurnEntry) -> Result<EntryParts, Error> {
         payload: OpaqueJson::from_inner(Value::Object(object)),
         sender,
         author,
+        observed_at: entry.observed_at().cloned(),
     })
 }
 
@@ -166,7 +145,7 @@ pub(crate) fn entry_value(row: &EntryRecord, blocks: Vec<Value>) -> Result<Value
         .inner()
         .as_object()
         .cloned()
-        .ok_or_else(|| located(Error::new(ErrorCode::InvalidRecord).at("payload")))?;
+        .ok_or_else(|| located(Error::new(ErrorCode::InvalidContent).at("payload")))?;
     object.insert("type".into(), Value::String(row.kind().as_str().into()));
     object.insert("id".into(), encode_value(&row.id())?);
     if let (Some(key), Some(sender)) = (sender_key(row.kind()), row.sender()) {
@@ -179,12 +158,15 @@ pub(crate) fn entry_value(row: &EntryRecord, blocks: Vec<Value>) -> Result<Value
     if let Some(author) = row.author() {
         object.insert("author".into(), Value::String(author.as_str().into()));
     }
+    if let Some(observed_at) = row.observed_at() {
+        object.insert("observed_at".into(), encode_value(observed_at)?);
+    }
     match block_key(row.kind()) {
         Some(key) => {
             object.insert(key.into(), Value::Array(blocks));
         }
         None if !blocks.is_empty() => {
-            return Err(located(Error::new(ErrorCode::DisallowedBlockKind)));
+            return Err(located(Error::new(ErrorCode::DisallowedKind)));
         }
         None => {}
     }

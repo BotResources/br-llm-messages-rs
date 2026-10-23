@@ -32,6 +32,6 @@ fn given_a_long_parent_chain_when_loaded_then_it_is_refused_quickly_as_a_disallo
 
     let error = set.into_conversation(rich().id()).unwrap_err();
 
-    assert_eq!(error.code(), ErrorCode::DisallowedBlockKind);
+    assert_eq!(error.code(), ErrorCode::DisallowedKind);
     assert!(started.elapsed() < Duration::from_secs(20));
 }

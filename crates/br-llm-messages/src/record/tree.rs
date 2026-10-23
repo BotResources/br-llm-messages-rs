@@ -19,7 +19,7 @@ pub(crate) fn order<T>(
     rows.sort_by_key(|row| position(row));
     let mut previous = None;
     for (index, row) in rows.iter().enumerate() {
-        let invalid = || Error::new(ErrorCode::InvalidPosition).with_id(id(row));
+        let invalid = || Error::new(ErrorCode::InvalidRecordStructure).with_id(id(row));
         let at = position(row);
         if previous == Some(at) {
             return Err(invalid());
@@ -125,12 +125,12 @@ pub(super) fn check_containment(
         };
         let parent = rows.get(&parent).ok_or_else(unknown)?;
         if !is_container(parent.kind()) {
-            return Err(Error::new(ErrorCode::DisallowedBlockKind)
+            return Err(Error::new(ErrorCode::DisallowedKind)
                 .with_id(row.id().as_uuid())
                 .at("parent"));
         }
         if parent.state() != RepresentationState::Complete {
-            return Err(Error::new(ErrorCode::InvalidRecord)
+            return Err(Error::new(ErrorCode::InvalidRecordStructure)
                 .with_id(row.id().as_uuid())
                 .at("parent"));
         }

@@ -4,7 +4,7 @@ use crate::block::{ContentBlock, ContentBlockKind};
 use crate::entry::ResponseMetadata;
 use crate::id::{BlockId, EntryId, TurnId};
 use crate::value::{
-    Citation, ExecutionStatus, ExternalId, ProviderOperation, ReplayMaterial, ToolName,
+    Citation, ExecutionStatus, ExternalId, ObservedAt, ProviderOperation, ReplayMaterial, ToolName,
 };
 
 #[non_exhaustive]
@@ -85,6 +85,14 @@ impl<'a> SlotView<'a> {
             Slot::Open(_) => SlotLifecycle::Open,
             Slot::Final(_) => SlotLifecycle::Final,
             Slot::Discarded { .. } => SlotLifecycle::Discarded,
+        }
+    }
+
+    pub fn observed_at(&self) -> Option<&'a ObservedAt> {
+        match self.slot {
+            Slot::Open(open) => open.observed_at.as_ref(),
+            Slot::Final(block) => block.observed_at(),
+            Slot::Discarded { .. } => None,
         }
     }
 

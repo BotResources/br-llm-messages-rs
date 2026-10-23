@@ -3,7 +3,8 @@
     "entry": "ab000000-0000-7000-8000-000000000002",
     "op": {
       "metadata": {
-        "model": "m"
+        "model": "m",
+        "observed_at": "2026-10-23T08:00:01Z"
       },
       "type": "response_started"
     },
@@ -17,6 +18,7 @@
       "block": "ab000000-0000-7000-8000-00000000000a",
       "position": 3,
       "start": {
+        "observed_at": "2026-10-23T08:00:02.5Z",
         "type": "text"
       },
       "type": "block_started"
@@ -31,6 +33,7 @@
       "block": "ab000000-0000-7000-8000-00000000000b",
       "position": 0,
       "start": {
+        "observed_at": "2026-10-23T08:00:03.120Z",
         "type": "thinking"
       },
       "type": "block_started"
@@ -45,6 +48,7 @@
       "block": "ab000000-0000-7000-8000-00000000000c",
       "position": 2,
       "start": {
+        "observed_at": "2026-10-23T08:00:04.123456789Z",
         "type": "runtime_tool_call"
       },
       "type": "block_started"
@@ -256,6 +260,7 @@
     "op": {
       "block": {
         "id": "ab000000-0000-7000-8000-000000000011",
+        "observed_at": "2026-10-23T08:00:06.25Z",
         "source": {
           "data": "QUJD",
           "media_type": "image/png",
@@ -439,17 +444,15 @@
       "block": "ab000000-0000-7000-8000-000000000010",
       "finalization": {
         "block": {
-          "exposure": {
-            "content": [
-              {
-                "id": "ab000000-0000-7000-8000-00000000001e",
-                "text": "log",
-                "type": "text"
-              }
-            ],
-            "type": "readable"
-          },
+          "content": [
+            {
+              "id": "ab000000-0000-7000-8000-00000000001e",
+              "text": "log",
+              "type": "text"
+            }
+          ],
           "id": "ab000000-0000-7000-8000-000000000010",
+          "observed_at": "2026-10-23T08:00:07Z",
           "operation": "code_run",
           "status": "completed",
           "type": "provider_tool_execution_record"
@@ -475,6 +478,7 @@
           }
         ],
         "id": "ab000000-0000-7000-8000-000000000012",
+        "observed_at": "2026-10-23T08:00:08Z",
         "type": "provider_tool_result"
       },
       "position": 8,
@@ -496,6 +500,7 @@
             "value": "opaque"
           }
         },
+        "observed_at": "2026-10-23T08:00:09.9Z",
         "type": "redacted_thinking"
       },
       "position": 9,
@@ -524,7 +529,7 @@
     "entry": "ab000000-0000-7000-8000-000000000002",
     "op": {
       "ending": {
-        "type": "tool_results_requested"
+        "type": "tool_use"
       },
       "type": "response_completed"
     },
@@ -548,6 +553,7 @@
       "block": "ab000000-0000-7000-8000-000000000028",
       "position": 0,
       "start": {
+        "observed_at": "2026-10-23T08:00:05Z",
         "type": "text"
       },
       "type": "block_started"

@@ -4,7 +4,7 @@ use super::ids::IdSink;
 use super::plain::PlainBlock;
 use crate::error::Error;
 use crate::id::BlockId;
-use crate::value::{ResultStatus, ToolName};
+use crate::value::{ObservedAt, ToolName};
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -13,8 +13,10 @@ pub struct RuntimeToolResult {
     id: BlockId,
     call: BlockId,
     tool_name: ToolName,
-    status: ResultStatus,
+    is_error: bool,
     content: Vec<PlainBlock>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    observed_at: Option<ObservedAt>,
 }
 
 #[derive(Deserialize)]
@@ -23,8 +25,9 @@ struct RuntimeToolResultWire {
     id: BlockId,
     call: BlockId,
     tool_name: ToolName,
-    status: ResultStatus,
+    is_error: bool,
     content: Vec<PlainBlock>,
+    observed_at: Option<ObservedAt>,
 }
 
 impl RuntimeToolResult {
@@ -32,18 +35,24 @@ impl RuntimeToolResult {
         id: BlockId,
         call: BlockId,
         tool_name: ToolName,
-        status: ResultStatus,
+        is_error: bool,
         content: Vec<PlainBlock>,
     ) -> Result<Self, Error> {
         let result = RuntimeToolResult {
             id,
             call,
             tool_name,
-            status,
+            is_error,
             content,
+            observed_at: None,
         };
         result.collect_ids(&mut IdSink::default())?;
         Ok(result)
+    }
+
+    pub fn with_observed_at(mut self, observed_at: ObservedAt) -> Self {
+        self.observed_at = Some(observed_at);
+        self
     }
 
     pub fn id(&self) -> BlockId {
@@ -58,12 +67,16 @@ impl RuntimeToolResult {
         &self.tool_name
     }
 
-    pub fn status(&self) -> ResultStatus {
-        self.status.clone()
+    pub fn is_error(&self) -> bool {
+        self.is_error
     }
 
     pub fn content(&self) -> &[PlainBlock] {
         &self.content
+    }
+
+    pub fn observed_at(&self) -> Option<&ObservedAt> {
+        self.observed_at.as_ref()
     }
 
     pub(crate) fn collect_ids(&self, sink: &mut IdSink) -> Result<(), Error> {
@@ -76,12 +89,14 @@ impl TryFrom<RuntimeToolResultWire> for RuntimeToolResult {
     type Error = Error;
 
     fn try_from(wire: RuntimeToolResultWire) -> Result<Self, Error> {
-        RuntimeToolResult::new(
+        let mut result = RuntimeToolResult::new(
             wire.id,
             wire.call,
             wire.tool_name,
-            wire.status,
+            wire.is_error,
             wire.content,
-        )
+        )?;
+        result.observed_at = wire.observed_at;
+        Ok(result)
     }
 }

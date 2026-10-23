@@ -6,7 +6,7 @@ use crate::entry::TurnEntryKind;
 use crate::error::{Error, ErrorCode};
 use crate::id::{EntryId, TurnId};
 use crate::opaque_json::OpaqueJson;
-use crate::value::Author;
+use crate::value::{Author, ObservedAt};
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -21,6 +21,8 @@ pub struct EntryRecord {
     sender: Option<ActorRef>,
     #[serde(skip_serializing_if = "Option::is_none")]
     author: Option<Author>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    observed_at: Option<ObservedAt>,
     payload: OpaqueJson,
 }
 
@@ -34,6 +36,7 @@ struct EntryRecordWire {
     state: RepresentationState,
     sender: Option<ActorRef>,
     author: Option<Author>,
+    observed_at: Option<ObservedAt>,
     payload: OpaqueJson,
 }
 
@@ -54,6 +57,7 @@ impl EntryRecord {
             state,
             sender: None,
             author: None,
+            observed_at: None,
             payload,
         }
     }
@@ -65,6 +69,11 @@ impl EntryRecord {
 
     pub fn with_author(mut self, author: Author) -> Self {
         self.author = Some(author);
+        self
+    }
+
+    pub fn with_observed_at(mut self, observed_at: ObservedAt) -> Self {
+        self.observed_at = Some(observed_at);
         self
     }
 
@@ -101,6 +110,10 @@ impl EntryRecord {
         self.author.as_ref()
     }
 
+    pub fn observed_at(&self) -> Option<&ObservedAt> {
+        self.observed_at.as_ref()
+    }
+
     pub fn payload(&self) -> &OpaqueJson {
         &self.payload
     }
@@ -123,7 +136,7 @@ impl EntryRecord {
             (TurnEntryKind::ModelResponse, RepresentationState::Interrupted) => {
                 check_object(object, &header_fields(true))
             }
-            _ => return Err(Error::new(ErrorCode::InvalidRecord).at("state")),
+            _ => return Err(Error::new(ErrorCode::DisallowedKind).at("state")),
         };
         checked.map_err(|error| error.at("payload"))
     }
@@ -140,19 +153,19 @@ impl EntryRecord {
                 | TurnEntryKind::AgentRequest
                 | TurnEntryKind::AgentMail,
                 None,
-            ) => return Err(Error::new(ErrorCode::MissingContent).at("sender")),
+            ) => return Err(Error::new(ErrorCode::InvalidContent).at("sender")),
             (_, None) => true,
             _ => false,
         };
         if !sender_ok {
-            return Err(Error::new(ErrorCode::InvalidRecord).at("sender"));
+            return Err(Error::new(ErrorCode::DisallowedKind).at("sender"));
         }
         let authored = matches!(
             self.kind,
             TurnEntryKind::AgentRequest | TurnEntryKind::AgentMail
         );
         match (&self.author, authored) {
-            (None, true) => Err(Error::new(ErrorCode::MissingContent).at("author")),
+            (None, true) => Err(Error::new(ErrorCode::InvalidContent).at("author")),
             (Some(_), false) => Err(Error::new(ErrorCode::AuthorForbidden).at("author")),
             _ => Ok(()),
         }
@@ -171,6 +184,7 @@ impl TryFrom<EntryRecordWire> for EntryRecord {
             state: wire.state,
             sender: wire.sender,
             author: wire.author,
+            observed_at: wire.observed_at,
             payload: wire.payload,
         };
         record.check_local()?;

@@ -5,8 +5,8 @@ use br_llm_messages::{
     ImageBlock, IncomingEntry, InputTurn, ModelResponse, OpaqueJson, PlainBlock, ProviderToolCall,
     ProviderToolExecutionRecord, ProviderToolResult, QueuePosition, RedactedThinkingBlock,
     RequestAccepted, RuntimeToolCall, RuntimeToolResult, RuntimeToolResults, StructuredBlock,
-    TaskCompleted, TaskFailed, TaskStarted, TextBlock, ThinkingBlock, ToolMounted, ToolUnmounted,
-    Turn, TurnClosure, TurnEntry, TurnState,
+    TaskCompleted, TaskFailed, TaskStarted, TextBlock, ThinkingBlock, Turn, TurnClosure, TurnEntry,
+    TurnState,
 };
 
 fn assert_value_traits<T: Clone + PartialEq + Debug + Send + Sync>() {}
@@ -45,8 +45,6 @@ fn given_every_entry_type_when_checked_statically_then_it_is_clone_eq_debug_send
         TaskFailed,
         ModelResponse,
         RuntimeToolResults,
-        ToolMounted,
-        ToolUnmounted,
         TurnClosure,
     );
 }

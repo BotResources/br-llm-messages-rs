@@ -41,10 +41,7 @@ fn every_op() -> Vec<DeltaOp> {
             bid(13),
             BlockMetadataUpdate::execution_status_observed(ExecutionStatus::Running),
         ),
-        DeltaOp::block_inserted(
-            3,
-            ThinkingBlock::new(bid(14), "").with_replay(signature("s")),
-        ),
+        DeltaOp::block_inserted(3, ThinkingBlock::replay_only(bid(14), signature("s"))),
         DeltaOp::block_finalized(
             bid(11),
             Finalization::authoritative(text_block(11, "authoritative").into()),
@@ -118,20 +115,20 @@ fn given_a_target_that_contradicts_the_operation_when_loaded_then_stream_target_
     let first = ResponseDelta::from_value(common::oj(block_op)).unwrap_err();
     let second = ResponseDelta::from_value(common::oj(response_op)).unwrap_err();
 
-    assert_eq!(first.code(), ErrorCode::StreamTarget);
+    assert_eq!(first.code(), ErrorCode::StreamTargetError);
     assert_eq!(first.object_id(), Some(bid(11).as_uuid()));
-    assert_eq!(second.code(), ErrorCode::StreamTarget);
+    assert_eq!(second.code(), ErrorCode::StreamTargetError);
     assert_eq!(second.object_id(), Some(eid(2).as_uuid()));
 }
 
 #[test]
-fn given_an_unknown_operation_when_loaded_then_unsupported_variant_not_ignored() {
+fn given_an_unknown_operation_when_loaded_then_variant_mismatch_not_ignored() {
     let mut value = wire(DeltaOp::block_discarded(bid(11)));
     value["op"] = json!({"type": "block_teleported", "block": bid(11).to_string()});
 
     let error = ResponseDelta::from_value(common::oj(value)).unwrap_err();
 
-    assert_eq!(error.code(), ErrorCode::UnsupportedVariant);
+    assert_eq!(error.code(), ErrorCode::VariantMismatch);
 }
 
 #[test]
@@ -153,7 +150,7 @@ fn given_another_or_missing_schema_when_loaded_then_schema_mismatch_before_shape
 }
 
 #[test]
-fn given_unknown_fields_anywhere_when_loaded_then_unsupported_field() {
+fn given_unknown_fields_anywhere_when_loaded_then_invalid_content() {
     let mut envelope = wire(DeltaOp::block_discarded(bid(11)));
     envelope["extra"] = json!(1);
     let mut operation_level = wire(DeltaOp::block_discarded(bid(11)));
@@ -175,7 +172,7 @@ fn given_unknown_fields_anywhere_when_loaded_then_unsupported_field() {
             ResponseDelta::from_value(common::oj(value))
                 .unwrap_err()
                 .code(),
-            ErrorCode::UnsupportedField
+            ErrorCode::InvalidContent
         );
     }
 }
@@ -203,7 +200,7 @@ fn given_a_missing_operation_or_truncated_json_when_loaded_then_distinct_codes()
         ResponseDelta::from_value(common::oj(value))
             .unwrap_err()
             .code(),
-        ErrorCode::MissingContent
+        ErrorCode::InvalidContent
     );
     assert_eq!(
         ResponseDelta::from_json(&text[..text.len() - 4])
@@ -224,7 +221,7 @@ fn given_a_metadata_update_with_an_unknown_field_when_loaded_then_refused() {
         ResponseDelta::from_value(common::oj(value))
             .unwrap_err()
             .code(),
-        ErrorCode::UnsupportedField
+        ErrorCode::InvalidContent
     );
 }
 
@@ -259,7 +256,7 @@ fn given_the_delta_kinds_when_listed_then_names_are_stable_and_parse_back() {
             .parse::<ResponseDeltaKind>()
             .unwrap_err()
             .code(),
-        ErrorCode::UnsupportedVariant
+        ErrorCode::VariantMismatch
     );
 }
 

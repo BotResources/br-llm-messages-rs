@@ -25,9 +25,7 @@ fn json_material() -> ReplayMaterial {
 
 fn blocks() -> Vec<ContentBlock> {
     vec![
-        ThinkingBlock::new(bid(1), "")
-            .with_replay(text_material())
-            .into(),
+        ThinkingBlock::replay_only(bid(1), text_material()).into(),
         RedactedThinkingBlock::new(bid(2), json_material()).into(),
         RuntimeToolCall::new(bid(3), tool("t"), common::oj(json!({})))
             .unwrap()
@@ -43,7 +41,7 @@ fn response() -> ModelResponse {
     ModelResponse::new(
         eid(10),
         blocks(),
-        ResponseEnding::tool_results_requested(),
+        ResponseEnding::tool_use(),
         ResponseMetadata::new(),
     )
     .unwrap()
@@ -109,7 +107,7 @@ fn given_replay_material_in_a_draft_when_debug_printed_then_no_payload_leaks() {
 
 #[test]
 fn given_an_error_when_displayed_or_debug_printed_then_it_carries_no_payload() {
-    let error = ReplayFormat::new(SENTINEL).unwrap_err();
+    let error = ReplayFormat::new(SENTINEL.repeat(20)).unwrap_err();
 
     assert!(!format!("{error} {error:?}").contains(SENTINEL));
 }

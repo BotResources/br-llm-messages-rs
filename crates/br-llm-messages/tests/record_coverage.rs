@@ -1,15 +1,14 @@
 mod common;
 
 use br_llm_messages::{
-    AITurn, AgentMail, AgentRequest, BudgetKind, ClosureReason, Conversation, ExecutionStatus,
-    ExternalId, FailureDetail, InputTurn, MailCorrelation, ModelResponse, ProviderOperation,
-    ProviderToolCall, ProviderToolExecutionRecord, ProviderToolResult, RecordSet,
-    RedactedThinkingBlock, RequestOrigin, ResponseEnding, ResponseMetadata, ResultExposure,
-    RuntimeToolCall, StructuredBlock, TaskCompleted, TaskFailed, TaskStarted, TextBlock, Turn,
-    TurnEntry,
+    AITurn, AgentMail, AgentRequest, ClosureReason, Conversation, ExecutionStatus, ExternalId,
+    InputTurn, ItemRef, ModelResponse, ProviderOperation, ProviderToolCall,
+    ProviderToolExecutionRecord, ProviderToolResult, RecordSet, RedactedThinkingBlock,
+    RequestOrigin, ResponseEnding, ResponseMetadata, RuntimeToolCall, StructuredBlock,
+    TaskCompleted, TaskFailed, TaskStarted, TextBlock, Turn, TurnEntry,
 };
 use common::records::shuffled;
-use common::turns::{close, finished, hosted_record, mount, tid, unmount};
+use common::turns::{close, finished, hosted_record, tid};
 use common::{aid, author, bid, cvid, eid, envelope, kid, plain_text, png, rid, signature, tool};
 use serde_json::{Value, json};
 
@@ -41,7 +40,7 @@ fn incoming_turns() -> Vec<Turn> {
         vec![plain_text(104, "fyi")],
     )
     .unwrap()
-    .with_in_reply_to(MailCorrelation::message(eid(999)));
+    .with_in_reply_to(eid(999));
     let reply = AgentMail::new(
         eid(105),
         aid(2),
@@ -50,7 +49,7 @@ fn incoming_turns() -> Vec<Turn> {
         vec![plain_text(106, "re")],
     )
     .unwrap()
-    .with_in_reply_to(MailCorrelation::request(rid(2)));
+    .with_in_reply_to(eid(998));
     vec![
         input(1, request),
         input(2, mail),
@@ -62,14 +61,7 @@ fn incoming_turns() -> Vec<Turn> {
                 .unwrap(),
         ),
         input(5, TaskCompleted::new(eid(108), kid(1))),
-        input(
-            6,
-            TaskFailed::new(
-                eid(109),
-                kid(1),
-                FailureDetail::new("boom").unwrap().with_message("it broke"),
-            ),
-        ),
+        input(6, TaskFailed::new(eid(109), kid(1), "it broke").unwrap()),
         input(
             7,
             TaskStarted::new(eid(110), rid(1), kid(1)).with_conversation(cvid(3)),
@@ -85,18 +77,19 @@ fn exotic_response() -> TurnEntry {
     )
     .unwrap()
     .with_external_id(ExternalId::new("toolu_9").unwrap())
+    .with_item_ref(ItemRef::new("fc_9").unwrap())
     .with_replay(signature("call-sig"));
     let hosted = ProviderToolCall::new(bid(211))
         .with_external_id(ExternalId::new("srv_1").unwrap())
+        .with_item_ref(ItemRef::new("ws_9").unwrap())
         .with_operation(ProviderOperation::new("web_search").unwrap())
         .with_arguments(common::oj(Value::Null))
         .unwrap()
         .with_replay(envelope(json!({"k": {"z": 1, "a": 2}})));
     let replay_only =
         ProviderToolResult::replay_only(bid(212), bid(211), signature("opaque")).unwrap();
-    let record = |id: u64, exposure: ResultExposure| {
-        ProviderToolExecutionRecord::new(bid(id), exposure)
-            .unwrap()
+    let record = |id: u64| {
+        ProviderToolExecutionRecord::new(bid(id))
             .with_external_id(ExternalId::new("rec").unwrap())
             .with_operation(ProviderOperation::new("code").unwrap())
             .with_status(ExecutionStatus::Incomplete)
@@ -104,6 +97,7 @@ fn exotic_response() -> TurnEntry {
     let blocks = vec![
         TextBlock::new(bid(200), "said")
             .unwrap()
+            .with_item_ref(ItemRef::new("msg_9").unwrap())
             .with_replay(signature("text-sig"))
             .into(),
         StructuredBlock::new(bid(201), common::oj(Value::Null))
@@ -114,13 +108,17 @@ fn exotic_response() -> TurnEntry {
         call.into(),
         hosted.into(),
         replay_only.into(),
-        record(220, ResultExposure::opaque(signature("o"))).into(),
-        record(
-            221,
-            ResultExposure::mixed(vec![plain_text(222, "partly")], signature("m")).unwrap(),
-        )
-        .into(),
-        record(223, ResultExposure::not_exposed()).into(),
+        record(220).with_replay(signature("o")).into(),
+        record(221)
+            .with_content(vec![plain_text(222, "partly")])
+            .unwrap()
+            .with_replay(signature("m"))
+            .into(),
+        record(223).into(),
+        record(225)
+            .with_content(vec![plain_text(226, "visible")])
+            .unwrap()
+            .into(),
         hosted_record(224, ExecutionStatus::Pending),
     ];
     ModelResponse::new(
@@ -134,33 +132,35 @@ fn exotic_response() -> TurnEntry {
 }
 
 fn ai_turns() -> Vec<Turn> {
-    let failure = || FailureDetail::new("code").unwrap();
     vec![
         ai(
             20,
             vec![
-                mount(240, "lookup"),
-                unmount(241, 240),
                 exotic_response(),
-                close(242, ClosureReason::cancelled(Some("stop".into())).unwrap()),
+                close(242, ClosureReason::cancelled().with_detail("stop").unwrap()),
             ],
         ),
         ai(
             21,
-            vec![
-                finished(250),
-                close(251, ClosureReason::cancelled(None).unwrap()),
-            ],
+            vec![finished(250), close(251, ClosureReason::cancelled())],
         ),
-        ai(22, vec![close(252, ClosureReason::interrupted(failure()))]),
+        ai(
+            22,
+            vec![close(
+                252,
+                ClosureReason::interrupted().with_detail("code").unwrap(),
+            )],
+        ),
         ai(
             23,
             vec![close(
                 253,
-                ClosureReason::budget_exhausted(BudgetKind::Tokens),
+                ClosureReason::budget_exhausted()
+                    .with_detail("tokens")
+                    .unwrap(),
             )],
         ),
-        ai(24, vec![close(254, ClosureReason::failed(failure()))]),
+        ai(24, vec![close(254, ClosureReason::failed("code").unwrap())]),
         ai(
             25,
             vec![finished(255), close(256, ClosureReason::completed())],

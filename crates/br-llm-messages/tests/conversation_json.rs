@@ -81,7 +81,7 @@ fn given_a_rich_conversation_when_round_tripped_as_text_then_nothing_is_lost() {
 
     assert_eq!(reloaded, original);
     assert_eq!(reloaded.to_json().unwrap(), original.to_json().unwrap());
-    let response = reloaded.turns()[1].as_ai().unwrap().entries()[1]
+    let response = reloaded.turns()[1].as_ai().unwrap().entries()[0]
         .to_value()
         .unwrap()
         .raw();
@@ -106,20 +106,17 @@ fn given_a_conversation_inside_a_serde_container_when_decoded_then_the_same_rule
     struct Holder {
         conversation: Conversation,
     }
-    let holder: Holder = serde_json::from_value(wrapper).unwrap();
+    let holder: Holder = common::oj(wrapper).deserialize_into().unwrap();
 
     assert_eq!(holder.conversation, rich());
     let mut bad = golden();
     bad["schema"] = json!("br-llm-messages/3");
-    let failure = serde_json::from_value::<Conversation>(bad).unwrap_err();
-    assert_eq!(
-        br_llm_messages::Error::from_json_error(&failure).code(),
-        ErrorCode::SchemaMismatch
-    );
+    let failure = refused(common::oj(json!({"conversation": bad})).deserialize_into::<Holder>());
+    assert_eq!(failure.code(), ErrorCode::SchemaMismatch);
 }
 
 #[test]
-fn given_an_unknown_variant_anywhere_when_loaded_then_unsupported_variant() {
+fn given_an_unknown_variant_anywhere_when_loaded_then_variant_mismatch() {
     let mut turn_kind = golden();
     turn_kind["turns"][0]["type"] = json!("system_turn");
     let mut entry_kind = golden();
@@ -127,15 +124,15 @@ fn given_an_unknown_variant_anywhere_when_loaded_then_unsupported_variant() {
     let mut block_kind = golden();
     block_kind["turns"][0]["entry"]["content"][0]["type"] = json!("audio");
     let mut closure_kind = golden();
-    closure_kind["turns"][1]["entries"][5]["reason"]["type"] = json!("paused");
+    closure_kind["turns"][1]["entries"][4]["reason"]["type"] = json!("paused");
 
     for document in [turn_kind, entry_kind, block_kind, closure_kind] {
-        assert_eq!(code_of(document), ErrorCode::UnsupportedVariant);
+        assert_eq!(code_of(document), ErrorCode::VariantMismatch);
     }
 }
 
 #[test]
-fn given_an_unknown_field_anywhere_when_loaded_then_unsupported_field() {
+fn given_an_unknown_field_anywhere_when_loaded_then_invalid_content() {
     let mut top = golden();
     top["revision"] = json!(3);
     let mut turn = golden();
@@ -143,12 +140,12 @@ fn given_an_unknown_field_anywhere_when_loaded_then_unsupported_field() {
     let mut input_entry = golden();
     input_entry["turns"][0]["entry"]["priority"] = json!(1);
     let mut ai_entry = golden();
-    ai_entry["turns"][1]["entries"][1]["note"] = json!("x");
+    ai_entry["turns"][1]["entries"][0]["note"] = json!("x");
     let mut nested_block = golden();
-    nested_block["turns"][1]["entries"][2]["results"][0]["content"][1]["alt"] = json!("x");
+    nested_block["turns"][1]["entries"][1]["results"][0]["content"][1]["alt"] = json!("x");
 
     for document in [top, turn, input_entry, ai_entry, nested_block] {
-        assert_eq!(code_of(document), ErrorCode::UnsupportedField);
+        assert_eq!(code_of(document), ErrorCode::InvalidContent);
     }
 }
 
@@ -185,12 +182,12 @@ fn given_old_zero_x_data_when_loaded_then_schema_mismatch_and_nothing_is_reinter
 #[test]
 fn given_a_known_payload_that_is_invalid_when_loaded_then_it_is_refused_with_its_location() {
     let mut document = golden();
-    document["turns"][1]["entries"][3]["author"] = json!("   ");
+    document["turns"][1]["entries"][2]["author"] = json!("   ");
 
     let error = refused(Conversation::from_value(common::oj(document)));
 
     assert_eq!(error.code(), ErrorCode::InvalidAuthor);
-    assert!(error.location().unwrap().starts_with("turns[1].entries[3]"));
+    assert!(error.location().unwrap().starts_with("turns[1].entries[2]"));
 }
 
 #[test]
