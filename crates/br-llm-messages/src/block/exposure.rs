@@ -6,7 +6,7 @@ use crate::error::{Error, ErrorCode};
 use crate::value::ReplayMaterial;
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(
     try_from = "ResultExposureWire",
     tag = "type",
@@ -14,19 +14,16 @@ use crate::value::ReplayMaterial;
 )]
 pub enum ResultExposure {
     #[non_exhaustive]
-    Readable {
-        content: Vec<PlainBlock>,
-    },
+    Readable { content: Vec<PlainBlock> },
     #[non_exhaustive]
-    Opaque {
-        material: ReplayMaterial,
-    },
+    Opaque { material: ReplayMaterial },
     #[non_exhaustive]
     Mixed {
         content: Vec<PlainBlock>,
         material: ReplayMaterial,
     },
-    NotExposed,
+    #[non_exhaustive]
+    NotExposed {},
 }
 
 #[derive(Deserialize)]
@@ -68,7 +65,7 @@ impl ResultExposure {
     }
 
     pub fn not_exposed() -> Self {
-        ResultExposure::NotExposed
+        ResultExposure::NotExposed {}
     }
 
     pub fn content(&self) -> &[PlainBlock] {

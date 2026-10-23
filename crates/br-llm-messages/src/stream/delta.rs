@@ -9,7 +9,7 @@ use crate::id::{BlockId, EntryId, TurnId};
 use crate::value::{ReplayFormat, ReplayMaterial, ResponseEnding};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum DeltaOp {
     #[non_exhaustive]
@@ -184,7 +184,7 @@ impl DeltaOp {
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ResponseDelta {
     turn: TurnId,
     entry: EntryId,

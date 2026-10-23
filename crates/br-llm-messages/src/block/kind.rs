@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::{Error, ErrorCode};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ContentBlockKind {
     Text,
@@ -22,7 +22,7 @@ pub enum ContentBlockKind {
 }
 
 impl ContentBlockKind {
-    pub const ALL: [ContentBlockKind; 10] = [
+    pub const ALL: &'static [ContentBlockKind] = &[
         ContentBlockKind::Text,
         ContentBlockKind::Image,
         ContentBlockKind::StructuredContent,
@@ -63,7 +63,8 @@ impl FromStr for ContentBlockKind {
 
     fn from_str(value: &str) -> Result<Self, Error> {
         ContentBlockKind::ALL
-            .into_iter()
+            .iter()
+            .copied()
             .find(|kind| kind.as_str() == value)
             .ok_or_else(|| Error::new(ErrorCode::UnsupportedVariant))
     }

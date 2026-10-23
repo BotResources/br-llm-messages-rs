@@ -6,7 +6,7 @@ use crate::id::BlockId;
 use crate::value::ReplayMaterial;
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ThinkingBlock {
     id: BlockId,
@@ -16,12 +16,17 @@ pub struct ThinkingBlock {
 }
 
 impl ThinkingBlock {
-    pub fn new(id: BlockId, text: impl Into<String>, replay: Option<ReplayMaterial>) -> Self {
+    pub fn new(id: BlockId, text: impl Into<String>) -> Self {
         ThinkingBlock {
             id,
             text: text.into(),
-            replay,
+            replay: None,
         }
+    }
+
+    pub fn with_replay(mut self, replay: ReplayMaterial) -> Self {
+        self.replay = Some(replay);
+        self
     }
 
     pub fn id(&self) -> BlockId {
@@ -42,7 +47,7 @@ impl ThinkingBlock {
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RedactedThinkingBlock {
     id: BlockId,

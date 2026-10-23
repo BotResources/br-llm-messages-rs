@@ -1,4 +1,5 @@
 mod common;
+use common::Raw as _;
 
 use br_llm_messages::{
     AgentMail, ContentBlock, ErrorCode, ExternalId, MailCorrelation, ModelName, ModelResponse,
@@ -56,12 +57,14 @@ fn rich() -> Vec<(TurnEntry, Value)> {
     let response = ModelResponse::new(
         eid(9),
         vec![
-            br_llm_messages::ThinkingBlock::new(bid(10), "", Some(signature("sig"))).into(),
+            br_llm_messages::ThinkingBlock::new(bid(10), "")
+                .with_replay(signature("sig"))
+                .into(),
             ContentBlock::from(
                 call(11, "search").with_external_id(ExternalId::new("toolu_1").unwrap()),
             ),
         ],
-        ResponseEnding::ToolResultsRequested,
+        ResponseEnding::tool_results_requested(),
         ResponseMetadata::new()
             .with_usage(Usage::new().with_input_tokens(1).with_output_tokens(2))
             .with_model(ModelName::new("m").unwrap())
@@ -70,7 +73,7 @@ fn rich() -> Vec<(TurnEntry, Value)> {
     .unwrap();
     let mounted = ToolMounted::new(
         eid(11),
-        ToolDefinition::inline(tool("t"), "d", json!({"type": "object"})).unwrap(),
+        ToolDefinition::inline(tool("t"), "d", common::oj(json!({"type": "object"}))).unwrap(),
     );
     vec![
         (
@@ -108,7 +111,7 @@ fn given_every_entry_kind_when_serialized_then_json_matches_the_golden() {
     assert_eq!(entries.len(), goldens.len());
 
     for (entry, golden) in entries.iter().zip(&goldens) {
-        assert_eq!(&entry.to_value().unwrap(), golden, "{}", entry.kind());
+        assert_eq!(&entry.to_value().unwrap().raw(), golden, "{}", entry.kind());
         assert_eq!(golden["type"], Value::String(entry.kind().to_string()));
     }
 }
@@ -116,7 +119,7 @@ fn given_every_entry_kind_when_serialized_then_json_matches_the_golden() {
 #[test]
 fn given_every_golden_when_loaded_then_the_same_entry_is_rebuilt() {
     for (entry, golden) in all_entries().into_iter().zip(goldens()) {
-        let loaded = TurnEntry::from_value(golden.clone()).unwrap();
+        let loaded = TurnEntry::from_value(common::oj(golden.clone())).unwrap();
 
         assert_eq!(loaded, entry, "{}", entry.kind());
         assert_eq!(TurnEntry::from_json(&golden.to_string()).unwrap(), entry);
@@ -130,8 +133,8 @@ fn given_every_golden_when_loaded_then_the_same_entry_is_rebuilt() {
 #[test]
 fn given_entries_with_every_optional_field_set_when_round_tripped_then_goldens_hold() {
     for (entry, golden) in rich() {
-        assert_eq!(entry.to_value().unwrap(), golden, "{}", entry.kind());
-        assert_eq!(TurnEntry::from_value(golden).unwrap(), entry);
+        assert_eq!(entry.to_value().unwrap().raw(), golden, "{}", entry.kind());
+        assert_eq!(TurnEntry::from_value(common::oj(golden)).unwrap(), entry);
     }
 }
 
@@ -154,7 +157,7 @@ fn given_an_unknown_field_on_any_entry_kind_when_loaded_then_unsupported_field()
         let mut value = golden.clone();
         value["bogus"] = json!(1);
 
-        let error = refused(TurnEntry::from_value(value));
+        let error = refused(TurnEntry::from_value(common::oj(value)));
 
         assert_eq!(
             error.code(),
@@ -183,7 +186,7 @@ fn given_a_missing_required_field_on_any_entry_kind_when_loaded_then_missing_con
             let mut stripped = golden.clone();
             stripped.as_object_mut().unwrap().remove(&field);
 
-            let outcome = TurnEntry::from_value(stripped);
+            let outcome = TurnEntry::from_value(common::oj(stripped));
 
             assert!(outcome.is_ok() == optional, "{} {field}", golden["type"]);
             if !optional {
@@ -201,11 +204,11 @@ fn given_a_missing_or_unknown_type_tag_when_loaded_then_missing_content_or_unsup
     unknown["type"] = json!("request_rejected");
 
     assert_eq!(
-        refused(TurnEntry::from_value(untagged)).code(),
+        refused(TurnEntry::from_value(common::oj(untagged))).code(),
         ErrorCode::MissingContent
     );
     assert_eq!(
-        refused(TurnEntry::from_value(unknown)).code(),
+        refused(TurnEntry::from_value(common::oj(unknown))).code(),
         ErrorCode::UnsupportedVariant
     );
 }
@@ -230,7 +233,7 @@ fn given_a_non_v7_or_non_canonical_id_in_entry_json_when_loaded_then_invalid_ide
         let mut value = goldens().remove(3);
         value["id"] = bad.clone();
 
-        let error = refused(TurnEntry::from_value(value));
+        let error = refused(TurnEntry::from_value(common::oj(value)));
 
         assert_eq!(error.code(), ErrorCode::InvalidIdentity, "{bad}");
     }

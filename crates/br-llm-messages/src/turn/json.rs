@@ -61,7 +61,8 @@ pub(crate) fn input_from_value(value: Value) -> Result<InputTurn, Error> {
             .with_id(wire.id.as_uuid())
             .at("author"));
     }
-    let entry = IncomingEntry::from_value(wire.entry).map_err(|error| error.at("entry"))?;
+    let entry = crate::json::decode_value::<IncomingEntry>(wire.entry)
+        .map_err(|error| error.at("entry"))?;
     InputTurn::new(wire.id, entry)
 }
 
@@ -70,8 +71,8 @@ pub(crate) fn ai_from_value(value: Value) -> Result<AITurn, Error> {
     let wire: AiWire = crate::json::decode_value(value)?;
     let mut entries = Vec::with_capacity(wire.entries.len());
     for (index, raw) in wire.entries.into_iter().enumerate() {
-        let entry =
-            TurnEntry::from_value(raw).map_err(|error| error.at(format!("entries[{index}]")))?;
+        let entry = crate::json::decode_value::<TurnEntry>(raw)
+            .map_err(|error| error.at(format!("entries[{index}]")))?;
         entries.push(entry);
     }
     AITurn::from_parts(wire.id, wire.agent, wire.author, entries)

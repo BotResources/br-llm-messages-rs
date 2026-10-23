@@ -112,15 +112,12 @@ pub fn complete(ending: ResponseEnding) -> DeltaOp {
 }
 
 pub fn finish() -> DeltaOp {
-    complete(ResponseEnding::Finished)
+    complete(ResponseEnding::finished())
 }
 
 pub fn citation(n: u64, start: u64, end: u64) -> Citation {
-    Citation::new(
-        cid(n),
-        CitationSource::new("doc", None).unwrap(),
-        Some(TextRange::new(start, end).unwrap()),
-    )
+    Citation::new(cid(n), CitationSource::new("doc").unwrap())
+        .with_range(TextRange::new(start, end).unwrap())
 }
 
 pub fn metadata() -> ResponseMetadata {

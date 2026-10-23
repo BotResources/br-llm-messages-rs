@@ -57,15 +57,17 @@ fn incoming_turns() -> Vec<Turn> {
         input(3, reply),
         input(
             4,
-            TaskCompleted::new(eid(107), kid(1), Some("done".into())).unwrap(),
+            TaskCompleted::new(eid(107), kid(1))
+                .with_summary("done")
+                .unwrap(),
         ),
-        input(5, TaskCompleted::new(eid(108), kid(1), None).unwrap()),
+        input(5, TaskCompleted::new(eid(108), kid(1))),
         input(
             6,
             TaskFailed::new(
                 eid(109),
                 kid(1),
-                FailureDetail::new("boom", Some("it broke".into())).unwrap(),
+                FailureDetail::new("boom").unwrap().with_message("it broke"),
             ),
         ),
         input(
@@ -76,34 +78,37 @@ fn incoming_turns() -> Vec<Turn> {
 }
 
 fn exotic_response() -> TurnEntry {
-    let call = RuntimeToolCall::new(bid(210), tool("lookup"), json!({"q": [1, null]}))
-        .unwrap()
-        .with_external_id(ExternalId::new("toolu_9").unwrap())
-        .with_replay(signature("call-sig"));
+    let call = RuntimeToolCall::new(
+        bid(210),
+        tool("lookup"),
+        common::oj(json!({"q": [1, null]})),
+    )
+    .unwrap()
+    .with_external_id(ExternalId::new("toolu_9").unwrap())
+    .with_replay(signature("call-sig"));
     let hosted = ProviderToolCall::new(bid(211))
         .with_external_id(ExternalId::new("srv_1").unwrap())
         .with_operation(ProviderOperation::new("web_search").unwrap())
-        .with_arguments(Value::Null)
+        .with_arguments(common::oj(Value::Null))
         .unwrap()
         .with_replay(envelope(json!({"k": {"z": 1, "a": 2}})));
     let replay_only =
-        ProviderToolResult::new(bid(212), bid(211), None, vec![], Some(signature("opaque")))
-            .unwrap();
+        ProviderToolResult::replay_only(bid(212), bid(211), signature("opaque")).unwrap();
     let record = |id: u64, exposure: ResultExposure| {
-        ProviderToolExecutionRecord::new(
-            bid(id),
-            Some(ExternalId::new("rec").unwrap()),
-            Some(ProviderOperation::new("code").unwrap()),
-            Some(ExecutionStatus::Incomplete),
-            exposure,
-        )
-        .unwrap()
+        ProviderToolExecutionRecord::new(bid(id), exposure)
+            .unwrap()
+            .with_external_id(ExternalId::new("rec").unwrap())
+            .with_operation(ProviderOperation::new("code").unwrap())
+            .with_status(ExecutionStatus::Incomplete)
     };
     let blocks = vec![
-        TextBlock::new(bid(200), "said", vec![], Some(signature("text-sig")))
+        TextBlock::new(bid(200), "said")
+            .unwrap()
+            .with_replay(signature("text-sig"))
+            .into(),
+        StructuredBlock::new(bid(201), common::oj(Value::Null))
             .unwrap()
             .into(),
-        StructuredBlock::new(bid(201), Value::Null).unwrap().into(),
         png(202).into(),
         RedactedThinkingBlock::new(bid(203), envelope(json!([1, 2]))).into(),
         call.into(),
@@ -121,7 +126,7 @@ fn exotic_response() -> TurnEntry {
     ModelResponse::new(
         eid(230),
         blocks,
-        ResponseEnding::ProviderContinuation,
+        ResponseEnding::provider_continuation(),
         ResponseMetadata::new(),
     )
     .unwrap()
@@ -129,7 +134,7 @@ fn exotic_response() -> TurnEntry {
 }
 
 fn ai_turns() -> Vec<Turn> {
-    let failure = || FailureDetail::new("code", None).unwrap();
+    let failure = || FailureDetail::new("code").unwrap();
     vec![
         ai(
             20,

@@ -178,7 +178,7 @@ fn given_a_provider_call_when_looked_up_then_its_kind_is_returned() {
             response(
                 11,
                 vec![hosted_call(12), text_block(13, "t").into()],
-                ResponseEnding::Finished,
+                ResponseEnding::finished(),
             ),
         )
         .unwrap();

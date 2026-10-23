@@ -25,7 +25,7 @@ fn given_two_usage_snapshots_when_applied_then_the_last_replaces_and_nothing_is_
         &mut draft,
         vec![
             update(ResponseMetadataUpdate::new().with_usage(first)),
-            update(ResponseMetadataUpdate::new().with_usage(second)),
+            update(ResponseMetadataUpdate::new().with_usage(second.clone())),
         ],
     );
 
@@ -43,7 +43,7 @@ fn given_model_and_provider_id_updates_when_applied_then_they_replace_and_untouc
         vec![
             update(
                 ResponseMetadataUpdate::new()
-                    .with_usage(usage)
+                    .with_usage(usage.clone())
                     .with_model(ModelName::new("a").unwrap())
                     .with_provider_response_id(ExternalId::new("r1").unwrap()),
             ),
@@ -64,7 +64,7 @@ fn given_model_and_provider_id_updates_when_applied_then_they_replace_and_untouc
 fn given_updated_metadata_when_completed_then_the_response_carries_it() {
     let usage = Usage::new().with_input_tokens(3).with_output_tokens(2);
     let draft = run(vec![
-        update(ResponseMetadataUpdate::new().with_usage(usage)),
+        update(ResponseMetadataUpdate::new().with_usage(usage.clone())),
         update(ResponseMetadataUpdate::new().with_model(ModelName::new("m").unwrap())),
         finish(),
     ]);

@@ -1,6 +1,7 @@
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
-use serde_json::Value;
+
+use crate::opaque_json::OpaqueJson;
 
 use super::declared::places_of_incoming;
 use super::kind::TurnKind;
@@ -8,7 +9,7 @@ use crate::entry::IncomingEntry;
 use crate::error::{Error, ErrorCode};
 use crate::id::TurnId;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct InputTurn {
     id: TurnId,
     entry: IncomingEntry,
@@ -49,14 +50,15 @@ impl InputTurn {
     }
 
     pub fn from_json(text: &str) -> Result<Self, Error> {
-        super::json::input_from_value(crate::json::decode(text)?)
+        super::json::input_from_value(crate::json::parse(text)?)
     }
 
-    pub fn to_value(&self) -> Result<Value, Error> {
-        crate::json::encode_value(self)
+    pub fn to_value(&self) -> Result<OpaqueJson, Error> {
+        crate::json::encode_value(self).map(OpaqueJson::from_inner)
     }
 
-    pub fn from_value(value: Value) -> Result<Self, Error> {
+    pub fn from_value(value: OpaqueJson) -> Result<Self, Error> {
+        let value = value.into_inner();
         super::json::input_from_value(value)
     }
 }

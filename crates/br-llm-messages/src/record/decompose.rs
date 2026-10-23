@@ -6,12 +6,12 @@ use super::set::RecordSet;
 use super::turn::TurnRecord;
 use crate::block::ContentBlock;
 use crate::entry::TurnEntry;
-use crate::error::Error;
+use crate::error::{Error, ErrorCode};
 use crate::id::{EntryId, TurnId};
 use crate::turn::{Turn, TurnKind};
 
-pub(crate) fn position(index: usize) -> u32 {
-    u32::try_from(index).unwrap_or(u32::MAX)
+pub(crate) fn position(index: usize) -> Result<u32, Error> {
+    u32::try_from(index).map_err(|_| Error::new(ErrorCode::InvalidPosition))
 }
 
 pub(crate) fn block_rows(
@@ -39,7 +39,7 @@ pub(crate) fn block_rows(
                 nested.id(),
                 entry,
                 nested.kind(),
-                position(index),
+                position(index)?,
                 RepresentationState::Complete,
                 block_payload(&nested)?,
             )
@@ -84,7 +84,7 @@ fn entry_rows(turn: TurnId, entry: &TurnEntry, at: u32, set: &mut RecordSet) -> 
         _ => Vec::new(),
     };
     for (index, block) in blocks.iter().enumerate() {
-        block_rows(entry.id(), block, position(index), &mut set.blocks)?;
+        block_rows(entry.id(), block, position(index)?, &mut set.blocks)?;
     }
     Ok(())
 }
@@ -92,28 +92,25 @@ fn entry_rows(turn: TurnId, entry: &TurnEntry, at: u32, set: &mut RecordSet) -> 
 pub(crate) fn turn_rows(turn: &Turn, at: u32, set: &mut RecordSet) -> Result<(), Error> {
     match turn {
         Turn::InputTurn(input) => {
-            set.turns.push(TurnRecord::new(
-                input.id(),
-                TurnKind::InputTurn,
-                at,
-                None,
-                None,
-            ));
+            set.turns
+                .push(TurnRecord::new(input.id(), TurnKind::InputTurn, at));
             let entry = TurnEntry::from(input.entry().clone());
             entry_rows(input.id(), &entry, 0, set)
         }
         Turn::AITurn(ai) => {
-            set.turns.push(TurnRecord::new(
-                ai.id(),
-                TurnKind::AITurn,
-                at,
-                Some(ai.agent()),
-                Some(ai.author().clone()),
-            ));
+            set.turns.push(
+                TurnRecord::new(ai.id(), TurnKind::AITurn, at)
+                    .with_agent(ai.agent())
+                    .with_author(ai.author().clone()),
+            );
             for (index, entry) in ai.entries().iter().enumerate() {
-                entry_rows(ai.id(), entry, position(index), set)?;
+                entry_rows(ai.id(), entry, position(index)?, set)?;
             }
             Ok(())
         }
     }
 }
+
+#[cfg(test)]
+#[path = "decompose_tests.rs"]
+mod tests;

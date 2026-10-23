@@ -3,12 +3,14 @@ use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 
+use crate::opaque_json::OpaqueJson;
+
 use super::delta::{DeltaOp, ResponseDelta};
 use super::kind::DeltaTarget;
 use crate::error::{Error, ErrorCode};
 use crate::id::{EntryId, TurnId};
 
-const SCHEMA: &str = "br-llm-messages-delta/1";
+pub const DELTA_SCHEMA: &str = "br-llm-messages-delta/1";
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -24,7 +26,7 @@ struct Wire {
 impl Serialize for ResponseDelta {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut delta = serializer.serialize_struct("ResponseDelta", 5)?;
-        delta.serialize_field("schema", SCHEMA)?;
+        delta.serialize_field("schema", DELTA_SCHEMA)?;
         delta.serialize_field("turn", &self.turn())?;
         delta.serialize_field("entry", &self.entry())?;
         delta.serialize_field("target", &self.op().target())?;
@@ -36,7 +38,7 @@ impl Serialize for ResponseDelta {
 impl<'de> Deserialize<'de> for ResponseDelta {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value = crate::json::unique_value(deserializer)?;
-        ResponseDelta::from_value(value).map_err(serde::de::Error::custom)
+        ResponseDelta::from_value(OpaqueJson::from_inner(value)).map_err(serde::de::Error::custom)
     }
 }
 
@@ -45,17 +47,18 @@ impl ResponseDelta {
         crate::json::encode(self)
     }
 
-    pub fn to_value(&self) -> Result<Value, Error> {
-        crate::json::encode_value(self)
+    pub fn to_value(&self) -> Result<OpaqueJson, Error> {
+        crate::json::encode_value(self).map(OpaqueJson::from_inner)
     }
 
     pub fn from_json(text: &str) -> Result<Self, Error> {
-        ResponseDelta::from_value(crate::json::decode(text)?)
+        ResponseDelta::from_value(OpaqueJson::from_inner(crate::json::parse(text)?))
     }
 
-    pub fn from_value(value: Value) -> Result<Self, Error> {
+    pub fn from_value(value: OpaqueJson) -> Result<Self, Error> {
+        let value = value.into_inner();
         match value.get("schema") {
-            Some(Value::String(schema)) if schema == SCHEMA => {}
+            Some(Value::String(schema)) if schema == DELTA_SCHEMA => {}
             _ => return Err(Error::new(ErrorCode::SchemaMismatch).at("schema")),
         }
         let wire: Wire = crate::json::decode_value(value)?;

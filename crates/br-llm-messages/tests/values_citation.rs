@@ -7,9 +7,9 @@ use serde_json::json;
 fn citation(n: u64, start: u64, end: u64) -> Citation {
     Citation::new(
         CitationId::from_uuid(v7(n)).unwrap(),
-        CitationSource::new("doc1", Some("Title".to_owned())).unwrap(),
-        Some(TextRange::new(start, end).unwrap()),
+        CitationSource::new("doc1").unwrap().with_title("Title"),
     )
+    .with_range(TextRange::new(start, end).unwrap())
 }
 
 #[test]
@@ -52,8 +52,7 @@ fn given_multibyte_text_when_ranges_are_validated_then_offsets_count_scalars_not
 fn given_a_citation_without_range_when_validated_then_accepted() {
     let whole = Citation::new(
         CitationId::from_uuid(v7(1)).unwrap(),
-        CitationSource::new("doc", None).unwrap(),
-        None,
+        CitationSource::new("doc").unwrap(),
     );
 
     assert!(

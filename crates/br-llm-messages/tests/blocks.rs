@@ -5,15 +5,13 @@ use br_llm_messages::{
     RedactedThinkingBlock, ResultStatus, RuntimeToolCall, RuntimeToolResult, StructuredBlock,
     TextBlock, TextRange, ThinkingBlock,
 };
+use common::Raw as _;
 use common::{bid, cid, envelope, plain_text, png, refused, signature, text_block, tool, v7};
 use serde_json::{Value, json};
 
 fn cite(n: u64, start: u64, end: u64) -> Citation {
-    Citation::new(
-        cid(n),
-        CitationSource::new("doc", None).unwrap(),
-        Some(TextRange::new(start, end).unwrap()),
-    )
+    Citation::new(cid(n), CitationSource::new("doc").unwrap())
+        .with_range(TextRange::new(start, end).unwrap())
 }
 
 fn result_with(
@@ -53,8 +51,9 @@ fn given_two_nested_blocks_sharing_an_id_when_built_then_reused_identity() {
 #[test]
 fn given_a_text_citation_reusing_the_block_id_or_another_citation_when_built_then_reused_identity()
 {
-    let own = TextBlock::new(bid(1), "hello", vec![cite(1, 0, 2)], None);
-    let twin = TextBlock::new(bid(1), "hello", vec![cite(5, 0, 2), cite(5, 1, 3)], None);
+    let own = TextBlock::new(bid(1), "hello").and_then(|b| b.with_citations(vec![cite(1, 0, 2)]));
+    let twin = TextBlock::new(bid(1), "hello")
+        .and_then(|b| b.with_citations(vec![cite(5, 0, 2), cite(5, 1, 3)]));
 
     let own = refused(own);
     let twin = refused(twin);
@@ -69,7 +68,8 @@ fn given_a_text_citation_reusing_the_block_id_or_another_citation_when_built_the
 #[test]
 fn given_a_container_where_a_nested_id_repeats_a_sibling_block_when_checked_then_reused_identity_with_path()
  {
-    let call = ContentBlock::from(RuntimeToolCall::new(bid(1), tool("t"), json!({})).unwrap());
+    let call =
+        ContentBlock::from(RuntimeToolCall::new(bid(1), tool("t"), common::oj(json!({}))).unwrap());
     let nested = ContentBlock::from(result_with(2, vec![plain_text(1, "dup")]).unwrap());
 
     let error = refused(ContentBlock::ensure_distinct_ids(&[call, nested]));
@@ -81,8 +81,11 @@ fn given_a_container_where_a_nested_id_repeats_a_sibling_block_when_checked_then
 
 #[test]
 fn given_a_citation_id_equal_to_a_sibling_block_id_when_checked_then_reused_identity() {
-    let cited = TextBlock::new(bid(1), "hello", vec![cite(2, 0, 2)], None).unwrap();
-    let sibling = ThinkingBlock::new(bid(2), "", None);
+    let cited = TextBlock::new(bid(1), "hello")
+        .unwrap()
+        .with_citations(vec![cite(2, 0, 2)])
+        .unwrap();
+    let sibling = ThinkingBlock::new(bid(2), "");
 
     let error = refused(ContentBlock::ensure_distinct_ids(&[
         cited.into(),
@@ -111,19 +114,22 @@ fn given_distinct_ids_everywhere_when_checked_then_accepted() {
 fn given_blank_text_when_built_then_invalid_content_and_nothing_is_normalized() {
     for blank in ["", " ", "\n\t \u{00a0}"] {
         assert_eq!(
-            refused(TextBlock::plain(bid(1), blank)).code(),
+            refused(TextBlock::new(bid(1), blank)).code(),
             ErrorCode::InvalidContent
         );
     }
-    let padded = TextBlock::plain(bid(1), "  keep\n").unwrap();
+    let padded = TextBlock::new(bid(1), "  keep\n").unwrap();
 
     assert_eq!(padded.text().as_str(), "  keep\n");
 }
 
 #[test]
 fn given_a_citation_range_past_the_text_when_built_then_invalid_content() {
-    let past = TextBlock::new(bid(1), "é😀é", vec![cite(2, 0, 4)], None);
-    let exact = TextBlock::new(bid(1), "é😀é", vec![cite(2, 0, 3)], None).unwrap();
+    let past = TextBlock::new(bid(1), "é😀é").and_then(|b| b.with_citations(vec![cite(2, 0, 4)]));
+    let exact = TextBlock::new(bid(1), "é😀é")
+        .unwrap()
+        .with_citations(vec![cite(2, 0, 3)])
+        .unwrap();
 
     assert_eq!(refused(past).code(), ErrorCode::InvalidContent);
     assert_eq!(exact.citations().len(), 1);
@@ -132,7 +138,9 @@ fn given_a_citation_range_past_the_text_when_built_then_invalid_content() {
 
 #[test]
 fn given_a_built_text_block_when_inspected_then_text_and_replay_are_exactly_what_was_given() {
-    let block = TextBlock::new(bid(1), "hi", vec![], Some(signature("s"))).unwrap();
+    let block = TextBlock::new(bid(1), "hi")
+        .unwrap()
+        .with_replay(signature("s"));
 
     assert_eq!(block.text().as_str(), "hi");
     assert_eq!(block.replay(), Some(&signature("s")));
@@ -162,17 +170,17 @@ fn given_any_json_value_when_structured_then_kept_exactly() {
     ];
 
     for value in values {
-        let block = StructuredBlock::new(bid(1), value.clone()).unwrap();
+        let block = StructuredBlock::new(bid(1), common::oj(value.clone())).unwrap();
         let again = ContentBlock::from_json(&ContentBlock::from(block).to_json().unwrap()).unwrap();
 
-        assert!(matches!(&again, ContentBlock::StructuredContent(b) if b.value() == &value));
+        assert!(matches!(&again, ContentBlock::StructuredContent(b) if b.value().raw() == value));
     }
 }
 
 #[test]
 fn given_empty_thinking_when_built_with_or_without_replay_then_kept_verbatim() {
-    let replay_only = ThinkingBlock::new(bid(1), "", Some(envelope(json!({"enc": "AAA="}))));
-    let bare = ThinkingBlock::new(bid(2), "", None);
+    let replay_only = ThinkingBlock::new(bid(1), "").with_replay(envelope(json!({"enc": "AAA="})));
+    let bare = ThinkingBlock::new(bid(2), "");
 
     assert_eq!(replay_only.text(), "");
     assert_eq!(
@@ -180,7 +188,7 @@ fn given_empty_thinking_when_built_with_or_without_replay_then_kept_verbatim() {
         Some(&envelope(json!({"enc": "AAA="})))
     );
     assert_eq!(bare.replay(), None);
-    assert_eq!(ThinkingBlock::new(bid(3), "  x\n", None).text(), "  x\n");
+    assert_eq!(ThinkingBlock::new(bid(3), "  x\n").text(), "  x\n");
 }
 
 #[test]
@@ -194,15 +202,15 @@ fn given_redacted_thinking_when_built_then_material_is_preserved_unchanged() {
 
 #[test]
 fn given_a_runtime_call_when_built_then_its_id_is_the_call_identity_and_externals_are_optional() {
-    let bare = RuntimeToolCall::new(bid(1), tool("search"), json!({"q": "x"})).unwrap();
-    let full = RuntimeToolCall::new(bid(2), tool("search"), Value::Null)
+    let bare = RuntimeToolCall::new(bid(1), tool("search"), common::oj(json!({"q": "x"}))).unwrap();
+    let full = RuntimeToolCall::new(bid(2), tool("search"), common::oj(Value::Null))
         .unwrap()
         .with_external_id(ExternalId::new("toolu_01").unwrap());
 
     assert_eq!(bare.id(), bid(1));
     assert_eq!(bare.external_id(), None);
     assert_eq!(full.external_id().map(|e| e.as_str()), Some("toolu_01"));
-    assert_eq!(full.arguments(), &Value::Null);
+    assert_eq!(full.arguments().raw(), Value::Null);
     assert_eq!(bare.name().as_str(), "search");
 }
 

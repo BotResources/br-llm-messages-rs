@@ -15,13 +15,9 @@ fn insert(position: u32, block: impl Into<ContentBlock>) -> DeltaOp {
 #[test]
 fn given_atomic_kinds_when_inserted_then_they_complete_without_any_fragment_delta() {
     let provider_result =
-        ProviderToolResult::new(bid(12), bid(99), None, vec![plain_text(13, "found")], None)
-            .unwrap();
+        ProviderToolResult::new(bid(12), bid(99), vec![plain_text(13, "found")]).unwrap();
     let record = ProviderToolExecutionRecord::new(
         bid(14),
-        None,
-        None,
-        None,
         ResultExposure::opaque(envelope(serde_json::json!({"enc": "x"}))),
     )
     .unwrap();
@@ -77,16 +73,12 @@ fn given_a_known_identity_when_a_block_is_inserted_then_reused_identity() {
 #[test]
 fn given_nested_identities_that_clash_when_inserted_then_reused_identity_and_unchanged() {
     let mut draft = run(vec![insert(0, png(10))]);
-    let clash =
-        ProviderToolResult::new(bid(11), bid(99), None, vec![plain_text(10, "x")], None).unwrap();
+    let clash = ProviderToolResult::new(bid(11), bid(99), vec![plain_text(10, "x")]).unwrap();
     let cited = text_block(12, "cited");
-    let with_citation = br_llm_messages::TextBlock::new(
-        bid(13),
-        "abc",
-        vec![stream_support::citation(50, 0, 2)],
-        None,
-    )
-    .unwrap();
+    let with_citation = br_llm_messages::TextBlock::new(bid(13), "abc")
+        .unwrap()
+        .with_citations(vec![stream_support::citation(50, 0, 2)])
+        .unwrap();
 
     let nested = refuse(&mut draft, insert(1, clash));
     ok(&mut draft, insert(1, cited));
@@ -122,7 +114,7 @@ fn given_inserted_and_streamed_blocks_when_mixed_then_completion_validates_the_w
 
     ok(
         &mut draft,
-        stream_support::complete(ResponseEnding::ToolResultsRequested),
+        stream_support::complete(ResponseEnding::tool_results_requested()),
     );
 
     assert_eq!(draft.response().unwrap().runtime_calls().count(), 1);

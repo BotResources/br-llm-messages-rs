@@ -30,7 +30,7 @@ impl ResponseDraft {
         let response =
             ModelResponse::new(self.entry, blocks, ending.clone(), self.metadata.clone())?;
         self.response = Some(response);
-        self.phase = DraftPhase::Completed;
+        self.phase = DraftPhase::Completed {};
         Ok(())
     }
 }

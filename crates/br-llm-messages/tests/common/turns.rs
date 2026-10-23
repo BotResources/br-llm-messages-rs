@@ -36,7 +36,7 @@ pub fn response(entry: u64, blocks: Vec<ContentBlock>, ending: ResponseEnding) -
 }
 
 pub fn finished(entry: u64) -> TurnEntry {
-    response(entry, vec![], ResponseEnding::Finished)
+    response(entry, vec![], ResponseEnding::finished())
 }
 
 pub fn calling(entry: u64, calls: &[(u64, &str)]) -> TurnEntry {
@@ -44,7 +44,7 @@ pub fn calling(entry: u64, calls: &[(u64, &str)]) -> TurnEntry {
         .iter()
         .map(|(id, name)| call(*id, name).into())
         .collect();
-    response(entry, blocks, ResponseEnding::ToolResultsRequested)
+    response(entry, blocks, ResponseEnding::tool_results_requested())
 }
 
 pub fn delivery(entry: u64, results: &[(u64, u64, &str)]) -> TurnEntry {
@@ -85,27 +85,16 @@ pub fn hosted_call(n: u64) -> ContentBlock {
 }
 
 pub fn hosted_result(n: u64, call: u64) -> ContentBlock {
-    ProviderToolResult::new(
-        bid(n),
-        bid(call),
-        None,
-        vec![plain_text(n + 3000, "found")],
-        None,
-    )
-    .unwrap()
-    .into()
+    ProviderToolResult::new(bid(n), bid(call), vec![plain_text(n + 3000, "found")])
+        .unwrap()
+        .into()
 }
 
 pub fn hosted_record(n: u64, status: ExecutionStatus) -> ContentBlock {
-    ProviderToolExecutionRecord::new(
-        bid(n),
-        None,
-        None,
-        Some(status),
-        ResultExposure::not_exposed(),
-    )
-    .unwrap()
-    .into()
+    ProviderToolExecutionRecord::new(bid(n), ResultExposure::not_exposed())
+        .unwrap()
+        .with_status(status)
+        .into()
 }
 
 pub fn pushed(turn: &mut AITurn, entries: Vec<TurnEntry>) {
@@ -136,14 +125,7 @@ pub fn incoming_batch(base: u64) -> Vec<TurnEntry> {
         RequestAccepted::new(eid(base + 3), rid(1)).into(),
         QueuePosition::new(eid(base + 4), rid(1), 1).unwrap().into(),
         TaskStarted::new(eid(base + 5), rid(1), kid(1)).into(),
-        TaskCompleted::new(eid(base + 6), kid(1), None)
-            .unwrap()
-            .into(),
-        TaskFailed::new(
-            eid(base + 7),
-            kid(1),
-            FailureDetail::new("boom", None).unwrap(),
-        )
-        .into(),
+        TaskCompleted::new(eid(base + 6), kid(1)).into(),
+        TaskFailed::new(eid(base + 7), kid(1), FailureDetail::new("boom").unwrap()).into(),
     ]
 }

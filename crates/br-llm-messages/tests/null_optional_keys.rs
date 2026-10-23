@@ -1,4 +1,5 @@
 mod common;
+use common::Raw as _;
 mod snapshot_support;
 mod stream_support;
 
@@ -41,10 +42,10 @@ fn given_a_record_set_with_an_explicit_null_on_an_optional_payload_key_when_load
 fn given_a_draft_snapshot_with_an_explicit_null_on_an_optional_payload_key_when_loaded_then_it_is_refused()
  {
     for key in ["model", "usage", "provider_response_id"] {
-        let mut document = snapshot().to_value().unwrap();
+        let mut document = snapshot().to_value().unwrap().raw();
         document["entry"]["payload"][key] = Value::Null;
 
-        let result = DraftSnapshot::from_value(document);
+        let result = DraftSnapshot::from_value(common::oj(document));
 
         assert_eq!(
             result.unwrap_err().code(),
@@ -77,7 +78,7 @@ fn given_a_stored_record_set_when_reloaded_then_it_is_equal_and_byte_stable() {
 
 #[test]
 fn given_a_provider_call_row_with_a_null_arguments_value_when_loaded_then_the_null_is_kept() {
-    let mut document = rich_set().to_value().unwrap();
+    let mut document = rich_set().to_value().unwrap().raw();
     let row = document["blocks"]
         .as_array_mut()
         .unwrap()
@@ -86,9 +87,9 @@ fn given_a_provider_call_row_with_a_null_arguments_value_when_loaded_then_the_nu
         .expect("a provider call row");
     row["payload"]["arguments"] = json!(null);
 
-    let loaded = RecordSet::from_value(document.clone()).unwrap();
+    let loaded = RecordSet::from_value(common::oj(document.clone())).unwrap();
 
-    assert_eq!(loaded.to_value().unwrap(), document);
+    assert_eq!(loaded.to_value().unwrap().raw(), document);
 }
 
 #[test]

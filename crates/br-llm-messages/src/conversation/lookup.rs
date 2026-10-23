@@ -11,7 +11,7 @@ use crate::id::{BlockId, EntryId, TurnId};
 use crate::turn::{Body, Class, Turn, body_of_entry, body_of_incoming};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EntryRef<'a> {
     Incoming(&'a IncomingEntry),
     Turn(&'a TurnEntry),
@@ -34,7 +34,7 @@ impl EntryRef<'_> {
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BlockRef<'a> {
     Plain(&'a PlainBlock),
     Content(&'a ContentBlock),

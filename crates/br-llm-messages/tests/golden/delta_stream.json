@@ -1,0 +1,582 @@
+[
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "metadata": {
+        "model": "m"
+      },
+      "type": "response_started"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "response",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000a",
+      "position": 3,
+      "start": {
+        "type": "text"
+      },
+      "type": "block_started"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000b",
+      "position": 0,
+      "start": {
+        "type": "thinking"
+      },
+      "type": "block_started"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000c",
+      "position": 2,
+      "start": {
+        "type": "runtime_tool_call"
+      },
+      "type": "block_started"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000d",
+      "position": 5,
+      "start": {
+        "type": "structured_content"
+      },
+      "type": "block_started"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000e",
+      "position": 4,
+      "start": {
+        "type": "text"
+      },
+      "type": "block_started"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000f",
+      "position": 6,
+      "start": {
+        "operation": "web_search",
+        "type": "provider_tool_call"
+      },
+      "type": "block_started"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-000000000010",
+      "position": 7,
+      "start": {
+        "type": "provider_tool_execution_record"
+      },
+      "type": "block_started"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000a",
+      "text": "Hello ",
+      "type": "text_appended"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000b",
+      "text": "plan",
+      "type": "thinking_appended"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000b",
+      "format": "anthropic.signature",
+      "fragment": "Sig",
+      "type": "replay_fragment_appended"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000a",
+      "type": "block_metadata_updated",
+      "update": {
+        "citation": {
+          "id": "ab000000-0000-7000-8000-000000000032",
+          "range": {
+            "end": 5,
+            "start": 0
+          },
+          "source": {
+            "reference": "doc"
+          }
+        },
+        "type": "citation_added"
+      }
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000c",
+      "fragment": "{\"query\":",
+      "type": "json_appended"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000e",
+      "text": "  ",
+      "type": "text_appended"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "type": "response_metadata_updated",
+      "update": {
+        "usage": {
+          "input_tokens": 3
+        }
+      }
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "response",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000a",
+      "text": "wörld",
+      "type": "text_appended"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000c",
+      "type": "block_metadata_updated",
+      "update": {
+        "external_id": "toolu_1",
+        "name": "lookup",
+        "type": "runtime_tool_call_identified"
+      }
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000c",
+      "fragment": "\"rust\"}",
+      "type": "json_appended"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000d",
+      "fragment": "{\"a\":[1,",
+      "type": "json_appended"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": {
+        "id": "ab000000-0000-7000-8000-000000000011",
+        "source": {
+          "data": "QUJD",
+          "media_type": "image/png",
+          "type": "inline"
+        },
+        "type": "image"
+      },
+      "position": 1,
+      "type": "block_inserted"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000f",
+      "fragment": "{\"q\"",
+      "type": "json_appended"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000d",
+      "fragment": "2]}",
+      "type": "json_appended"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-000000000010",
+      "type": "block_metadata_updated",
+      "update": {
+        "status": "running",
+        "type": "execution_status_observed"
+      }
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000f",
+      "fragment": ":\"x\"}",
+      "type": "json_appended"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000a",
+      "format": "anthropic.signature",
+      "fragment": "Ab",
+      "type": "replay_fragment_appended"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000a",
+      "format": "anthropic.signature",
+      "fragment": "Cd",
+      "type": "replay_fragment_appended"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000c",
+      "material": {
+        "format": "anthropic.signature",
+        "payload": {
+          "type": "text",
+          "value": "whole-sig"
+        }
+      },
+      "type": "replay_material_set"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000a",
+      "finalization": {
+        "type": "accumulated"
+      },
+      "type": "block_finalized"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000b",
+      "finalization": {
+        "type": "accumulated"
+      },
+      "type": "block_finalized"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000c",
+      "finalization": {
+        "type": "accumulated"
+      },
+      "type": "block_finalized"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000d",
+      "finalization": {
+        "type": "accumulated"
+      },
+      "type": "block_finalized"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000e",
+      "type": "block_discarded"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-00000000000f",
+      "finalization": {
+        "type": "accumulated"
+      },
+      "type": "block_finalized"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": "ab000000-0000-7000-8000-000000000010",
+      "finalization": {
+        "block": {
+          "exposure": {
+            "content": [
+              {
+                "id": "ab000000-0000-7000-8000-00000000001e",
+                "text": "log",
+                "type": "text"
+              }
+            ],
+            "type": "readable"
+          },
+          "id": "ab000000-0000-7000-8000-000000000010",
+          "operation": "code_run",
+          "status": "completed",
+          "type": "provider_tool_execution_record"
+        },
+        "type": "authoritative"
+      },
+      "type": "block_finalized"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": {
+        "call": "ab000000-0000-7000-8000-00000000000f",
+        "content": [
+          {
+            "id": "ab000000-0000-7000-8000-00000000001f",
+            "text": "found",
+            "type": "text"
+          }
+        ],
+        "id": "ab000000-0000-7000-8000-000000000012",
+        "type": "provider_tool_result"
+      },
+      "position": 8,
+      "type": "block_inserted"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "block": {
+        "id": "ab000000-0000-7000-8000-000000000013",
+        "material": {
+          "format": "anthropic.signature",
+          "payload": {
+            "type": "text",
+            "value": "opaque"
+          }
+        },
+        "type": "redacted_thinking"
+      },
+      "position": 9,
+      "type": "block_inserted"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "type": "response_metadata_updated",
+      "update": {
+        "usage": {
+          "input_tokens": 3,
+          "output_tokens": 9
+        }
+      }
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "response",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000002",
+    "op": {
+      "ending": {
+        "type": "tool_results_requested"
+      },
+      "type": "response_completed"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "response",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000003",
+    "op": {
+      "metadata": {},
+      "type": "response_started"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "response",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000003",
+    "op": {
+      "block": "ab000000-0000-7000-8000-000000000028",
+      "position": 0,
+      "start": {
+        "type": "text"
+      },
+      "type": "block_started"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000003",
+    "op": {
+      "block": "ab000000-0000-7000-8000-000000000028",
+      "text": "cut off",
+      "type": "text_appended"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "block",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  {
+    "entry": "ab000000-0000-7000-8000-000000000003",
+    "op": {
+      "reason": {
+        "type": "cancelled"
+      },
+      "type": "response_interrupted"
+    },
+    "schema": "br-llm-messages-delta/1",
+    "target": "response",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  }
+]

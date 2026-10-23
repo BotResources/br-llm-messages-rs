@@ -169,7 +169,7 @@ fn given_text_and_json_payloads_when_round_tripped_then_preserved_exactly() {
     let object = json!({"b":[1,2.5,null,{"z":"y"}],"a":"é","empty":"","neg":-3});
     let structured = ReplayMaterial::new(
         ReplayFormat::new("openai.reasoning").unwrap(),
-        ReplayPayload::json(object.clone()).unwrap(),
+        ReplayPayload::json(common::oj(object.clone())).unwrap(),
     );
 
     for material in [text, structured] {
@@ -190,7 +190,10 @@ fn given_text_and_json_payloads_when_round_tripped_then_preserved_exactly() {
 fn given_replay_material_the_format_is_never_inferred_from_the_payload() {
     let material = ReplayMaterial::new(
         ReplayFormat::new("anthropic.signature").unwrap(),
-        ReplayPayload::json(json!({"type":"reasoning","encrypted_content":"x"})).unwrap(),
+        ReplayPayload::json(common::oj(
+            json!({"type":"reasoning","encrypted_content":"x"}),
+        ))
+        .unwrap(),
     );
 
     assert_eq!(material.format().as_str(), "anthropic.signature");

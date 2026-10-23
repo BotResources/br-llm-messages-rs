@@ -3,10 +3,15 @@ use serde::de::Error as _;
 use serde_json::Value;
 
 use crate::error::{Error, ErrorCode};
+use crate::opaque_json::OpaqueJson;
 
 pub(crate) const MAX_DEPTH: usize = 64;
 
-pub(crate) fn check(value: &Value) -> Result<(), Error> {
+pub(crate) fn check(value: &OpaqueJson) -> Result<(), Error> {
+    check_value(value.inner())
+}
+
+pub(crate) fn check_value(value: &Value) -> Result<(), Error> {
     let mut pending = vec![(value, 1usize)];
     while let Some((node, level)) = pending.pop() {
         let children: Vec<&Value> = match node {
@@ -22,8 +27,10 @@ pub(crate) fn check(value: &Value) -> Result<(), Error> {
     Ok(())
 }
 
-pub(crate) fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Value, D::Error> {
-    let value = crate::json::unique_value(deserializer)?;
+pub(crate) fn deserialize<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<OpaqueJson, D::Error> {
+    let value = OpaqueJson::from_inner(crate::json::unique_value(deserializer)?);
     check(&value).map_err(D::Error::custom)?;
     Ok(value)
 }

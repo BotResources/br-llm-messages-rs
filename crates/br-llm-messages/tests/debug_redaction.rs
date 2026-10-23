@@ -19,15 +19,17 @@ fn text_material() -> ReplayMaterial {
 fn json_material() -> ReplayMaterial {
     ReplayMaterial::new(
         ReplayFormat::new("openai.reasoning").unwrap(),
-        ReplayPayload::json(json!({"encrypted": SENTINEL, "n": 7})).unwrap(),
+        ReplayPayload::json(common::oj(json!({"encrypted": SENTINEL, "n": 7}))).unwrap(),
     )
 }
 
 fn blocks() -> Vec<ContentBlock> {
     vec![
-        ThinkingBlock::new(bid(1), "", Some(text_material())).into(),
+        ThinkingBlock::new(bid(1), "")
+            .with_replay(text_material())
+            .into(),
         RedactedThinkingBlock::new(bid(2), json_material()).into(),
-        RuntimeToolCall::new(bid(3), tool("t"), json!({}))
+        RuntimeToolCall::new(bid(3), tool("t"), common::oj(json!({})))
             .unwrap()
             .with_replay(json_material())
             .into(),
@@ -41,7 +43,7 @@ fn response() -> ModelResponse {
     ModelResponse::new(
         eid(10),
         blocks(),
-        ResponseEnding::ToolResultsRequested,
+        ResponseEnding::tool_results_requested(),
         ResponseMetadata::new(),
     )
     .unwrap()

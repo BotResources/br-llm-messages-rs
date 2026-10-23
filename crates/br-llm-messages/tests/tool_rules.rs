@@ -33,7 +33,7 @@ fn given_a_result_to_a_provider_call_when_pushed_then_wrong_kind_reference() {
         vec![response(
             10,
             vec![hosted_call(11)],
-            ResponseEnding::Finished,
+            ResponseEnding::finished(),
         )],
     );
 
@@ -50,7 +50,7 @@ fn given_a_result_to_a_non_call_id_when_pushed_then_wrong_kind_reference() {
         vec![response(
             10,
             vec![text_block(11, "plain").into()],
-            ResponseEnding::Finished,
+            ResponseEnding::finished(),
         )],
     );
 

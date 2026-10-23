@@ -5,7 +5,7 @@ use crate::turn::AITurn;
 use crate::value::Author;
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PublicResponse {
     entry: EntryId,
     blocks: Vec<PlainBlock>,
@@ -45,14 +45,14 @@ impl PublicResponse {
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum OtherItem {
     Incoming(IncomingEntry),
     Public(PublicResponse),
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct OtherTurn {
     id: TurnId,
     agent: AgentId,

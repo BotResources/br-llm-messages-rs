@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use crate::error::{Error, ErrorCode};
+use crate::opaque_json::OpaqueJson;
 use crate::value::{ToolName, opaque};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(
     try_from = "ToolDefinitionWire",
     tag = "type",
@@ -16,7 +16,7 @@ pub enum ToolDefinition {
     Inline {
         name: ToolName,
         description: String,
-        input_schema: Value,
+        input_schema: OpaqueJson,
     },
     #[non_exhaustive]
     Versioned { name: ToolName, version: String },
@@ -28,8 +28,7 @@ enum ToolDefinitionWire {
     Inline {
         name: ToolName,
         description: String,
-        #[serde(deserialize_with = "crate::json::unique_value")]
-        input_schema: Value,
+        input_schema: OpaqueJson,
     },
     Versioned {
         name: ToolName,
@@ -41,9 +40,9 @@ impl ToolDefinition {
     pub fn inline(
         name: ToolName,
         description: impl Into<String>,
-        input_schema: Value,
+        input_schema: OpaqueJson,
     ) -> Result<Self, Error> {
-        if !input_schema.is_object() {
+        if !input_schema.inner().is_object() {
             return Err(Error::new(ErrorCode::InvalidContent).at("input_schema"));
         }
         opaque::check(&input_schema).map_err(|error| error.at("input_schema"))?;

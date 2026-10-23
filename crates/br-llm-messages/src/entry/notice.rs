@@ -6,7 +6,7 @@ use crate::error::{Error, ErrorCode};
 use crate::id::{EntryId, RequestId};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "RequestAcceptedWire")]
 pub struct RequestAccepted {
     id: EntryId,
@@ -50,7 +50,7 @@ impl TryFrom<RequestAcceptedWire> for RequestAccepted {
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "QueuePositionWire")]
 pub struct QueuePosition {
     id: EntryId,

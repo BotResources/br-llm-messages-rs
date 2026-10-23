@@ -1,4 +1,5 @@
 mod common;
+use common::Raw as _;
 mod stream_support;
 
 use br_llm_messages::{
@@ -14,39 +15,36 @@ fn every_block() -> Vec<ContentBlock> {
     vec![
         png(10).into(),
         RedactedThinkingBlock::new(bid(11), signature("opaque")).into(),
-        ProviderToolResult::new(
-            bid(12),
-            bid(99),
-            Some(ExternalId::new("srv_1").unwrap()),
-            vec![plain_text(13, "nested")],
-            Some(envelope(json!({"enc": [1, 2]}))),
-        )
-        .unwrap()
-        .into(),
+        ProviderToolResult::new(bid(12), bid(99), vec![plain_text(13, "nested")])
+            .unwrap()
+            .with_external_id(ExternalId::new("srv_1").unwrap())
+            .with_replay(envelope(json!({"enc": [1, 2]})))
+            .into(),
         ProviderToolExecutionRecord::new(
             bid(14),
-            None,
-            Some(operation("code_run")),
-            Some(ExecutionStatus::Completed),
             ResultExposure::mixed(vec![plain_text(15, "out")], signature("s")).unwrap(),
         )
         .unwrap()
+        .with_operation(operation("code_run"))
+        .with_status(ExecutionStatus::Completed)
         .into(),
-        ProviderToolExecutionRecord::new(bid(16), None, None, None, ResultExposure::not_exposed())
+        ProviderToolExecutionRecord::new(bid(16), ResultExposure::not_exposed())
             .unwrap()
             .into(),
-        RuntimeToolCall::new(bid(17), tool("lookup"), json!({"q": [1, {"z": null}]}))
-            .unwrap()
-            .with_external_id(ExternalId::new("toolu_1").unwrap())
-            .into(),
-        TextBlock::new(
-            bid(18),
-            "cited text",
-            vec![citation(50, 0, 5)],
-            Some(signature("sig")),
+        RuntimeToolCall::new(
+            bid(17),
+            tool("lookup"),
+            common::oj(json!({"q": [1, {"z": null}]})),
         )
         .unwrap()
+        .with_external_id(ExternalId::new("toolu_1").unwrap())
         .into(),
+        TextBlock::new(bid(18), "cited text")
+            .unwrap()
+            .with_citations(vec![citation(50, 0, 5)])
+            .unwrap()
+            .with_replay(signature("sig"))
+            .into(),
     ]
 }
 
@@ -70,10 +68,11 @@ fn given_every_block_kind_when_inserted_or_authoritatively_finalized_then_json_r
 fn given_an_inserted_blank_text_block_when_loaded_then_invalid_content_survives_buffering() {
     let mut value = delta(DeltaOp::block_inserted(0, png(10)))
         .to_value()
-        .unwrap();
+        .unwrap()
+        .raw();
     value["op"]["block"] = json!({"type": "text", "id": bid(11).to_string(), "text": "  "});
 
-    let error = ResponseDelta::from_value(value).unwrap_err();
+    let error = ResponseDelta::from_value(common::oj(value)).unwrap_err();
 
     assert_eq!(error.code(), ErrorCode::InvalidContent);
 }
@@ -82,7 +81,8 @@ fn given_an_inserted_blank_text_block_when_loaded_then_invalid_content_survives_
 fn given_an_inserted_block_with_a_disallowed_nested_kind_when_loaded_then_disallowed_block_kind() {
     let mut value = delta(DeltaOp::block_inserted(0, png(10)))
         .to_value()
-        .unwrap();
+        .unwrap()
+        .raw();
     value["op"]["block"] = json!({
         "type": "provider_tool_result",
         "id": bid(11).to_string(),
@@ -90,7 +90,7 @@ fn given_an_inserted_block_with_a_disallowed_nested_kind_when_loaded_then_disall
         "content": [{"type": "thinking", "id": bid(13).to_string(), "text": "x"}]
     });
 
-    let error = ResponseDelta::from_value(value).unwrap_err();
+    let error = ResponseDelta::from_value(common::oj(value)).unwrap_err();
 
     assert_eq!(error.code(), ErrorCode::DisallowedBlockKind);
 }

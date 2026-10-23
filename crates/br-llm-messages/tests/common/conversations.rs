@@ -16,11 +16,18 @@ use super::{aid, author, bid, cid, cvid, eid, hid, kid, plain_text, png, rid, si
 fn cited_text(block: u64, citation: u64) -> PlainBlock {
     let cite = Citation::new(
         cid(citation),
-        CitationSource::new("doc-1", Some("A document".into())).unwrap(),
-        Some(TextRange::new(0, 5).unwrap()),
-    );
-    PlainBlock::try_from(TextBlock::new(bid(block), "cited text", vec![cite], None).unwrap())
-        .unwrap()
+        CitationSource::new("doc-1")
+            .unwrap()
+            .with_title("A document"),
+    )
+    .with_range(TextRange::new(0, 5).unwrap());
+    PlainBlock::try_from(
+        TextBlock::new(bid(block), "cited text")
+            .unwrap()
+            .with_citations(vec![cite])
+            .unwrap(),
+    )
+    .unwrap()
 }
 
 fn first_input() -> InputTurn {
@@ -29,24 +36,21 @@ fn first_input() -> InputTurn {
 }
 
 fn lookup_response() -> TurnEntry {
-    let call = RuntimeToolCall::new(bid(15), tool("lookup"), json!({"q": "rust"}))
+    let call = RuntimeToolCall::new(bid(15), tool("lookup"), super::oj(json!({"q": "rust"})))
         .unwrap()
         .with_external_id(ExternalId::new("toolu_1").unwrap());
     let hosted = ProviderToolCall::new(bid(16))
         .with_operation(ProviderOperation::new("web_search").unwrap())
-        .with_arguments(json!({"query": "x"}))
+        .with_arguments(super::oj(json!({"query": "x"})))
         .unwrap();
     let hosted_result =
-        ProviderToolResult::new(bid(17), bid(16), None, vec![plain_text(18, "found")], None)
-            .unwrap();
+        ProviderToolResult::new(bid(17), bid(16), vec![plain_text(18, "found")]).unwrap();
     let record = ProviderToolExecutionRecord::new(
         bid(19),
-        None,
-        None,
-        Some(ExecutionStatus::Completed),
         ResultExposure::readable(vec![plain_text(20, "log")]).unwrap(),
     )
-    .unwrap();
+    .unwrap()
+    .with_status(ExecutionStatus::Completed);
     let usage = Usage::new()
         .with_input_tokens(10)
         .with_output_tokens(u64::MAX);
@@ -57,14 +61,16 @@ fn lookup_response() -> TurnEntry {
     ModelResponse::new(
         eid(12),
         vec![
-            ThinkingBlock::new(bid(13), "", Some(signature("sig"))).into(),
-            TextBlock::plain(bid(14), "calling").unwrap().into(),
+            ThinkingBlock::new(bid(13), "")
+                .with_replay(signature("sig"))
+                .into(),
+            TextBlock::new(bid(14), "calling").unwrap().into(),
             call.into(),
             hosted.into(),
             hosted_result.into(),
             record.into(),
         ],
-        ResponseEnding::ToolResultsRequested,
+        ResponseEnding::tool_results_requested(),
         metadata,
     )
     .unwrap()
@@ -81,7 +87,7 @@ fn lookup_results() -> TurnEntry {
             cited_text(23, 31),
             PlainBlock::Image(png(24)),
             PlainBlock::StructuredContent(
-                StructuredBlock::new(bid(25), json!({"k": [1, 2]})).unwrap(),
+                StructuredBlock::new(bid(25), super::oj(json!({"k": [1, 2]}))).unwrap(),
             ),
         ],
     )
@@ -92,8 +98,12 @@ fn lookup_results() -> TurnEntry {
 }
 
 fn working_turn() -> AITurn {
-    let definition =
-        ToolDefinition::inline(tool("lookup"), "finds things", json!({"type": "object"})).unwrap();
+    let definition = ToolDefinition::inline(
+        tool("lookup"),
+        "finds things",
+        super::oj(json!({"type": "object"})),
+    )
+    .unwrap();
     let mail = AgentMail::new(
         eid(26),
         aid(2),
@@ -104,8 +114,8 @@ fn working_turn() -> AITurn {
     .unwrap();
     let last = ModelResponse::new(
         eid(28),
-        vec![TextBlock::plain(bid(29), "done").unwrap().into()],
-        ResponseEnding::Finished,
+        vec![TextBlock::new(bid(29), "done").unwrap().into()],
+        ResponseEnding::finished(),
         ResponseMetadata::new(),
     )
     .unwrap();

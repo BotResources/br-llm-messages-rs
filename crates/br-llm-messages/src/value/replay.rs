@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use super::opaque;
 use crate::error::{Error, ErrorCode};
+use crate::opaque_json::OpaqueJson;
 
 const MAX_FORMAT_LEN: usize = 64;
 
@@ -49,7 +49,7 @@ impl AsRef<str> for ReplayFormat {
 }
 
 #[non_exhaustive]
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ReplayPayload {
     #[non_exhaustive]
@@ -57,7 +57,7 @@ pub enum ReplayPayload {
     #[non_exhaustive]
     Json {
         #[serde(deserialize_with = "super::opaque::deserialize")]
-        value: Value,
+        value: OpaqueJson,
     },
 }
 
@@ -77,14 +77,14 @@ impl ReplayPayload {
         }
     }
 
-    pub fn json(value: Value) -> Result<Self, Error> {
+    pub fn json(value: OpaqueJson) -> Result<Self, Error> {
         opaque::check(&value).map_err(|error| error.at("value"))?;
         Ok(ReplayPayload::Json { value })
     }
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ReplayMaterial {
     format: ReplayFormat,

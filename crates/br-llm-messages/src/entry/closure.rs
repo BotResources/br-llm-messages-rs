@@ -18,31 +18,26 @@ pub enum BudgetKind {
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(
     try_from = "ClosureReasonWire",
     tag = "type",
     rename_all = "snake_case"
 )]
 pub enum ClosureReason {
-    Completed,
+    #[non_exhaustive]
+    Completed {},
     #[non_exhaustive]
     Cancelled {
         #[serde(skip_serializing_if = "Option::is_none")]
         detail: Option<String>,
     },
     #[non_exhaustive]
-    Interrupted {
-        detail: FailureDetail,
-    },
+    Interrupted { detail: FailureDetail },
     #[non_exhaustive]
-    BudgetExhausted {
-        budget: BudgetKind,
-    },
+    BudgetExhausted { budget: BudgetKind },
     #[non_exhaustive]
-    Failed {
-        failure: FailureDetail,
-    },
+    Failed { detail: FailureDetail },
 }
 
 #[derive(Deserialize)]
@@ -52,12 +47,12 @@ enum ClosureReasonWire {
     Cancelled { detail: Option<String> },
     Interrupted { detail: FailureDetail },
     BudgetExhausted { budget: BudgetKind },
-    Failed { failure: FailureDetail },
+    Failed { detail: FailureDetail },
 }
 
 impl ClosureReason {
     pub fn completed() -> Self {
-        ClosureReason::Completed
+        ClosureReason::Completed {}
     }
 
     pub fn cancelled(detail: Option<String>) -> Result<Self, Error> {
@@ -75,8 +70,8 @@ impl ClosureReason {
         ClosureReason::BudgetExhausted { budget }
     }
 
-    pub fn failed(failure: FailureDetail) -> Self {
-        ClosureReason::Failed { failure }
+    pub fn failed(detail: FailureDetail) -> Self {
+        ClosureReason::Failed { detail }
     }
 }
 
@@ -91,13 +86,13 @@ impl TryFrom<ClosureReasonWire> for ClosureReason {
             ClosureReasonWire::BudgetExhausted { budget } => {
                 Ok(ClosureReason::budget_exhausted(budget))
             }
-            ClosureReasonWire::Failed { failure } => Ok(ClosureReason::failed(failure)),
+            ClosureReasonWire::Failed { detail } => Ok(ClosureReason::failed(detail)),
         }
     }
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "TurnClosureWire")]
 pub struct TurnClosure {
     id: EntryId,

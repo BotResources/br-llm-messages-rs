@@ -9,11 +9,11 @@ use common::{bid, eid, hid};
 use serde_json::{Value, json};
 
 fn entry(kind: TurnEntryKind, state: RepresentationState, payload: Value) -> EntryRecord {
-    EntryRecord::new(eid(2), tid(1), kind, 0, state, payload)
+    EntryRecord::new(eid(2), tid(1), kind, 0, state, common::oj(payload))
 }
 
 fn block(kind: ContentBlockKind, state: RepresentationState, payload: Value) -> BlockRecord {
-    BlockRecord::new(bid(3), eid(2), kind, 0, state, payload)
+    BlockRecord::new(bid(3), eid(2), kind, 0, state, common::oj(payload))
 }
 
 fn code<T>(result: Result<T, br_llm_messages::Error>) -> ErrorCode {

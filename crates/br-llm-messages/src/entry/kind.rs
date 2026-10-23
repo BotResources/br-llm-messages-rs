@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::{Error, ErrorCode};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TurnEntryKind {
     HumanMessage,
@@ -25,7 +25,7 @@ pub enum TurnEntryKind {
 }
 
 impl TurnEntryKind {
-    pub const ALL: [TurnEntryKind; 13] = [
+    pub const ALL: &'static [TurnEntryKind] = &[
         TurnEntryKind::HumanMessage,
         TurnEntryKind::AgentRequest,
         TurnEntryKind::AgentMail,
@@ -79,7 +79,8 @@ impl FromStr for TurnEntryKind {
 
     fn from_str(value: &str) -> Result<Self, Error> {
         TurnEntryKind::ALL
-            .into_iter()
+            .iter()
+            .copied()
             .find(|kind| kind.as_str() == value)
             .ok_or_else(|| Error::new(ErrorCode::UnsupportedVariant))
     }

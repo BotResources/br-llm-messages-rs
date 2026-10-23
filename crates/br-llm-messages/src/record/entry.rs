@@ -1,15 +1,15 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use super::kinds::{ActorRef, RepresentationState};
 use super::schema::{as_object, check_object, entry_fields, header_fields};
 use crate::entry::TurnEntryKind;
 use crate::error::{Error, ErrorCode};
 use crate::id::{EntryId, TurnId};
+use crate::opaque_json::OpaqueJson;
 use crate::value::Author;
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "EntryRecordWire")]
 pub struct EntryRecord {
     id: EntryId,
@@ -21,7 +21,7 @@ pub struct EntryRecord {
     sender: Option<ActorRef>,
     #[serde(skip_serializing_if = "Option::is_none")]
     author: Option<Author>,
-    payload: Value,
+    payload: OpaqueJson,
 }
 
 #[derive(Deserialize)]
@@ -34,8 +34,7 @@ struct EntryRecordWire {
     state: RepresentationState,
     sender: Option<ActorRef>,
     author: Option<Author>,
-    #[serde(deserialize_with = "crate::json::unique_value")]
-    payload: Value,
+    payload: OpaqueJson,
 }
 
 impl EntryRecord {
@@ -45,7 +44,7 @@ impl EntryRecord {
         kind: TurnEntryKind,
         position: u32,
         state: RepresentationState,
-        payload: Value,
+        payload: OpaqueJson,
     ) -> Self {
         EntryRecord {
             id,
@@ -102,7 +101,7 @@ impl EntryRecord {
         self.author.as_ref()
     }
 
-    pub fn payload(&self) -> &Value {
+    pub fn payload(&self) -> &OpaqueJson {
         &self.payload
     }
 
@@ -115,7 +114,7 @@ impl EntryRecord {
 
     fn check_inner(&self) -> Result<(), Error> {
         self.check_columns()?;
-        let object = as_object(&self.payload)?;
+        let object = as_object(self.payload.inner())?;
         let checked = match (self.kind, self.state) {
             (_, RepresentationState::Complete) => check_object(object, &entry_fields(self.kind)),
             (TurnEntryKind::ModelResponse, RepresentationState::Producing) => {

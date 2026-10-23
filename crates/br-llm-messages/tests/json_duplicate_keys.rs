@@ -63,7 +63,7 @@ fn given_a_key_repeated_through_an_escape_when_loaded_then_malformed_json() {
 
 #[test]
 fn given_a_repeated_key_inside_an_opaque_value_when_loaded_then_malformed_json() {
-    let block = StructuredBlock::new(bid(1), serde_json::json!({"k": 1})).unwrap();
+    let block = StructuredBlock::new(bid(1), common::oj(serde_json::json!({"k": 1}))).unwrap();
     let text = ContentBlock::from(block).to_json().unwrap();
     assert!(ContentBlock::from_json(&text).is_ok());
 

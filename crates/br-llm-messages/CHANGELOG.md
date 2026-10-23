@@ -18,8 +18,9 @@ under earlier schemas do not load.
 Added streaming drafts, storage-neutral records and perspective projection;
 removed `Step`, `TurnItem`, `UserInput`, `lighten` and `render`.
 Repeated JSON keys are refused on every read path, `from_json` and serde alike.
-Opaque JSON keeps number digits; two spellings are not kept: exponent form
-(`1E2` is written `1e+2`) and `-0` (written `0`).
+Schema ids are public consts, kind lists (`ALL`) are slices, unit endings use constructors.
+`OpaqueJson`: integers exact to `u64`/`i64`, other numbers `f64`, keys sorted, for any `serde_json` features.
+`ClosureReason::Failed` carries `detail`.
 
 ## 0.5.0 - 2026-10-15
 

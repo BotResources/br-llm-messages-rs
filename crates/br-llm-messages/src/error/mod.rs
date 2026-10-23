@@ -6,7 +6,7 @@ pub use code::ErrorCode;
 use uuid::Uuid;
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Error {
     code: ErrorCode,
     id: Option<Uuid>,

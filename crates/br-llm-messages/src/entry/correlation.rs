@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::id::{BlockId, EntryId, RequestId};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum RequestOrigin {
     #[non_exhaustive]
@@ -23,7 +23,7 @@ impl RequestOrigin {
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum MailCorrelation {
     #[non_exhaustive]

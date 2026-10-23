@@ -1,12 +1,14 @@
+mod common;
+
 use std::fmt::Debug;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use br_llm_messages::{
-    ActorRef, BlockRecord, BlockStart, ContentBlockKind, DraftSnapshot, EntryRecord, Error,
-    ErrorCode, OtherItem, OtherTurn, Perspective, ProjectedTurn, Projection, PublicResponse,
-    RecordSet, RepresentationState, ResponseDelta, ResponseDeltaKind, ResponseDraft, TurnEntryKind,
-    TurnKind, TurnRecord,
+    ActorRef, BlockRecord, BlockStart, CONVERSATION_SCHEMA, ContentBlockKind, DELTA_SCHEMA,
+    DRAFT_SCHEMA, DraftSnapshot, EntryRecord, Error, ErrorCode, OtherItem, OtherTurn, Perspective,
+    ProjectedTurn, Projection, PublicResponse, RECORD_SCHEMA, RecordSet, RepresentationState,
+    ResponseDelta, ResponseDeltaKind, ResponseDraft, TurnEntryKind, TurnKind, TurnRecord,
 };
 
 const MAX_LINES: usize = 300;
@@ -239,4 +241,15 @@ fn given_the_sources_when_scanned_then_no_thread_or_sql_type_exists() {
             );
         }
     }
+}
+
+#[test]
+fn given_the_four_schema_constants_when_documents_are_serialized_then_each_names_its_constant() {
+    let conversation = serde_json::to_value(common::conversations::rich()).unwrap();
+    let records = serde_json::to_value(common::records::rich_set()).unwrap();
+
+    assert_eq!(conversation["schema"], CONVERSATION_SCHEMA);
+    assert_eq!(records["schema"], RECORD_SCHEMA);
+    assert_eq!(DELTA_SCHEMA, "br-llm-messages-delta/1");
+    assert_eq!(DRAFT_SCHEMA, "br-llm-messages-draft/1");
 }

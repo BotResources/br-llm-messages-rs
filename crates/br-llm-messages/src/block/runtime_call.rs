@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use super::ids::IdSink;
 use crate::error::Error;
 use crate::id::BlockId;
+use crate::opaque_json::OpaqueJson;
 use crate::value::{ExternalId, ReplayMaterial, ToolName, opaque};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RuntimeToolCall {
     id: BlockId,
@@ -15,13 +15,13 @@ pub struct RuntimeToolCall {
     external_id: Option<ExternalId>,
     name: ToolName,
     #[serde(deserialize_with = "crate::value::opaque::deserialize")]
-    arguments: Value,
+    arguments: OpaqueJson,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     replay: Option<ReplayMaterial>,
 }
 
 impl RuntimeToolCall {
-    pub fn new(id: BlockId, name: ToolName, arguments: Value) -> Result<Self, Error> {
+    pub fn new(id: BlockId, name: ToolName, arguments: OpaqueJson) -> Result<Self, Error> {
         opaque::check(&arguments).map_err(|error| error.at("arguments"))?;
         Ok(RuntimeToolCall {
             id,
@@ -54,7 +54,7 @@ impl RuntimeToolCall {
         &self.name
     }
 
-    pub fn arguments(&self) -> &Value {
+    pub fn arguments(&self) -> &OpaqueJson {
         &self.arguments
     }
 

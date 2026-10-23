@@ -4,7 +4,14 @@ use uuid::Uuid;
 use super::{Error, ErrorCode};
 
 impl Error {
-    pub fn from_json_error(error: &serde_json::Error) -> Error {
+    pub fn from_json_error(error: &(dyn std::error::Error + 'static)) -> Error {
+        match error.downcast_ref::<serde_json::Error>() {
+            Some(error) => Error::from_serde_json(error),
+            None => from_data_message(&error.to_string()),
+        }
+    }
+
+    fn from_serde_json(error: &serde_json::Error) -> Error {
         match error.classify() {
             Category::Syntax | Category::Eof | Category::Io => {
                 let mut mapped = Error::new(ErrorCode::MalformedJson);
@@ -23,6 +30,9 @@ fn from_data_message(message: &str) -> Error {
     let message = strip_position(message);
     if let Some(embedded) = embedded(message) {
         return embedded;
+    }
+    if message.starts_with("duplicate field") {
+        return Error::new(ErrorCode::MalformedJson);
     }
     if message.starts_with("unknown variant") {
         return Error::new(ErrorCode::UnsupportedVariant);

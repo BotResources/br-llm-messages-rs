@@ -1,4 +1,5 @@
 mod common;
+use common::Raw as _;
 
 use br_llm_messages::{
     ContentBlock, ErrorCode, ExternalId, ModelName, ModelResponse, ProviderToolCall,
@@ -16,13 +17,13 @@ fn response(
 
 fn every_ending() -> Vec<ResponseEnding> {
     vec![
-        ResponseEnding::Finished,
-        ResponseEnding::ToolResultsRequested,
-        ResponseEnding::ProviderContinuation,
-        ResponseEnding::OutputExhausted,
-        ResponseEnding::StopSequence,
-        ResponseEnding::Refusal,
-        ResponseEnding::Filtered,
+        ResponseEnding::finished(),
+        ResponseEnding::tool_results_requested(),
+        ResponseEnding::provider_continuation(),
+        ResponseEnding::output_exhausted(),
+        ResponseEnding::stop_sequence(),
+        ResponseEnding::refusal(),
+        ResponseEnding::filtered(),
         ResponseEnding::unclassified("vendor_specific").unwrap(),
     ]
 }
@@ -30,9 +31,9 @@ fn every_ending() -> Vec<ResponseEnding> {
 #[test]
 fn given_blocks_in_a_mixed_order_when_built_then_the_reported_order_is_kept() {
     let blocks: Vec<ContentBlock> = vec![
-        ThinkingBlock::new(bid(10), "first", None).into(),
+        ThinkingBlock::new(bid(10), "first").into(),
         ProviderToolCall::new(bid(11)).into(),
-        ProviderToolResult::new(bid(12), bid(11), None, vec![plain_text(13, "r")], None)
+        ProviderToolResult::new(bid(12), bid(11), vec![plain_text(13, "r")])
             .unwrap()
             .into(),
         call(14, "t").into(),
@@ -40,7 +41,7 @@ fn given_blocks_in_a_mixed_order_when_built_then_the_reported_order_is_kept() {
         call(16, "u").into(),
     ];
 
-    let built = response(blocks.clone(), ResponseEnding::ToolResultsRequested).unwrap();
+    let built = response(blocks.clone(), ResponseEnding::tool_results_requested()).unwrap();
 
     assert_eq!(built.blocks(), blocks.as_slice());
     let calls: Vec<_> = built.runtime_calls().map(|c| c.id()).collect();
@@ -54,7 +55,7 @@ fn given_a_runtime_call_that_is_not_last_when_ending_requests_results_then_accep
         text_block(11, "after the call").into(),
     ];
 
-    assert!(response(blocks, ResponseEnding::ToolResultsRequested).is_ok());
+    assert!(response(blocks, ResponseEnding::tool_results_requested()).is_ok());
 }
 
 #[test]
@@ -62,7 +63,7 @@ fn given_no_blocks_when_any_ending_but_tool_results_requested_then_accepted() {
     for ending in every_ending() {
         let outcome = response(vec![], ending.clone());
 
-        if ending == ResponseEnding::ToolResultsRequested {
+        if ending == ResponseEnding::tool_results_requested() {
             assert_eq!(refused(outcome).code(), ErrorCode::MissingContent);
         } else {
             assert_eq!(outcome.unwrap().ending(), &ending);
@@ -77,7 +78,7 @@ fn given_tool_results_requested_without_a_runtime_call_when_built_then_missing_c
         ProviderToolCall::new(bid(11)).into(),
     ];
 
-    let error = refused(response(blocks, ResponseEnding::ToolResultsRequested));
+    let error = refused(response(blocks, ResponseEnding::tool_results_requested()));
 
     assert_eq!(error.code(), ErrorCode::MissingContent);
     assert_eq!(error.object_id(), Some(eid(1).as_uuid()));
@@ -96,7 +97,7 @@ fn given_a_runtime_call_when_the_ending_is_finished_then_the_ending_is_not_rewri
 fn given_two_blocks_sharing_an_id_when_built_then_reused_identity_names_it() {
     let blocks = vec![text_block(10, "a").into(), text_block(10, "b").into()];
 
-    let error = refused(response(blocks, ResponseEnding::Finished));
+    let error = refused(response(blocks, ResponseEnding::finished()));
 
     assert_eq!(error.code(), ErrorCode::ReusedIdentity);
     assert_eq!(error.object_id(), Some(bid(10).as_uuid()));
@@ -108,36 +109,31 @@ fn given_a_block_reusing_the_entry_id_or_a_citation_id_when_built_then_reused_id
     let nested_clash = vec![
         ContentBlock::from(text_block(10, "a")),
         ContentBlock::from(
-            ProviderToolResult::new(bid(11), bid(5), None, vec![plain_text(10, "nested")], None)
-                .unwrap(),
+            ProviderToolResult::new(bid(11), bid(5), vec![plain_text(10, "nested")]).unwrap(),
         ),
     ];
 
     assert_eq!(
-        refused(response(entry_clash, ResponseEnding::Finished)).code(),
+        refused(response(entry_clash, ResponseEnding::finished())).code(),
         ErrorCode::ReusedIdentity
     );
     assert_eq!(
-        refused(response(nested_clash, ResponseEnding::Finished)).code(),
+        refused(response(nested_clash, ResponseEnding::finished())).code(),
         ErrorCode::ReusedIdentity
     );
-    let citation_clash = br_llm_messages::TextBlock::new(
-        bid(20),
-        "abcd",
-        vec![br_llm_messages::Citation::new(
+    let citation_clash = br_llm_messages::TextBlock::new(bid(20), "abcd")
+        .unwrap()
+        .with_citations(vec![br_llm_messages::Citation::new(
             cid(21),
-            br_llm_messages::CitationSource::new("doc", None).unwrap(),
-            None,
-        )],
-        None,
-    )
-    .unwrap();
+            br_llm_messages::CitationSource::new("doc").unwrap(),
+        )])
+        .unwrap();
     let blocks = vec![
         ContentBlock::from(citation_clash),
         ContentBlock::from(text_block(21, "reuses the citation id")),
     ];
     assert_eq!(
-        refused(response(blocks, ResponseEnding::Finished)).code(),
+        refused(response(blocks, ResponseEnding::finished())).code(),
         ErrorCode::ReusedIdentity
     );
 }
@@ -146,7 +142,7 @@ fn given_a_block_reusing_the_entry_id_or_a_citation_id_when_built_then_reused_id
 fn given_a_runtime_tool_result_block_when_built_then_disallowed_block_kind() {
     let blocks = vec![ContentBlock::from(result(10, 11, "t"))];
 
-    let error = refused(response(blocks, ResponseEnding::Finished));
+    let error = refused(response(blocks, ResponseEnding::finished()));
 
     assert_eq!(error.code(), ErrorCode::DisallowedBlockKind);
     assert_eq!(error.object_id(), Some(bid(10).as_uuid()));
@@ -159,7 +155,7 @@ fn given_a_response_json_with_a_runtime_tool_result_block_when_loaded_then_refus
         "content": [{"type": "runtime_tool_result", "id": bid(10).to_string(), "call": bid(11).to_string(),
             "tool_name": "t", "status": "success", "content": []}]});
 
-    let error = refused(TurnEntry::from_value(value));
+    let error = refused(TurnEntry::from_value(common::oj(value)));
 
     assert_eq!(error.code(), ErrorCode::DisallowedBlockKind);
 }
@@ -167,14 +163,14 @@ fn given_a_response_json_with_a_runtime_tool_result_block_when_loaded_then_refus
 #[test]
 fn given_a_response_json_without_ending_or_content_when_loaded_then_missing_content() {
     let full = json!({"type": "model_response", "id": eid(1).to_string(), "ending": {"type": "finished"}, "content": []});
-    assert!(TurnEntry::from_value(full.clone()).is_ok());
+    assert!(TurnEntry::from_value(common::oj(full.clone())).is_ok());
 
     for field in ["ending", "content"] {
         let mut stripped = full.clone();
         stripped.as_object_mut().unwrap().remove(field);
 
         assert_eq!(
-            refused(TurnEntry::from_value(stripped)).code(),
+            refused(TurnEntry::from_value(common::oj(stripped))).code(),
             ErrorCode::MissingContent,
             "{field}"
         );
@@ -183,7 +179,7 @@ fn given_a_response_json_without_ending_or_content_when_loaded_then_missing_cont
 
 #[test]
 fn given_no_usage_model_or_provider_id_when_built_then_absence_is_retained() {
-    let built = response(vec![], ResponseEnding::Finished).unwrap();
+    let built = response(vec![], ResponseEnding::finished()).unwrap();
 
     assert_eq!(built.usage(), None);
     assert_eq!(built.model(), None);
@@ -200,11 +196,11 @@ fn given_partial_usage_when_round_tripped_then_missing_counts_stay_absent_not_ze
         .with_usage(Usage::new().with_output_tokens(u64::MAX))
         .with_model(ModelName::new("model-x").unwrap())
         .with_provider_response_id(ExternalId::new("resp_1").unwrap());
-    let built = ModelResponse::new(eid(1), vec![], ResponseEnding::Finished, metadata).unwrap();
+    let built = ModelResponse::new(eid(1), vec![], ResponseEnding::finished(), metadata).unwrap();
 
     let entry = TurnEntry::from(built.clone());
-    let value = entry.to_value().unwrap();
-    let reloaded = TurnEntry::from_value(value.clone()).unwrap();
+    let value = entry.to_value().unwrap().raw();
+    let reloaded = TurnEntry::from_value(common::oj(value.clone())).unwrap();
 
     assert_eq!(
         value["usage"],
@@ -222,9 +218,9 @@ fn given_partial_usage_when_round_tripped_then_missing_counts_stay_absent_not_ze
 
 #[test]
 fn given_a_provider_replay_block_when_built_then_replay_material_is_kept_unchanged() {
-    let thinking = ThinkingBlock::new(bid(10), "", Some(signature("opaque==")));
+    let thinking = ThinkingBlock::new(bid(10), "").with_replay(signature("opaque=="));
 
-    let built = response(vec![thinking.clone().into()], ResponseEnding::Finished).unwrap();
+    let built = response(vec![thinking.clone().into()], ResponseEnding::finished()).unwrap();
 
     assert_eq!(built.blocks(), &[ContentBlock::from(thinking)]);
 }

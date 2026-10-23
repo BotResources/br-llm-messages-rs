@@ -6,6 +6,7 @@ use br_llm_messages::{
     DeltaOp, DraftPhase, ErrorCode, FailureDetail, InterruptionReason, RepresentationState,
     ResponseDraft, SlotLifecycle,
 };
+use common::Raw as _;
 use common::bid;
 use serde_json::json;
 use snapshot_support::{deltas, draft_after, script};
@@ -25,7 +26,7 @@ fn given_a_producing_draft_with_a_position_gap_when_restored_then_ids_order_frag
     let restored = ResponseDraft::from_snapshot(&draft.to_snapshot().unwrap()).unwrap();
 
     assert_eq!(restored, draft);
-    assert_eq!(restored.phase(), &DraftPhase::Producing);
+    assert!(matches!(restored.phase(), DraftPhase::Producing { .. }));
     let slots = restored.view().slots();
     let positions: Vec<u32> = slots.iter().map(|slot| slot.position()).collect();
     assert_eq!(positions, [0, 2, 3, 4, 5, 6, 7]);
@@ -76,7 +77,7 @@ fn given_late_replay_and_metadata_when_restored_then_they_are_exact() {
 #[test]
 fn given_an_interrupted_draft_when_restored_then_phase_and_partial_content_are_equal() {
     let mut draft = mid_script();
-    let reason = InterruptionReason::failed(FailureDetail::new("upstream_closed", None).unwrap());
+    let reason = InterruptionReason::failed(FailureDetail::new("upstream_closed").unwrap());
     draft
         .apply(&delta(DeltaOp::response_interrupted(reason.clone())))
         .unwrap();
@@ -104,7 +105,7 @@ fn given_a_producing_snapshot_when_built_then_the_header_holds_no_block_content(
 
     let snapshot = draft.to_snapshot().unwrap();
 
-    let header = snapshot.entry().payload();
+    let header = snapshot.entry().payload().raw();
     assert!(!header.to_string().contains(SECRET));
     let allowed = ["usage", "model", "provider_response_id", "interruption"];
     assert!(
@@ -117,7 +118,7 @@ fn given_a_producing_snapshot_when_built_then_the_header_holds_no_block_content(
     let rows: Vec<String> = snapshot
         .blocks()
         .iter()
-        .map(|row| row.payload().to_string())
+        .map(|row| row.payload().raw().to_string())
         .collect();
     assert_eq!(rows.iter().filter(|row| row.contains(SECRET)).count(), 1);
 }
@@ -128,7 +129,7 @@ fn given_an_interrupted_snapshot_when_built_then_raw_json_and_late_replay_stay_v
     let mut draft = draft_after(&steps, 25);
     draft
         .apply(&delta(DeltaOp::response_interrupted(
-            InterruptionReason::Truncated,
+            InterruptionReason::truncated(),
         )))
         .unwrap();
 
@@ -142,12 +143,15 @@ fn given_an_interrupted_snapshot_when_built_then_raw_json_and_late_replay_stay_v
             .unwrap()
     };
     assert_eq!(row(12).state(), RepresentationState::Interrupted);
-    assert_eq!(row(12).payload()["raw_arguments"], "{\"query\":\"rust\"}");
-    assert_eq!(row(13).payload()["raw_json"], "{\"a\":[1,2]}");
-    assert_eq!(row(10).payload()["replay"]["payload"]["value"], "Ab");
-    assert_eq!(row(14).payload()["text"], "  ");
     assert_eq!(
-        snapshot.entry().payload()["interruption"],
+        row(12).payload().raw()["raw_arguments"],
+        "{\"query\":\"rust\"}"
+    );
+    assert_eq!(row(13).payload().raw()["raw_json"], "{\"a\":[1,2]}");
+    assert_eq!(row(10).payload().raw()["replay"]["payload"]["value"], "Ab");
+    assert_eq!(row(14).payload().raw()["text"], "  ");
+    assert_eq!(
+        snapshot.entry().payload().raw()["interruption"],
         json!({"type": "truncated"})
     );
 }
@@ -158,7 +162,7 @@ fn given_an_interrupted_draft_when_snapshotted_then_complete_blocks_stay_complet
     let mut draft = draft_after(&steps, 30);
     draft
         .apply(&delta(DeltaOp::response_interrupted(
-            InterruptionReason::Cancelled,
+            InterruptionReason::cancelled(),
         )))
         .unwrap();
 

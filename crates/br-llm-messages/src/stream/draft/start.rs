@@ -95,7 +95,7 @@ impl ResponseDraft {
                     OpenBody::Record {
                         status: current, ..
                     } => {
-                        *current = Some(*status);
+                        *current = Some(status.clone());
                         Ok(())
                     }
                     _ => Err(target_error()),

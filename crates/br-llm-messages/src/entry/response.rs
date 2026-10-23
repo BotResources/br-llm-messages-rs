@@ -7,7 +7,7 @@ use crate::id::EntryId;
 use crate::value::{ExternalId, ModelName, ResponseEnding, Usage};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ResponseMetadata {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -52,7 +52,7 @@ impl ResponseMetadata {
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "ModelResponseWire")]
 pub struct ModelResponse {
     id: EntryId,
@@ -125,7 +125,7 @@ impl ModelResponse {
 
     pub fn metadata(&self) -> ResponseMetadata {
         ResponseMetadata {
-            usage: self.usage,
+            usage: self.usage.clone(),
             model: self.model.clone(),
             provider_response_id: self.provider_response_id.clone(),
         }
@@ -157,7 +157,7 @@ impl ModelResponse {
             }
         }
         self.collect_ids(&mut IdSink::default())?;
-        if self.ending == ResponseEnding::ToolResultsRequested
+        if self.ending == ResponseEnding::tool_results_requested()
             && self.runtime_calls().next().is_none()
         {
             return Err(Error::new(ErrorCode::MissingContent).at("content"));

@@ -9,5 +9,5 @@ repository.workspace = true
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
-serde_json = { version = "1", features = ["preserve_order", "arbitrary_precision"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
 uuid = { version = "1", default-features = false, features = ["std"] }

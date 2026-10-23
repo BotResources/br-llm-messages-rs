@@ -6,7 +6,7 @@ use crate::turn::TurnKind;
 use crate::value::Author;
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "TurnRecordWire")]
 pub struct TurnRecord {
     id: TurnId,
@@ -29,20 +29,24 @@ struct TurnRecordWire {
 }
 
 impl TurnRecord {
-    pub fn new(
-        id: TurnId,
-        kind: TurnKind,
-        position: u32,
-        agent: Option<AgentId>,
-        author: Option<Author>,
-    ) -> Self {
+    pub fn new(id: TurnId, kind: TurnKind, position: u32) -> Self {
         TurnRecord {
             id,
             kind,
             position,
-            agent,
-            author,
+            agent: None,
+            author: None,
         }
+    }
+
+    pub fn with_agent(mut self, agent: AgentId) -> Self {
+        self.agent = Some(agent);
+        self
+    }
+
+    pub fn with_author(mut self, author: Author) -> Self {
+        self.author = Some(author);
+        self
     }
 
     pub fn id(&self) -> TurnId {
@@ -93,7 +97,9 @@ impl TryFrom<TurnRecordWire> for TurnRecord {
     type Error = Error;
 
     fn try_from(wire: TurnRecordWire) -> Result<Self, Error> {
-        let record = TurnRecord::new(wire.id, wire.kind, wire.position, wire.agent, wire.author);
+        let mut record = TurnRecord::new(wire.id, wire.kind, wire.position);
+        record.agent = wire.agent;
+        record.author = wire.author;
         record.check_local()?;
         Ok(record)
     }

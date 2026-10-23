@@ -1,3 +1,6 @@
+use std::collections::BTreeMap;
+use std::sync::OnceLock;
+
 use serde::de::{DeserializeOwned, Error as _, MapAccess, SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Map, Number, Value};
@@ -9,24 +12,26 @@ pub(crate) fn encode<T: Serialize>(value: &T) -> Result<String, Error> {
 }
 
 pub(crate) fn encode_value<T: Serialize>(value: &T) -> Result<Value, Error> {
-    serde_json::to_value(value).map_err(|_| Error::new(ErrorCode::InvalidContent))
+    crate::strict_serializer::to_value(value)
+}
+
+pub(crate) fn parse(text: &str) -> Result<Value, Error> {
+    serde_json::from_str::<UniqueValue>(text)
+        .map(|UniqueValue(value)| value)
+        .map_err(|error| Error::from_json_error(&error))
 }
 
 pub(crate) fn decode<T: DeserializeOwned>(text: &str) -> Result<T, Error> {
-    serde_json::from_str::<UniqueValue>(text).map_err(|error| Error::from_json_error(&error))?;
-    serde_json::from_str(text).map_err(|error| Error::from_json_error(&error))
+    decode_value(parse(text)?)
 }
 
 pub(crate) fn decode_value<T: DeserializeOwned>(value: Value) -> Result<T, Error> {
-    decode_ref(&value)
+    T::deserialize(value).map_err(|error| Error::from_json_error(&error))
 }
 
 pub(crate) fn decode_ref<T: DeserializeOwned>(value: &Value) -> Result<T, Error> {
-    let text = serde_json::to_string(value).map_err(|_| Error::new(ErrorCode::InvalidContent))?;
-    serde_json::from_str(&text).map_err(|error| Error::from_json_error(&error))
+    T::deserialize(value).map_err(|error| Error::from_json_error(&error))
 }
-
-const NUMBER_TOKEN: &str = "$serde_json::private::Number";
 
 struct UniqueValue(Value);
 
@@ -53,7 +58,10 @@ impl<'de> Visitor<'de> for UniqueValueVisitor {
         Ok(Value::Bool(value))
     }
 
-    fn visit_i64<E>(self, value: i64) -> Result<Value, E> {
+    fn visit_i64<E: serde::de::Error>(self, value: i64) -> Result<Value, E> {
+        if value == 0 && numbers_keep_text() {
+            return finite(-0.0).map_err(E::custom);
+        }
         Ok(Value::Number(value.into()))
     }
 
@@ -61,8 +69,8 @@ impl<'de> Visitor<'de> for UniqueValueVisitor {
         Ok(Value::Number(value.into()))
     }
 
-    fn visit_f64<E>(self, value: f64) -> Result<Value, E> {
-        Ok(Number::from_f64(value).map_or(Value::Null, Value::Number))
+    fn visit_f64<E: serde::de::Error>(self, value: f64) -> Result<Value, E> {
+        finite(value).map_err(E::custom)
     }
 
     fn visit_str<E>(self, value: &str) -> Result<Value, E> {
@@ -94,25 +102,108 @@ impl<'de> Visitor<'de> for UniqueValueVisitor {
     }
 
     fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Value, A::Error> {
-        let mut object = Map::new();
-        let Some(mut key) = map.next_key::<String>()? else {
-            return Ok(Value::Object(object));
-        };
-        if key == NUMBER_TOKEN {
+        let mut entries = BTreeMap::new();
+        let mut key = map.next_key::<String>()?;
+        if key.as_deref() == Some(NUMBER_KEY) && numbers_keep_text() {
             let text: String = map.next_value()?;
-            return serde_json::from_str::<Number>(&text)
-                .map(Value::Number)
-                .map_err(|_| A::Error::custom(Error::new(ErrorCode::InvalidContent)));
+            return number_from_text(&text).map_err(A::Error::custom);
         }
-        loop {
+        while let Some(name) = key {
             let UniqueValue(value) = map.next_value()?;
-            if object.insert(key, value).is_some() {
+            if entries.insert(name, value).is_some() {
                 return Err(A::Error::custom(Error::new(ErrorCode::MalformedJson)));
             }
-            match map.next_key::<String>()? {
-                Some(next) => key = next,
-                None => return Ok(Value::Object(object)),
-            }
+            key = map.next_key::<String>()?;
         }
+        Ok(Value::Object(sorted(entries)))
     }
 }
+
+pub(crate) const NUMBER_KEY: &str = "$serde_json::private::Number";
+
+pub(crate) fn sorted(entries: BTreeMap<String, Value>) -> Map<String, Value> {
+    entries.into_iter().collect()
+}
+
+pub(crate) fn canonical(value: Value) -> Value {
+    if !map_keeps_insertion_order() {
+        return value;
+    }
+    match value {
+        Value::Array(items) => Value::Array(items.into_iter().map(canonical).collect()),
+        Value::Object(map) => Value::Object(sorted(
+            map.into_iter()
+                .map(|(key, child)| (key, canonical(child)))
+                .collect(),
+        )),
+        other => other,
+    }
+}
+
+fn map_keeps_insertion_order() -> bool {
+    static KEEPS_ORDER: OnceLock<bool> = OnceLock::new();
+    *KEEPS_ORDER.get_or_init(|| {
+        let mut probe = Map::new();
+        probe.insert("b".to_owned(), Value::Null);
+        probe.insert("a".to_owned(), Value::Null);
+        probe.keys().next().is_some_and(|key| key == "b")
+    })
+}
+
+pub(crate) fn finite(value: f64) -> Result<Value, Error> {
+    Number::from_f64(value)
+        .map(Value::Number)
+        .ok_or_else(|| Error::new(ErrorCode::InvalidContent))
+}
+
+pub(crate) fn number_from_text(text: &str) -> Result<Value, Error> {
+    if let Ok(unsigned) = text.parse::<u64>() {
+        return Ok(Value::Number(unsigned.into()));
+    }
+    match text.parse::<i64>() {
+        Ok(0) => finite(-0.0),
+        Ok(signed) => Ok(Value::Number(signed.into())),
+        Err(_) => text
+            .parse::<f64>()
+            .ok()
+            .and_then(Number::from_f64)
+            .map(Value::Number)
+            .ok_or_else(|| Error::new(ErrorCode::MalformedJson)),
+    }
+}
+
+pub(crate) fn numbers_keep_text() -> bool {
+    static KEEPS_TEXT: OnceLock<bool> = OnceLock::new();
+    *KEEPS_TEXT
+        .get_or_init(|| serde_json::from_str::<NumberProbe>("0.5").is_ok_and(|probe| probe.0))
+}
+
+struct NumberProbe(bool);
+
+impl<'de> Deserialize<'de> for NumberProbe {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        deserializer.deserialize_any(NumberProbeVisitor)
+    }
+}
+
+struct NumberProbeVisitor;
+
+impl<'de> Visitor<'de> for NumberProbeVisitor {
+    type Value = NumberProbe;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a number")
+    }
+
+    fn visit_f64<E>(self, _: f64) -> Result<NumberProbe, E> {
+        Ok(NumberProbe(false))
+    }
+
+    fn visit_map<A: MapAccess<'de>>(self, _: A) -> Result<NumberProbe, A::Error> {
+        Ok(NumberProbe(true))
+    }
+}
+
+#[cfg(test)]
+#[path = "json_tests.rs"]
+mod tests;

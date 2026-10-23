@@ -1,4 +1,5 @@
 mod common;
+use common::Raw as _;
 
 use std::time::{Duration, Instant};
 
@@ -9,7 +10,7 @@ use common::v7;
 use serde_json::{Value, json};
 
 fn chained(length: u64) -> Value {
-    let mut document = rich_set().to_value().unwrap();
+    let mut document = rich_set().to_value().unwrap().raw();
     let template = row(&mut document, "blocks", v7(14)).clone();
     let blocks = document["blocks"].as_array_mut().unwrap();
     for index in 0..length {
@@ -26,7 +27,7 @@ fn chained(length: u64) -> Value {
 
 #[test]
 fn given_a_long_parent_chain_when_loaded_then_it_is_refused_quickly_as_a_disallowed_kind() {
-    let set = RecordSet::from_value(chained(50_000)).unwrap();
+    let set = RecordSet::from_value(common::oj(chained(50_000))).unwrap();
     let started = Instant::now();
 
     let error = set.into_conversation(rich().id()).unwrap_err();

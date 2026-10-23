@@ -1,4 +1,5 @@
 mod common;
+use common::Raw as _;
 mod stream_support;
 
 use br_llm_messages::{DeltaOp, DraftSnapshot, ErrorCode, ReplayFormat, ResponseDraft};
@@ -59,10 +60,10 @@ fn given_fragment_material_when_snapshotted_and_restored_then_fragments_continue
 #[test]
 fn given_a_fragment_mode_marker_without_text_material_when_loaded_then_invalid_record() {
     let draft = run(vec![start_thinking(10, 0)]);
-    let mut document = draft.to_snapshot().unwrap().to_value().unwrap();
+    let mut document = draft.to_snapshot().unwrap().to_value().unwrap().raw();
     document["blocks"][0]["payload"]["replay_fragments"] = json!(true);
 
-    let error = DraftSnapshot::from_value(document).unwrap_err();
+    let error = DraftSnapshot::from_value(common::oj(document)).unwrap_err();
 
     assert_eq!(error.code(), ErrorCode::InvalidRecord);
     assert_eq!(error.object_id(), Some(bid(10).as_uuid()));

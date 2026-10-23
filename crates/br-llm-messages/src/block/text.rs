@@ -6,7 +6,7 @@ use crate::id::BlockId;
 use crate::value::{Citation, PlainText, ReplayMaterial};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "TextBlockWire")]
 pub struct TextBlock {
     id: BlockId,
@@ -28,27 +28,27 @@ struct TextBlockWire {
 }
 
 impl TextBlock {
-    pub fn new(
-        id: BlockId,
-        text: impl Into<String>,
-        citations: Vec<Citation>,
-        replay: Option<ReplayMaterial>,
-    ) -> Result<Self, Error> {
-        let located = |error: Error| error.with_id(id.as_uuid());
-        let text = PlainText::new(text).map_err(|error| located(error).at("text"))?;
-        Citation::check_all(&text, &citations).map_err(located)?;
-        let block = TextBlock {
+    pub fn new(id: BlockId, text: impl Into<String>) -> Result<Self, Error> {
+        let text = PlainText::new(text).map_err(|error| error.with_id(id.as_uuid()).at("text"))?;
+        Ok(TextBlock {
             id,
             text,
-            citations,
-            replay,
-        };
-        block.collect_ids(&mut IdSink::default())?;
-        Ok(block)
+            citations: Vec::new(),
+            replay: None,
+        })
     }
 
-    pub fn plain(id: BlockId, text: impl Into<String>) -> Result<Self, Error> {
-        TextBlock::new(id, text, Vec::new(), None)
+    pub fn with_citations(mut self, citations: Vec<Citation>) -> Result<Self, Error> {
+        Citation::check_all(&self.text, &citations)
+            .map_err(|error| error.with_id(self.id.as_uuid()))?;
+        self.citations = citations;
+        self.collect_ids(&mut IdSink::default())?;
+        Ok(self)
+    }
+
+    pub fn with_replay(mut self, replay: ReplayMaterial) -> Self {
+        self.replay = Some(replay);
+        self
     }
 
     pub fn id(&self) -> BlockId {
@@ -99,11 +99,11 @@ impl TryFrom<TextBlockWire> for TextBlock {
     type Error = Error;
 
     fn try_from(wire: TextBlockWire) -> Result<Self, Error> {
-        TextBlock::new(
-            wire.id,
-            wire.text.into_string(),
-            wire.citations,
-            wire.replay,
-        )
+        let block =
+            TextBlock::new(wire.id, wire.text.into_string())?.with_citations(wire.citations)?;
+        Ok(match wire.replay {
+            Some(replay) => block.with_replay(replay),
+            None => block,
+        })
     }
 }

@@ -107,11 +107,8 @@ fn given_json_with_sentinel_payloads_when_mapped_then_the_error_names_no_value()
 #[test]
 fn given_a_reused_citation_id_when_rendered_then_the_id_and_location_show_without_text() {
     let id = CitationId::from_uuid(v7(1)).unwrap();
-    let source = CitationSource::new("doc", None).unwrap();
-    let list = [
-        Citation::new(id, source.clone(), None),
-        Citation::new(id, source, None),
-    ];
+    let source = CitationSource::new("doc").unwrap();
+    let list = [Citation::new(id, source.clone()), Citation::new(id, source)];
     let text = PlainText::new(SENTINEL).unwrap();
 
     let error = refused(Citation::check_all(&text, &list));

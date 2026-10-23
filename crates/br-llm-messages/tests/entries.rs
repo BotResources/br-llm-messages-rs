@@ -29,7 +29,7 @@ fn given_the_thirteen_kinds_when_named_then_snake_case_discriminants_are_golden(
     let actual: Vec<&str> = TurnEntryKind::ALL.iter().map(|k| k.as_str()).collect();
 
     assert_eq!(actual, expected);
-    for kind in TurnEntryKind::ALL {
+    for kind in TurnEntryKind::ALL.iter().copied() {
         assert_eq!(kind.as_str().parse::<TurnEntryKind>().unwrap(), kind);
         assert_eq!(
             serde_json::to_value(kind).unwrap(),
@@ -63,7 +63,7 @@ fn given_a_human_message_when_blocks_are_text_image_structured_then_accepted_in_
     let blocks = vec![
         plain_text(2, "a"),
         png(3).into(),
-        br_llm_messages::StructuredBlock::new(bid(4), json!(null))
+        br_llm_messages::StructuredBlock::new(bid(4), common::oj(json!(null)))
             .unwrap()
             .into(),
     ];
@@ -78,7 +78,7 @@ fn given_a_human_message_json_with_thinking_content_when_loaded_then_disallowed_
     let value = json!({"type": "human_message", "id": eid(1).to_string(), "human": hid(1).to_string(),
         "content": [{"type": "thinking", "id": bid(2).to_string(), "text": ""}]});
 
-    let error = refused(TurnEntry::from_value(value));
+    let error = refused(TurnEntry::from_value(common::oj(value)));
 
     assert_eq!(error.code(), ErrorCode::DisallowedBlockKind);
 }
@@ -89,7 +89,7 @@ fn given_a_human_message_json_with_an_author_key_even_null_when_loaded_then_auth
         let value = json!({"type": "human_message", "id": eid(1).to_string(), "human": hid(1).to_string(),
             "content": [{"type": "text", "id": bid(2).to_string(), "text": "hi"}], "author": author_value});
 
-        let error = refused(TurnEntry::from_value(value));
+        let error = refused(TurnEntry::from_value(common::oj(value)));
 
         assert_eq!(error.code(), ErrorCode::AuthorForbidden, "{author_value}");
     }
@@ -156,7 +156,7 @@ fn given_an_agent_request_json_missing_a_required_field_when_loaded_then_missing
         "author": "A", "source_conversation": cvid(1).to_string(),
         "origin": {"type": "tool_call", "block": bid(5).to_string()},
         "content": [{"type": "text", "id": bid(2).to_string(), "text": "hi"}]});
-    assert!(TurnEntry::from_value(full.clone()).is_ok());
+    assert!(TurnEntry::from_value(common::oj(full.clone())).is_ok());
 
     for field in [
         "requester",
@@ -168,7 +168,7 @@ fn given_an_agent_request_json_missing_a_required_field_when_loaded_then_missing
         let mut stripped = full.clone();
         stripped.as_object_mut().unwrap().remove(field);
 
-        let error = refused(TurnEntry::from_value(stripped));
+        let error = refused(TurnEntry::from_value(common::oj(stripped)));
 
         assert_eq!(error.code(), ErrorCode::MissingContent, "{field}");
     }
@@ -181,7 +181,7 @@ fn given_an_agent_request_json_with_a_blank_author_when_loaded_then_invalid_auth
         "origin": {"type": "request", "id": rid(1).to_string()},
         "content": [{"type": "text", "id": bid(2).to_string(), "text": "hi"}]});
 
-    let error = refused(TurnEntry::from_value(value));
+    let error = refused(TurnEntry::from_value(common::oj(value)));
 
     assert_eq!(error.code(), ErrorCode::InvalidAuthor);
 }
@@ -193,7 +193,7 @@ fn given_an_agent_request_json_with_an_unknown_origin_when_loaded_then_unsupport
         "origin": {"type": "carrier_pigeon"},
         "content": [{"type": "text", "id": bid(2).to_string(), "text": "hi"}]});
 
-    let error = refused(TurnEntry::from_value(value));
+    let error = refused(TurnEntry::from_value(common::oj(value)));
 
     assert_eq!(error.code(), ErrorCode::UnsupportedVariant);
 }
@@ -225,7 +225,7 @@ fn given_an_agent_mail_json_when_it_has_a_source_message_id_then_unsupported_fie
         "author": "A", "source_conversation": cvid(1).to_string(), "source_message": eid(9).to_string(),
         "content": [{"type": "text", "id": bid(2).to_string(), "text": "hi"}]});
 
-    let error = refused(TurnEntry::from_value(value));
+    let error = refused(TurnEntry::from_value(common::oj(value)));
 
     assert_eq!(error.code(), ErrorCode::UnsupportedField);
 }
@@ -235,13 +235,13 @@ fn given_an_agent_mail_json_without_author_or_source_when_loaded_then_missing_co
     let full = json!({"type": "agent_mail", "id": eid(1).to_string(), "sender": aid(1).to_string(),
         "author": "A", "source_conversation": cvid(1).to_string(),
         "content": [{"type": "text", "id": bid(2).to_string(), "text": "hi"}]});
-    assert!(TurnEntry::from_value(full.clone()).is_ok());
+    assert!(TurnEntry::from_value(common::oj(full.clone())).is_ok());
 
     for field in ["sender", "author", "source_conversation"] {
         let mut stripped = full.clone();
         stripped.as_object_mut().unwrap().remove(field);
 
-        let error = refused(TurnEntry::from_value(stripped));
+        let error = refused(TurnEntry::from_value(common::oj(stripped)));
 
         assert_eq!(error.code(), ErrorCode::MissingContent, "{field}");
     }

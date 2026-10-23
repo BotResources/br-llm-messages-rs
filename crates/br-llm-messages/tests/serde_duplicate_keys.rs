@@ -4,7 +4,7 @@ mod stream_support;
 
 use br_llm_messages::{
     AITurn, ContentBlock, Conversation, DraftSnapshot, ErrorCode, IncomingEntry, InputTurn,
-    PlainBlock, RecordSet, ResponseDelta, StructuredBlock, ToolDefinition, Turn,
+    PlainBlock, RecordSet, ResponseDelta, StructuredBlock, TextBlock, ToolDefinition, Turn,
 };
 use common::conversations::rich;
 use common::records::rich_set;
@@ -92,9 +92,10 @@ fn given_a_repeated_key_when_incoming_entries_and_plain_blocks_are_read_through_
 
 #[test]
 fn given_a_repeated_key_inside_an_opaque_value_when_read_through_serde_then_malformed_json() {
-    let block = ContentBlock::from(StructuredBlock::new(bid(1), json!({"k": 1})).unwrap());
+    let block =
+        ContentBlock::from(StructuredBlock::new(bid(1), common::oj(json!({"k": 1}))).unwrap());
     let block_text = block.to_json().unwrap();
-    let definition = ToolDefinition::inline(tool("t"), "d", json!({"k": 1})).unwrap();
+    let definition = ToolDefinition::inline(tool("t"), "d", common::oj(json!({"k": 1}))).unwrap();
     let definition_text = serde_json::to_string(&definition).unwrap();
 
     let repeat = |text: &str| text.replacen("\"k\":1", "\"k\":1,\"k\":2", 1);
@@ -110,4 +111,13 @@ fn given_a_repeated_key_inside_an_opaque_value_when_read_through_serde_then_malf
         code_of::<ToolDefinition>(&definition_duplicated),
         ErrorCode::MalformedJson
     );
+}
+
+#[test]
+fn given_a_repeated_key_when_a_derived_block_is_read_through_serde_then_malformed_json() {
+    let text = common::text_block(1, "x");
+    let block = ContentBlock::from(text.clone());
+
+    assert_duplicates_refused::<TextBlock>(&serde_json::to_string(&text).unwrap());
+    assert_duplicates_refused::<ContentBlock>(&block.to_json().unwrap());
 }

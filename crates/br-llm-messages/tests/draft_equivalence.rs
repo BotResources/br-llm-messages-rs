@@ -30,30 +30,30 @@ fn usage() -> Usage {
 
 fn direct() -> ModelResponse {
     let blocks: Vec<ContentBlock> = vec![
-        TextBlock::new(
-            bid(10),
-            TEXT,
-            vec![citation(50, 0, 5)],
-            Some(signature("AbCdEf")),
-        )
-        .unwrap()
-        .into(),
-        ThinkingBlock::new(bid(11), THINKING, Some(signature("ThinkSig"))).into(),
+        TextBlock::new(bid(10), TEXT)
+            .unwrap()
+            .with_citations(vec![citation(50, 0, 5)])
+            .unwrap()
+            .with_replay(signature("AbCdEf"))
+            .into(),
+        ThinkingBlock::new(bid(11), THINKING)
+            .with_replay(signature("ThinkSig"))
+            .into(),
         RuntimeToolCall::new(
             bid(12),
             tool("lookup"),
-            json!({"query": "rust", "limit": 3}),
+            common::oj(json!({"query": "rust", "limit": 3})),
         )
         .unwrap()
         .with_external_id(ExternalId::new("toolu_1").unwrap())
         .into(),
         png(13).into(),
-        StructuredBlock::new(bid(14), json!({"a": [1, 2, {"b": null}]}))
+        StructuredBlock::new(bid(14), common::oj(json!({"a": [1, 2, {"b": null}]})))
             .unwrap()
             .into(),
         ProviderToolCall::new(bid(15))
             .with_operation(operation("web_search"))
-            .with_arguments(json!({"q": "x"}))
+            .with_arguments(common::oj(json!({"q": "x"})))
             .unwrap()
             .into(),
     ];
@@ -63,7 +63,7 @@ fn direct() -> ModelResponse {
     ModelResponse::new(
         eid(2),
         blocks,
-        ResponseEnding::ToolResultsRequested,
+        ResponseEnding::tool_results_requested(),
         metadata,
     )
     .unwrap()
@@ -169,7 +169,7 @@ fn tail() -> Vec<DeltaOp> {
                 .with_usage(usage())
                 .with_model(br_llm_messages::ModelName::new("model-x").unwrap()),
         ),
-        DeltaOp::response_completed(ResponseEnding::ToolResultsRequested),
+        DeltaOp::response_completed(ResponseEnding::tool_results_requested()),
     ]
 }
 

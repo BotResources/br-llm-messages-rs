@@ -4,7 +4,7 @@ use crate::entry::ResponseMetadata;
 use crate::value::{ExternalId, ModelName, Usage};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ResponseMetadataUpdate {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -49,7 +49,7 @@ impl ResponseMetadataUpdate {
 
     pub(crate) fn replacing(&self, base: &ResponseMetadata) -> ResponseMetadata {
         let mut merged = ResponseMetadata::new();
-        if let Some(usage) = self.usage.or_else(|| base.usage().copied()) {
+        if let Some(usage) = self.usage.clone().or_else(|| base.usage().cloned()) {
             merged = merged.with_usage(usage);
         }
         if let Some(model) = self.model.clone().or_else(|| base.model().cloned()) {

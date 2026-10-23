@@ -25,40 +25,42 @@ fn raw_nested(levels: usize) -> String {
 
 fn every_constructor(value: &Value) -> Vec<Result<(), br_llm_messages::Error>> {
     vec![
-        StructuredBlock::new(bid(1), value.clone()).map(drop),
-        RuntimeToolCall::new(bid(2), tool("t"), value.clone()).map(drop),
+        StructuredBlock::new(bid(1), common::oj(value.clone())).map(drop),
+        RuntimeToolCall::new(bid(2), tool("t"), common::oj(value.clone())).map(drop),
         ProviderToolCall::new(bid(3))
-            .with_arguments(value.clone())
+            .with_arguments(common::oj(value.clone()))
             .map(drop),
-        ReplayPayload::json(value.clone()).map(drop),
-        ToolDefinition::inline(tool("t"), "d", value.clone()).map(drop),
+        ReplayPayload::json(common::oj(value.clone())).map(drop),
+        ToolDefinition::inline(tool("t"), "d", common::oj(value.clone())).map(drop),
     ]
 }
 
 fn conversation_holding(value: &Value) -> Conversation {
     let material = ReplayMaterial::new(
         ReplayFormat::new("openai.reasoning").unwrap(),
-        ReplayPayload::json(value.clone()).unwrap(),
+        ReplayPayload::json(common::oj(value.clone())).unwrap(),
     );
     let blocks: Vec<ContentBlock> = vec![
-        StructuredBlock::new(bid(1), value.clone()).unwrap().into(),
-        RuntimeToolCall::new(bid(2), tool("t"), value.clone())
+        StructuredBlock::new(bid(1), common::oj(value.clone()))
+            .unwrap()
+            .into(),
+        RuntimeToolCall::new(bid(2), tool("t"), common::oj(value.clone()))
             .unwrap()
             .into(),
         ProviderToolCall::new(bid(3))
-            .with_arguments(value.clone())
+            .with_arguments(common::oj(value.clone()))
             .unwrap()
             .into(),
-        ThinkingBlock::new(bid(4), "", Some(material)).into(),
+        ThinkingBlock::new(bid(4), "").with_replay(material).into(),
     ];
     let response = ModelResponse::new(
         eid(10),
         blocks,
-        ResponseEnding::ToolResultsRequested,
+        ResponseEnding::tool_results_requested(),
         ResponseMetadata::new(),
     )
     .unwrap();
-    let definition = ToolDefinition::inline(tool("t"), "d", value.clone()).unwrap();
+    let definition = ToolDefinition::inline(tool("t"), "d", common::oj(value.clone())).unwrap();
     let turn = AITurn::from_parts(
         common::turns::tid(100),
         aid(1),
@@ -113,7 +115,8 @@ fn given_a_value_at_the_depth_limit_when_a_conversation_is_saved_then_it_loads_b
 
 #[test]
 fn given_a_document_whose_opaque_value_is_beyond_the_limit_when_loaded_then_it_is_refused() {
-    let block = ContentBlock::from(StructuredBlock::new(bid(1), nested(LIMIT)).unwrap());
+    let block =
+        ContentBlock::from(StructuredBlock::new(bid(1), common::oj(nested(LIMIT))).unwrap());
     let text = block.to_json().unwrap();
     let too_deep = text.replacen(
         &serde_json::to_string(&nested(LIMIT)).unwrap(),

@@ -5,7 +5,7 @@ mod restore;
 
 use std::collections::BTreeMap;
 
-use serde_json::Value;
+use crate::opaque_json::OpaqueJson;
 
 use super::draft::slot::Slot;
 use super::draft::{DraftPhase, ResponseDraft};
@@ -17,7 +17,7 @@ use crate::record::{BlockRecord, EntryRecord, RepresentationState, block_rows};
 pub const DRAFT_SCHEMA: &str = "br-llm-messages-draft/1";
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DraftSnapshot {
     entry: EntryRecord,
     blocks: Vec<BlockRecord>,
@@ -55,15 +55,16 @@ impl DraftSnapshot {
         crate::json::encode(self)
     }
 
-    pub fn to_value(&self) -> Result<Value, Error> {
-        crate::json::encode_value(self)
+    pub fn to_value(&self) -> Result<OpaqueJson, Error> {
+        crate::json::encode_value(self).map(OpaqueJson::from_inner)
     }
 
     pub fn from_json(text: &str) -> Result<DraftSnapshot, Error> {
-        DraftSnapshot::from_value(crate::json::decode(text)?)
+        DraftSnapshot::from_value(OpaqueJson::from_inner(crate::json::parse(text)?))
     }
 
-    pub fn from_value(value: Value) -> Result<DraftSnapshot, Error> {
+    pub fn from_value(value: OpaqueJson) -> Result<DraftSnapshot, Error> {
+        let value = value.into_inner();
         checkpoint::from_value(value)
     }
 }
@@ -71,9 +72,9 @@ impl DraftSnapshot {
 impl ResponseDraft {
     pub fn to_snapshot(&self) -> Result<DraftSnapshot, Error> {
         let state = match &self.phase {
-            DraftPhase::Producing => RepresentationState::Producing,
+            DraftPhase::Producing { .. } => RepresentationState::Producing,
             DraftPhase::Interrupted(_) => RepresentationState::Interrupted,
-            DraftPhase::Completed => {
+            DraftPhase::Completed { .. } => {
                 return Err(Error::new(ErrorCode::StreamPhase).with_id(self.entry.as_uuid()));
             }
         };
@@ -106,7 +107,7 @@ impl ResponseDraft {
                     *kind,
                     *position,
                     RepresentationState::Discarded,
-                    Value::Object(serde_json::Map::new()),
+                    OpaqueJson::empty_object(),
                 )),
             }
         }

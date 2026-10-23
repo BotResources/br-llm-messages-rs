@@ -1,4 +1,5 @@
 mod common;
+use common::Raw as _;
 
 use br_llm_messages::{Conversation, ErrorCode, Turn};
 use common::conversations::rich;
@@ -12,12 +13,12 @@ fn golden() -> Value {
 }
 
 fn code_of(document: Value) -> ErrorCode {
-    refused(Conversation::from_value(document)).code()
+    refused(Conversation::from_value(common::oj(document))).code()
 }
 
 #[test]
 fn given_the_current_schema_when_serialized_then_it_names_br_llm_messages_4_exactly() {
-    let json = rich().to_value().unwrap();
+    let json = rich().to_value().unwrap().raw();
 
     assert_eq!(json["schema"], "br-llm-messages/4");
     assert_eq!(json["turns"][0]["type"], "input_turn");
@@ -41,7 +42,7 @@ fn given_other_schemas_when_loaded_then_schema_mismatch_before_any_shape_error()
     ];
 
     for document in documents {
-        let error = refused(Conversation::from_value(document.clone()));
+        let error = refused(Conversation::from_value(common::oj(document.clone())));
         assert_eq!(error.code(), ErrorCode::SchemaMismatch, "{document}");
         assert_eq!(error.location(), Some("schema"));
     }
@@ -59,7 +60,7 @@ fn given_text_with_a_wrong_schema_when_loaded_then_schema_mismatch() {
 
 #[test]
 fn given_a_rich_conversation_when_serialized_then_it_matches_the_golden_document() {
-    let json = rich().to_value().unwrap();
+    let json = rich().to_value().unwrap().raw();
 
     assert_eq!(json, golden());
 }
@@ -69,7 +70,7 @@ fn given_the_golden_document_when_loaded_then_it_builds_the_exact_conversation()
     let loaded = Conversation::from_json(GOLDEN).unwrap();
 
     assert_eq!(loaded, rich());
-    assert_eq!(loaded.to_value().unwrap(), golden());
+    assert_eq!(loaded.to_value().unwrap().raw(), golden());
 }
 
 #[test]
@@ -82,7 +83,8 @@ fn given_a_rich_conversation_when_round_tripped_as_text_then_nothing_is_lost() {
     assert_eq!(reloaded.to_json().unwrap(), original.to_json().unwrap());
     let response = reloaded.turns()[1].as_ai().unwrap().entries()[1]
         .to_value()
-        .unwrap();
+        .unwrap()
+        .raw();
     assert_eq!(response["usage"]["output_tokens"], u64::MAX);
 }
 
@@ -185,7 +187,7 @@ fn given_a_known_payload_that_is_invalid_when_loaded_then_it_is_refused_with_its
     let mut document = golden();
     document["turns"][1]["entries"][3]["author"] = json!("   ");
 
-    let error = refused(Conversation::from_value(document));
+    let error = refused(Conversation::from_value(common::oj(document)));
 
     assert_eq!(error.code(), ErrorCode::InvalidAuthor);
     assert!(error.location().unwrap().starts_with("turns[1].entries[3]"));

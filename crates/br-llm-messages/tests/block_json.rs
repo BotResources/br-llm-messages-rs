@@ -1,4 +1,5 @@
 mod common;
+use common::Raw as _;
 
 use br_llm_messages::{ContentBlock, ContentBlockKind, ErrorCode};
 use common::{bid, cid, refused};
@@ -88,7 +89,7 @@ fn given_the_ten_kinds_when_named_then_snake_case_discriminants_are_golden() {
     ];
 
     assert_eq!(ContentBlockKind::ALL.len(), expected.len());
-    for (kind, name) in ContentBlockKind::ALL.into_iter().zip(expected) {
+    for (kind, name) in ContentBlockKind::ALL.iter().copied().zip(expected) {
         assert_eq!(kind.as_str(), name);
         assert_eq!(kind.to_string(), name);
         assert_eq!(name.parse::<ContentBlockKind>().unwrap(), kind);
@@ -117,10 +118,10 @@ fn given_an_unknown_kind_name_when_parsed_then_unsupported_variant() {
 #[test]
 fn given_each_golden_json_when_loaded_then_kind_matches_and_it_serializes_back_identically() {
     for (kind, golden) in goldens() {
-        let block = ContentBlock::from_value(golden.clone()).unwrap();
+        let block = ContentBlock::from_value(common::oj(golden.clone())).unwrap();
 
         assert_eq!(block.kind(), kind);
-        assert_eq!(block.to_value().unwrap(), golden, "{kind}");
+        assert_eq!(block.to_value().unwrap().raw(), golden, "{kind}");
         assert_eq!(
             ContentBlock::from_json(&block.to_json().unwrap()).unwrap(),
             block
@@ -139,9 +140,9 @@ fn given_exposure_variants_when_round_tripped_then_each_wire_form_is_golden() {
         json!({"type": "not_exposed"}),
     ] {
         let golden = record(exposure);
-        let block = ContentBlock::from_value(golden.clone()).unwrap();
+        let block = ContentBlock::from_value(common::oj(golden.clone())).unwrap();
 
-        assert_eq!(block.to_value().unwrap(), golden);
+        assert_eq!(block.to_value().unwrap().raw(), golden);
     }
 }
 
@@ -152,17 +153,17 @@ fn given_minimal_optional_fields_when_serialized_then_absent_ones_are_omitted() 
     let empty_result = json!({"type": "runtime_tool_result", "id": id(1), "call": id(2), "tool_name": "t", "status": "success", "content": []});
 
     for golden in [call, thinking, empty_result] {
-        let block = ContentBlock::from_value(golden.clone()).unwrap();
+        let block = ContentBlock::from_value(common::oj(golden.clone())).unwrap();
 
-        assert_eq!(block.to_value().unwrap(), golden);
+        assert_eq!(block.to_value().unwrap().raw(), golden);
     }
 }
 
 #[test]
 fn given_null_optionals_when_loaded_then_they_read_as_absent_and_provider_null_arguments_survive() {
-    let loaded = ContentBlock::from_value(json!({
+    let loaded = ContentBlock::from_value(common::oj(json!({
         "type": "provider_tool_call", "id": id(1), "external_id": null, "operation": null, "replay": null, "arguments": null
-    }))
+    })))
     .unwrap();
 
     let ContentBlock::ProviderToolCall(call) = loaded else {
@@ -171,7 +172,7 @@ fn given_null_optionals_when_loaded_then_they_read_as_absent_and_provider_null_a
     assert_eq!(call.external_id(), None);
     assert_eq!(call.operation(), None);
     assert_eq!(call.replay(), None);
-    assert_eq!(call.arguments(), Some(&Value::Null));
+    assert_eq!(call.arguments(), Some(&common::oj(Value::Null)));
 }
 
 #[test]
@@ -179,9 +180,9 @@ fn given_replay_payloads_when_round_tripped_then_values_are_preserved_exactly() 
     let thinking = json!({"type": "thinking", "id": id(1), "text": "a\u{0}b\n  ", "replay":
         {"format": "x.y", "payload": {"type": "text", "value": "  AbC+/= \n"}}});
 
-    let block = ContentBlock::from_value(thinking.clone()).unwrap();
+    let block = ContentBlock::from_value(common::oj(thinking.clone())).unwrap();
 
-    assert_eq!(block.to_value().unwrap(), thinking);
+    assert_eq!(block.to_value().unwrap().raw(), thinking);
 }
 
 #[test]
@@ -190,5 +191,5 @@ fn given_u64_max_arguments_when_round_tripped_then_exact() {
 
     let block = ContentBlock::from_json(&golden.to_string()).unwrap();
 
-    assert_eq!(block.to_value().unwrap(), golden);
+    assert_eq!(block.to_value().unwrap().raw(), golden);
 }

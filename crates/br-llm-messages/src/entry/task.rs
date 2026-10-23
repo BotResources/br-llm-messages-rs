@@ -7,7 +7,7 @@ use crate::id::{ConversationId, EntryId, RequestId, TaskId};
 use crate::value::{FailureDetail, PlainText};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "TaskStartedWire")]
 pub struct TaskStarted {
     id: EntryId,
@@ -78,7 +78,7 @@ impl TryFrom<TaskStartedWire> for TaskStarted {
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "TaskCompletedWire")]
 pub struct TaskCompleted {
     id: EntryId,
@@ -98,11 +98,19 @@ struct TaskCompletedWire {
 }
 
 impl TaskCompleted {
-    pub fn new(id: EntryId, task: TaskId, summary: Option<String>) -> Result<Self, Error> {
-        let summary = summary
-            .map(|text| PlainText::new(text).map_err(|error| locate(error.at("summary"), id)))
-            .transpose()?;
-        Ok(TaskCompleted { id, task, summary })
+    pub fn new(id: EntryId, task: TaskId) -> Self {
+        TaskCompleted {
+            id,
+            task,
+            summary: None,
+        }
+    }
+
+    pub fn with_summary(mut self, summary: impl Into<String>) -> Result<Self, Error> {
+        let summary =
+            PlainText::new(summary).map_err(|error| locate(error.at("summary"), self.id))?;
+        self.summary = Some(summary);
+        Ok(self)
     }
 
     pub fn id(&self) -> EntryId {
@@ -127,12 +135,16 @@ impl TryFrom<TaskCompletedWire> for TaskCompleted {
 
     fn try_from(wire: TaskCompletedWire) -> Result<Self, Error> {
         refuse_author(wire.author, wire.id)?;
-        TaskCompleted::new(wire.id, wire.task, wire.summary)
+        let completed = TaskCompleted::new(wire.id, wire.task);
+        match wire.summary {
+            Some(summary) => completed.with_summary(summary),
+            None => Ok(completed),
+        }
     }
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "TaskFailedWire")]
 pub struct TaskFailed {
     id: EntryId,

@@ -7,7 +7,7 @@ use crate::id::BlockId;
 use crate::value::{ExternalId, ReplayMaterial};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "ProviderToolResultWire")]
 pub struct ProviderToolResult {
     id: BlockId,
@@ -32,22 +32,39 @@ struct ProviderToolResultWire {
 }
 
 impl ProviderToolResult {
-    pub fn new(
-        id: BlockId,
-        call: BlockId,
-        external_id: Option<ExternalId>,
-        content: Vec<PlainBlock>,
-        replay: Option<ReplayMaterial>,
-    ) -> Result<Self, Error> {
-        if content.is_empty() && replay.is_none() {
+    pub fn new(id: BlockId, call: BlockId, content: Vec<PlainBlock>) -> Result<Self, Error> {
+        if content.is_empty() {
             return Err(Error::new(ErrorCode::MissingContent)
                 .with_id(id.as_uuid())
                 .at("content"));
         }
+        ProviderToolResult::assemble(id, call, content, None)
+    }
+
+    pub fn replay_only(id: BlockId, call: BlockId, replay: ReplayMaterial) -> Result<Self, Error> {
+        ProviderToolResult::assemble(id, call, Vec::new(), Some(replay))
+    }
+
+    pub fn with_external_id(mut self, external_id: ExternalId) -> Self {
+        self.external_id = Some(external_id);
+        self
+    }
+
+    pub fn with_replay(mut self, replay: ReplayMaterial) -> Self {
+        self.replay = Some(replay);
+        self
+    }
+
+    fn assemble(
+        id: BlockId,
+        call: BlockId,
+        content: Vec<PlainBlock>,
+        replay: Option<ReplayMaterial>,
+    ) -> Result<Self, Error> {
         let result = ProviderToolResult {
             id,
             call,
-            external_id,
+            external_id: None,
             content,
             replay,
         };
@@ -85,12 +102,17 @@ impl TryFrom<ProviderToolResultWire> for ProviderToolResult {
     type Error = Error;
 
     fn try_from(wire: ProviderToolResultWire) -> Result<Self, Error> {
-        ProviderToolResult::new(
-            wire.id,
-            wire.call,
-            wire.external_id,
-            wire.content,
-            wire.replay,
-        )
+        let mut result = match wire.replay {
+            Some(replay) if wire.content.is_empty() => {
+                ProviderToolResult::replay_only(wire.id, wire.call, replay)?
+            }
+            replay => {
+                let mut result = ProviderToolResult::new(wire.id, wire.call, wire.content)?;
+                result.replay = replay;
+                result
+            }
+        };
+        result.external_id = wire.external_id;
+        Ok(result)
     }
 }

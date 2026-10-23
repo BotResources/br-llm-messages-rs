@@ -18,16 +18,14 @@ fn format() -> br_llm_messages::ReplayFormat {
 
 pub fn script() -> Vec<DeltaOp> {
     let hosted_result =
-        ProviderToolResult::new(bid(18), bid(15), None, vec![plain_text(31, "found")], None)
-            .unwrap();
+        ProviderToolResult::new(bid(18), bid(15), vec![plain_text(31, "found")]).unwrap();
     let record = ProviderToolExecutionRecord::new(
         bid(16),
-        None,
-        Some(operation("code_run")),
-        Some(ExecutionStatus::Completed),
         ResultExposure::readable(vec![plain_text(30, "log")]).unwrap(),
     )
-    .unwrap();
+    .unwrap()
+    .with_operation(operation("code_run"))
+    .with_status(ExecutionStatus::Completed);
     vec![
         DeltaOp::response_started(ResponseMetadata::new().with_model(ModelName::new("m").unwrap())),
         start_text(10, 3),
@@ -82,7 +80,7 @@ pub fn script() -> Vec<DeltaOp> {
             ResponseMetadataUpdate::new()
                 .with_usage(Usage::new().with_input_tokens(3).with_output_tokens(9)),
         ),
-        DeltaOp::response_completed(ResponseEnding::ToolResultsRequested),
+        DeltaOp::response_completed(ResponseEnding::tool_results_requested()),
     ]
 }
 

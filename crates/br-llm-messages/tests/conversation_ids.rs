@@ -21,7 +21,7 @@ fn given_ids_of_every_object_kind_when_reused_for_another_kind_then_reused_ident
             response(
                 11,
                 vec![cited(12, 13), calling_block(14)],
-                ResponseEnding::ToolResultsRequested,
+                ResponseEnding::tool_results_requested(),
             ),
         )
         .unwrap();
@@ -60,7 +60,7 @@ fn given_ids_of_every_object_kind_when_reused_for_another_kind_then_reused_ident
                         HumanId::from_uuid(v7(1)).unwrap(),
                         vec![
                             PlainBlock::try_from(
-                                br_llm_messages::TextBlock::plain(
+                                br_llm_messages::TextBlock::new(
                                     BlockId::from_uuid(id).unwrap(),
                                     "x",
                                 )
@@ -86,12 +86,11 @@ fn given_ids_of_every_object_kind_when_reused_for_another_kind_then_reused_ident
 
 fn cited(block: u64, citation: u64) -> ContentBlock {
     use br_llm_messages::{Citation, CitationSource, TextBlock, TextRange};
-    let cite = Citation::new(
-        cid(citation),
-        CitationSource::new("d", None).unwrap(),
-        Some(TextRange::new(0, 1).unwrap()),
-    );
-    TextBlock::new(bid(block), "text", vec![cite], None)
+    let cite = Citation::new(cid(citation), CitationSource::new("d").unwrap())
+        .with_range(TextRange::new(0, 1).unwrap());
+    TextBlock::new(bid(block), "text")
+        .unwrap()
+        .with_citations(vec![cite])
         .unwrap()
         .into()
 }

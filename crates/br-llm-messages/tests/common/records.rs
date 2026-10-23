@@ -1,3 +1,4 @@
+use super::Raw as _;
 use br_llm_messages::{Error, RecordSet, Uuid};
 use serde_json::Value;
 
@@ -18,9 +19,9 @@ pub fn row<'a>(document: &'a mut Value, collection: &str, id: Uuid) -> &'a mut V
 }
 
 pub fn try_edit(set: &RecordSet, change: impl FnOnce(&mut Value)) -> Result<RecordSet, Error> {
-    let mut document = set.to_value().unwrap();
+    let mut document = set.to_value().unwrap().raw();
     change(&mut document);
-    RecordSet::from_value(document)
+    RecordSet::from_value(super::oj(document))
 }
 
 pub fn edited(set: &RecordSet, change: impl FnOnce(&mut Value)) -> RecordSet {
@@ -38,5 +39,8 @@ pub fn shuffled(set: &RecordSet) -> RecordSet {
     let half = entries.len() / 2;
     blocks.rotate_left(third);
     entries.rotate_left(half);
-    RecordSet::new(turns, entries, blocks)
+    RecordSet::new()
+        .with_turns(turns)
+        .with_entries(entries)
+        .with_blocks(blocks)
 }

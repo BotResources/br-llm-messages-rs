@@ -10,19 +10,19 @@ use serde_json::json;
 
 fn every_non_plain_kind() -> Vec<ContentBlock> {
     vec![
-        ThinkingBlock::new(bid(1), "t", None).into(),
+        ThinkingBlock::new(bid(1), "t").into(),
         RedactedThinkingBlock::new(bid(2), signature("s")).into(),
-        RuntimeToolCall::new(bid(3), tool("t"), json!({}))
+        RuntimeToolCall::new(bid(3), tool("t"), common::oj(json!({})))
             .unwrap()
             .into(),
         RuntimeToolResult::new(bid(4), bid(3), tool("t"), ResultStatus::Error, vec![])
             .unwrap()
             .into(),
         ProviderToolCall::new(bid(5)).into(),
-        ProviderToolResult::new(bid(6), bid(5), None, vec![plain_text(7, "r")], None)
+        ProviderToolResult::new(bid(6), bid(5), vec![plain_text(7, "r")])
             .unwrap()
             .into(),
-        ProviderToolExecutionRecord::new(bid(8), None, None, None, ResultExposure::not_exposed())
+        ProviderToolExecutionRecord::new(bid(8), ResultExposure::not_exposed())
             .unwrap()
             .into(),
     ]
@@ -56,7 +56,9 @@ fn given_plain_kinds_when_made_plain_then_accepted_and_converted_back() {
 
 #[test]
 fn given_text_carrying_replay_when_made_plain_then_invalid_content() {
-    let replayed = TextBlock::new(bid(1), "x", vec![], Some(signature("s"))).unwrap();
+    let replayed = TextBlock::new(bid(1), "x")
+        .unwrap()
+        .with_replay(signature("s"));
 
     assert_eq!(
         refused(PlainBlock::try_from(replayed.clone())).code(),
@@ -84,13 +86,13 @@ fn given_a_provider_call_with_everything_exposed_when_built_then_every_field_is_
     let call = ProviderToolCall::new(bid(1))
         .with_external_id(ExternalId::new("srvtoolu_1").unwrap())
         .with_operation(ProviderOperation::new("web_search").unwrap())
-        .with_arguments(json!(null))
+        .with_arguments(common::oj(json!(null)))
         .unwrap()
         .with_replay(signature("s"));
 
     assert_eq!(call.external_id().map(|e| e.as_str()), Some("srvtoolu_1"));
     assert_eq!(call.operation().map(|o| o.as_str()), Some("web_search"));
-    assert_eq!(call.arguments(), Some(&json!(null)));
+    assert_eq!(call.arguments(), Some(&common::oj(json!(null))));
     assert_eq!(call.replay(), Some(&signature("s")));
 }
 
@@ -106,14 +108,9 @@ fn given_a_provider_call_exposing_nothing_when_built_then_absence_is_kept() {
 
 #[test]
 fn given_a_provider_result_when_built_then_it_links_to_the_call_by_identity() {
-    let result = ProviderToolResult::new(
-        bid(2),
-        bid(1),
-        Some(ExternalId::new("res_1").unwrap()),
-        vec![plain_text(3, "found")],
-        None,
-    )
-    .unwrap();
+    let result = ProviderToolResult::new(bid(2), bid(1), vec![plain_text(3, "found")])
+        .unwrap()
+        .with_external_id(ExternalId::new("res_1").unwrap());
 
     assert_eq!(result.call(), bid(1));
     assert_eq!(result.content().len(), 1);
@@ -122,7 +119,7 @@ fn given_a_provider_result_when_built_then_it_links_to_the_call_by_identity() {
 
 #[test]
 fn given_no_content_and_no_replay_when_a_provider_result_is_built_then_missing_content() {
-    let error = refused(ProviderToolResult::new(bid(2), bid(1), None, vec![], None));
+    let error = refused(ProviderToolResult::new(bid(2), bid(1), vec![]));
 
     assert_eq!(error.code(), ErrorCode::MissingContent);
     assert_eq!(error.object_id(), Some(v7(2)));
@@ -130,8 +127,7 @@ fn given_no_content_and_no_replay_when_a_provider_result_is_built_then_missing_c
 
 #[test]
 fn given_replay_only_when_a_provider_result_is_built_then_accepted_without_invented_content() {
-    let opaque =
-        ProviderToolResult::new(bid(2), bid(1), None, vec![], Some(envelope(json!({})))).unwrap();
+    let opaque = ProviderToolResult::replay_only(bid(2), bid(1), envelope(json!({}))).unwrap();
 
     assert!(opaque.content().is_empty());
     assert!(opaque.replay().is_some());
@@ -142,9 +138,7 @@ fn given_a_provider_result_nested_id_clash_when_built_then_reused_identity() {
     let error = refused(ProviderToolResult::new(
         bid(2),
         bid(1),
-        None,
         vec![plain_text(2, "x")],
-        None,
     ));
 
     assert_eq!(error.code(), ErrorCode::ReusedIdentity);
@@ -183,17 +177,11 @@ fn given_each_exposure_when_inspected_then_content_and_material_match_its_kind()
 
 #[test]
 fn given_a_record_without_status_when_built_then_status_stays_absent_and_never_defaults() {
-    let bare =
-        ProviderToolExecutionRecord::new(bid(1), None, None, None, ResultExposure::not_exposed())
-            .unwrap();
-    let running = ProviderToolExecutionRecord::new(
-        bid(2),
-        None,
-        Some(ProviderOperation::new("code_execution").unwrap()),
-        Some(ExecutionStatus::Running),
-        ResultExposure::not_exposed(),
-    )
-    .unwrap();
+    let bare = ProviderToolExecutionRecord::new(bid(1), ResultExposure::not_exposed()).unwrap();
+    let running = ProviderToolExecutionRecord::new(bid(2), ResultExposure::not_exposed())
+        .unwrap()
+        .with_operation(ProviderOperation::new("code_execution").unwrap())
+        .with_status(ExecutionStatus::Running);
 
     assert_eq!(bare.status(), None);
     assert_eq!(running.status(), Some(ExecutionStatus::Running));
@@ -201,20 +189,14 @@ fn given_a_record_without_status_when_built_then_status_stays_absent_and_never_d
         running.operation().map(|o| o.as_str()),
         Some("code_execution")
     );
-    assert!(matches!(bare.exposure(), ResultExposure::NotExposed));
+    assert!(matches!(bare.exposure(), ResultExposure::NotExposed { .. }));
 }
 
 #[test]
 fn given_exposure_content_reusing_the_record_id_when_built_then_reused_identity() {
     let exposure = ResultExposure::readable(vec![plain_text(1, "x")]).unwrap();
 
-    let error = refused(ProviderToolExecutionRecord::new(
-        bid(1),
-        None,
-        None,
-        None,
-        exposure,
-    ));
+    let error = refused(ProviderToolExecutionRecord::new(bid(1), exposure));
 
     assert_eq!(error.code(), ErrorCode::ReusedIdentity);
     assert_eq!(error.location(), Some("exposure.content[0]"));

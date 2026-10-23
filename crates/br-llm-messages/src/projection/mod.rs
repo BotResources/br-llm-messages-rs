@@ -7,13 +7,13 @@ use crate::id::{AgentId, TurnId};
 use crate::turn::{AITurn, InputTurn, Turn};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Perspective {
     agent: AgentId,
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ProjectedTurn {
     Input(InputTurn),
     Own(AITurn),
@@ -21,7 +21,7 @@ pub enum ProjectedTurn {
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Projection {
     turns: Vec<ProjectedTurn>,
 }

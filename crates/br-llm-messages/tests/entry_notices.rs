@@ -22,7 +22,7 @@ fn given_queue_position_json_with_zero_or_negative_when_loaded_then_refused() {
         let value = json!({"type": "queue_position", "id": eid(1).to_string(),
             "request": rid(1).to_string(), "position": position});
 
-        let error = refused(TurnEntry::from_value(value));
+        let error = refused(TurnEntry::from_value(common::oj(value)));
 
         assert_eq!(error.code(), ErrorCode::InvalidContent, "{position}");
     }
@@ -31,12 +31,14 @@ fn given_queue_position_json_with_zero_or_negative_when_loaded_then_refused() {
 #[test]
 fn given_an_empty_or_blank_task_summary_when_built_then_refused() {
     for summary in ["", "  \n"] {
-        let error = refused(TaskCompleted::new(eid(1), kid(1), Some(summary.into())));
+        let error = refused(TaskCompleted::new(eid(1), kid(1)).with_summary(summary));
 
         assert_eq!(error.code(), ErrorCode::InvalidContent);
         assert_eq!(error.location(), Some("summary"));
     }
-    let kept = TaskCompleted::new(eid(1), kid(1), Some(" done ".into())).unwrap();
+    let kept = TaskCompleted::new(eid(1), kid(1))
+        .with_summary(" done ")
+        .unwrap();
     assert_eq!(kept.summary(), Some(" done "));
 }
 
@@ -63,11 +65,14 @@ fn given_each_notice_json_with_an_author_key_when_loaded_then_author_forbidden()
         json!({"type": "task_failed", "id": eid(1).to_string(), "task": kid(1).to_string(), "failure": {"code": "x"}}),
     ];
     for notice in notices {
-        assert!(TurnEntry::from_value(notice.clone()).is_ok(), "{notice}");
+        assert!(
+            TurnEntry::from_value(common::oj(notice.clone())).is_ok(),
+            "{notice}"
+        );
         let mut with_author = notice.clone();
         with_author["author"] = json!("Codex");
 
-        let error = refused(TurnEntry::from_value(with_author));
+        let error = refused(TurnEntry::from_value(common::oj(with_author)));
 
         assert_eq!(error.code(), ErrorCode::AuthorForbidden, "{notice}");
     }
@@ -78,7 +83,7 @@ fn given_a_task_failed_json_without_failure_when_loaded_then_missing_content() {
     let value =
         json!({"type": "task_failed", "id": eid(1).to_string(), "task": kid(1).to_string()});
 
-    let error = refused(TurnEntry::from_value(value));
+    let error = refused(TurnEntry::from_value(common::oj(value)));
 
     assert_eq!(error.code(), ErrorCode::MissingContent);
 }
@@ -140,7 +145,7 @@ fn given_json_of_a_non_incoming_kind_when_loaded_as_incoming_then_disallowed_ent
 fn given_json_of_an_unknown_kind_when_loaded_as_incoming_then_unsupported_variant() {
     let value = json!({"type": "carrier_pigeon", "id": eid(1).to_string()});
 
-    let error = refused(IncomingEntry::from_value(value));
+    let error = refused(IncomingEntry::from_value(common::oj(value)));
 
     assert_eq!(error.code(), ErrorCode::UnsupportedVariant);
 }

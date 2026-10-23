@@ -26,14 +26,15 @@ pub use text::TextBlock;
 pub use thinking::{RedactedThinkingBlock, ThinkingBlock};
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+
+use crate::opaque_json::OpaqueJson;
 
 use crate::error::Error;
 use crate::id::BlockId;
 pub(crate) use ids::IdSink;
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentBlock {
     Text(TextBlock),
@@ -133,11 +134,12 @@ impl ContentBlock {
         crate::json::decode(text)
     }
 
-    pub fn to_value(&self) -> Result<Value, Error> {
-        crate::json::encode_value(self)
+    pub fn to_value(&self) -> Result<OpaqueJson, Error> {
+        crate::json::encode_value(self).map(OpaqueJson::from_inner)
     }
 
-    pub fn from_value(value: Value) -> Result<Self, Error> {
+    pub fn from_value(value: OpaqueJson) -> Result<Self, Error> {
+        let value = value.into_inner();
         crate::json::decode_value(value)
     }
 }

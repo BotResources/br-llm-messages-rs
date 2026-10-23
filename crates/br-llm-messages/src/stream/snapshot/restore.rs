@@ -37,13 +37,12 @@ fn slot_of(
                     .with_id(row.id().as_uuid())
                     .at("kind"));
             }
-            let block =
-                ContentBlock::from_value(tree.value_of(row)?).map_err(|error| {
-                    match error.object_id() {
-                        Some(_) => error,
-                        None => error.with_id(row.id().as_uuid()),
-                    }
-                })?;
+            let block = crate::json::decode_value::<ContentBlock>(tree.value_of(row)?).map_err(
+                |error| match error.object_id() {
+                    Some(_) => error,
+                    None => error.with_id(row.id().as_uuid()),
+                },
+            )?;
             Ok(Slot::Final(block))
         }
         _ => Ok(Slot::Discarded {
@@ -73,9 +72,9 @@ pub(super) fn restore(snapshot: &DraftSnapshot) -> Result<ResponseDraft, Error> 
     if entry_state == RepresentationState::Complete {
         return Err(Error::new(ErrorCode::StreamPhase).with_id(entry.id().as_uuid()));
     }
-    let (metadata, interruption) = header::read(entry.payload().clone())?;
+    let (metadata, interruption) = header::read(entry.payload())?;
     let phase = match (entry_state, interruption) {
-        (RepresentationState::Producing, None) => DraftPhase::Producing,
+        (RepresentationState::Producing, None) => DraftPhase::Producing {},
         (RepresentationState::Interrupted, Some(reason)) => DraftPhase::Interrupted(reason),
         _ => {
             return Err(Error::new(ErrorCode::InvalidRecord)

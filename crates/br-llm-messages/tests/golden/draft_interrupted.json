@@ -1,0 +1,130 @@
+{
+  "blocks": [
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-00000000000b",
+      "kind": "thinking",
+      "payload": {
+        "replay": {
+          "format": "anthropic.signature",
+          "payload": {
+            "type": "text",
+            "value": "Sig"
+          }
+        },
+        "replay_fragments": true,
+        "text": "plan"
+      },
+      "position": 0,
+      "state": "interrupted"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-000000000011",
+      "kind": "image",
+      "payload": {
+        "source": {
+          "data": "QUJD",
+          "media_type": "image/png",
+          "type": "inline"
+        }
+      },
+      "position": 1,
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-00000000000c",
+      "kind": "runtime_tool_call",
+      "payload": {
+        "external_id": "toolu_1",
+        "name": "lookup",
+        "raw_arguments": "{\"query\":\"rust\"}"
+      },
+      "position": 2,
+      "state": "interrupted"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-00000000000a",
+      "kind": "text",
+      "payload": {
+        "citations": [
+          {
+            "id": "ab000000-0000-7000-8000-000000000032",
+            "range": {
+              "end": 5,
+              "start": 0
+            },
+            "source": {
+              "reference": "doc"
+            }
+          }
+        ],
+        "text": "Hello wörld"
+      },
+      "position": 3,
+      "state": "interrupted"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-00000000000e",
+      "kind": "text",
+      "payload": {},
+      "position": 4,
+      "state": "discarded"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-00000000000d",
+      "kind": "structured_content",
+      "payload": {
+        "raw_json": "{\"a\":[1,2]}"
+      },
+      "position": 5,
+      "state": "interrupted"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-00000000000f",
+      "kind": "provider_tool_call",
+      "payload": {
+        "operation": "web_search",
+        "raw_arguments": "{\"q\":\"x\"}"
+      },
+      "position": 6,
+      "state": "interrupted"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-000000000010",
+      "kind": "provider_tool_execution_record",
+      "payload": {
+        "status": "running"
+      },
+      "position": 7,
+      "state": "interrupted"
+    }
+  ],
+  "entry": {
+    "id": "ab000000-0000-7000-8000-000000000002",
+    "kind": "model_response",
+    "payload": {
+      "interruption": {
+        "failure": {
+          "code": "overloaded",
+          "message": "busy"
+        },
+        "type": "failed"
+      },
+      "model": "m",
+      "usage": {
+        "input_tokens": 3
+      }
+    },
+    "position": 0,
+    "state": "interrupted",
+    "turn": "ab000000-0000-7000-8000-00000000001e"
+  },
+  "schema": "br-llm-messages-draft/1"
+}

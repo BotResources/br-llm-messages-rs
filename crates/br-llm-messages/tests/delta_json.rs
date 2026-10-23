@@ -1,4 +1,5 @@
 mod common;
+use common::Raw as _;
 mod stream_support;
 
 use br_llm_messages::{
@@ -40,7 +41,10 @@ fn every_op() -> Vec<DeltaOp> {
             bid(13),
             BlockMetadataUpdate::execution_status_observed(ExecutionStatus::Running),
         ),
-        DeltaOp::block_inserted(3, ThinkingBlock::new(bid(14), "", Some(signature("s")))),
+        DeltaOp::block_inserted(
+            3,
+            ThinkingBlock::new(bid(14), "").with_replay(signature("s")),
+        ),
         DeltaOp::block_finalized(
             bid(11),
             Finalization::authoritative(text_block(11, "authoritative").into()),
@@ -51,13 +55,15 @@ fn every_op() -> Vec<DeltaOp> {
         ),
         DeltaOp::response_completed(ResponseEnding::unclassified("vendor").unwrap()),
         DeltaOp::response_interrupted(InterruptionReason::failed(
-            FailureDetail::new("overloaded", Some("busy".into())).unwrap(),
+            FailureDetail::new("overloaded")
+                .unwrap()
+                .with_message("busy"),
         )),
     ]
 }
 
 fn wire(op: DeltaOp) -> Value {
-    delta(op).to_value().unwrap()
+    delta(op).to_value().unwrap().raw()
 }
 
 #[test]
@@ -69,9 +75,8 @@ fn given_every_operation_when_round_tripped_through_json_then_equal() {
         assert_eq!(&ResponseDelta::from_json(&text).unwrap(), original);
     }
 
-    let mut covered: Vec<ResponseDeltaKind> = deltas.iter().map(|d| d.kind()).collect();
-    covered.sort();
-    covered.dedup();
+    let covered: std::collections::HashSet<ResponseDeltaKind> =
+        deltas.iter().map(|d| d.kind()).collect();
     assert_eq!(covered.len(), ResponseDeltaKind::ALL.len());
 }
 
@@ -93,7 +98,7 @@ fn given_a_block_operation_when_serialized_then_the_operation_is_nested_with_an_
 
 #[test]
 fn given_a_response_operation_when_serialized_then_the_target_is_response() {
-    let value = wire(DeltaOp::response_completed(ResponseEnding::Finished));
+    let value = wire(DeltaOp::response_completed(ResponseEnding::finished()));
 
     assert_eq!(value["target"], json!("response"));
     assert_eq!(
@@ -107,11 +112,11 @@ fn given_a_target_that_contradicts_the_operation_when_loaded_then_stream_target_
 {
     let mut block_op = wire(DeltaOp::text_appended(bid(11), "hi"));
     block_op["target"] = json!("response");
-    let mut response_op = wire(DeltaOp::response_completed(ResponseEnding::Finished));
+    let mut response_op = wire(DeltaOp::response_completed(ResponseEnding::finished()));
     response_op["target"] = json!("block");
 
-    let first = ResponseDelta::from_value(block_op).unwrap_err();
-    let second = ResponseDelta::from_value(response_op).unwrap_err();
+    let first = ResponseDelta::from_value(common::oj(block_op)).unwrap_err();
+    let second = ResponseDelta::from_value(common::oj(response_op)).unwrap_err();
 
     assert_eq!(first.code(), ErrorCode::StreamTarget);
     assert_eq!(first.object_id(), Some(bid(11).as_uuid()));
@@ -124,7 +129,7 @@ fn given_an_unknown_operation_when_loaded_then_unsupported_variant_not_ignored()
     let mut value = wire(DeltaOp::block_discarded(bid(11)));
     value["op"] = json!({"type": "block_teleported", "block": bid(11).to_string()});
 
-    let error = ResponseDelta::from_value(value).unwrap_err();
+    let error = ResponseDelta::from_value(common::oj(value)).unwrap_err();
 
     assert_eq!(error.code(), ErrorCode::UnsupportedVariant);
 }
@@ -139,7 +144,9 @@ fn given_another_or_missing_schema_when_loaded_then_schema_mismatch_before_shape
 
     for value in [other, missing, broken_shape.take()] {
         assert_eq!(
-            ResponseDelta::from_value(value).unwrap_err().code(),
+            ResponseDelta::from_value(common::oj(value))
+                .unwrap_err()
+                .code(),
             ErrorCode::SchemaMismatch
         );
     }
@@ -158,12 +165,16 @@ fn given_unknown_fields_anywhere_when_loaded_then_unsupported_field() {
     accumulated["op"]["finalization"]["junk"] = json!(1);
     let mut start = wire(DeltaOp::block_started(bid(11), 0, BlockStart::text()));
     start["op"]["start"]["junk"] = json!(1);
-    let mut reason = wire(DeltaOp::response_interrupted(InterruptionReason::Cancelled));
+    let mut reason = wire(DeltaOp::response_interrupted(
+        InterruptionReason::cancelled(),
+    ));
     reason["op"]["reason"]["junk"] = json!(1);
 
     for value in [envelope, operation_level, accumulated, start, reason] {
         assert_eq!(
-            ResponseDelta::from_value(value).unwrap_err().code(),
+            ResponseDelta::from_value(common::oj(value))
+                .unwrap_err()
+                .code(),
             ErrorCode::UnsupportedField
         );
     }
@@ -175,7 +186,9 @@ fn given_an_identity_that_is_not_a_uuid_v7_when_loaded_then_invalid_identity() {
     value["op"]["block"] = json!("2f7d9b3e-6a9b-4c1b-8d5e-0c4f6a1b2c3d");
 
     assert_eq!(
-        ResponseDelta::from_value(value).unwrap_err().code(),
+        ResponseDelta::from_value(common::oj(value))
+            .unwrap_err()
+            .code(),
         ErrorCode::InvalidIdentity
     );
 }
@@ -187,7 +200,9 @@ fn given_a_missing_operation_or_truncated_json_when_loaded_then_distinct_codes()
     let text = wire(DeltaOp::block_discarded(bid(11))).to_string();
 
     assert_eq!(
-        ResponseDelta::from_value(value).unwrap_err().code(),
+        ResponseDelta::from_value(common::oj(value))
+            .unwrap_err()
+            .code(),
         ErrorCode::MissingContent
     );
     assert_eq!(
@@ -206,7 +221,9 @@ fn given_a_metadata_update_with_an_unknown_field_when_loaded_then_refused() {
     value["op"]["update"]["tokens"] = json!(5);
 
     assert_eq!(
-        ResponseDelta::from_value(value).unwrap_err().code(),
+        ResponseDelta::from_value(common::oj(value))
+            .unwrap_err()
+            .code(),
         ErrorCode::UnsupportedField
     );
 }
@@ -234,7 +251,7 @@ fn given_the_delta_kinds_when_listed_then_names_are_stable_and_parse_back() {
             "response_interrupted",
         ]
     );
-    for kind in ResponseDeltaKind::ALL {
+    for kind in ResponseDeltaKind::ALL.iter().copied() {
         assert_eq!(kind.as_str().parse::<ResponseDeltaKind>().unwrap(), kind);
     }
     assert_eq!(

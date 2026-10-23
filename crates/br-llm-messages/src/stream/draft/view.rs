@@ -156,7 +156,7 @@ impl<'a> SlotView<'a> {
     pub fn status(&self) -> Option<ExecutionStatus> {
         match self.slot {
             Slot::Open(open) => match &open.body {
-                OpenBody::Record { status, .. } => *status,
+                OpenBody::Record { status, .. } => status.clone(),
                 _ => None,
             },
             Slot::Final(ContentBlock::ProviderToolExecutionRecord(record)) => record.status(),

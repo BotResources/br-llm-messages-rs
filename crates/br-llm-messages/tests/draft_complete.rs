@@ -25,9 +25,12 @@ fn given_an_open_block_when_completing_then_refused_naming_the_block_and_the_dra
 
     assert_eq!(error.code(), ErrorCode::InconsistentFinalization);
     assert_eq!(error.location(), Some("content[1]"));
-    assert_eq!(draft.phase(), &DraftPhase::Producing);
+    assert!(matches!(draft.phase(), DraftPhase::Producing { .. }));
     ok(&mut draft, DeltaOp::block_discarded(bid(11)));
-    assert_eq!(ok(&mut draft, finish()), DeltaOutcome::Completed);
+    assert!(matches!(
+        ok(&mut draft, finish()),
+        DeltaOutcome::Completed { .. }
+    ));
 }
 
 #[test]
@@ -62,30 +65,42 @@ fn given_an_ending_the_blocks_cannot_support_when_completing_then_direct_constru
  {
     let mut draft = run(vec![start_text(10, 0), text(10, "x"), finalize(10)]);
 
-    let error = refuse(&mut draft, complete(ResponseEnding::ToolResultsRequested));
+    let error = refuse(
+        &mut draft,
+        complete(ResponseEnding::tool_results_requested()),
+    );
 
     assert_eq!(error.code(), ErrorCode::MissingContent);
-    assert_eq!(draft.phase(), &DraftPhase::Producing);
+    assert!(matches!(draft.phase(), DraftPhase::Producing { .. }));
 
     ok(&mut draft, start_call(11, 1, Some("t"), None));
     ok(&mut draft, json(11, "{}"));
     ok(&mut draft, finalize(11));
-    ok(&mut draft, complete(ResponseEnding::ToolResultsRequested));
+    ok(
+        &mut draft,
+        complete(ResponseEnding::tool_results_requested()),
+    );
     assert!(draft.response().is_some());
 }
 
 #[test]
 fn given_an_empty_response_when_completed_then_allowed_for_any_ending_but_a_tool_request() {
     let mut draft = run(vec![]);
-    let error = refuse(&mut draft, complete(ResponseEnding::ToolResultsRequested));
+    let error = refuse(
+        &mut draft,
+        complete(ResponseEnding::tool_results_requested()),
+    );
     assert_eq!(error.code(), ErrorCode::MissingContent);
 
-    ok(&mut draft, complete(ResponseEnding::ProviderContinuation));
+    ok(
+        &mut draft,
+        complete(ResponseEnding::provider_continuation()),
+    );
 
     assert!(draft.response().unwrap().blocks().is_empty());
     assert_eq!(
         draft.response().unwrap().ending(),
-        &ResponseEnding::ProviderContinuation
+        &ResponseEnding::provider_continuation()
     );
 }
 
@@ -103,13 +118,13 @@ fn given_a_completed_draft_when_any_delta_arrives_then_stream_phase_and_the_resp
         text(10, "y"),
         finish(),
         start_text(11, 1),
-        DeltaOp::response_interrupted(InterruptionReason::Cancelled),
+        DeltaOp::response_interrupted(InterruptionReason::cancelled()),
     ] {
         assert_eq!(refuse(&mut draft, op).code(), ErrorCode::StreamPhase);
     }
 
     assert_eq!(draft.response(), Some(&sealed));
-    assert_eq!(draft.phase(), &DraftPhase::Completed);
+    assert!(matches!(draft.phase(), DraftPhase::Completed { .. }));
 }
 
 #[test]
@@ -132,18 +147,18 @@ fn given_a_completed_response_when_added_to_an_open_ai_turn_then_the_turn_is_sti
 #[test]
 fn given_each_interruption_reason_when_applied_then_the_draft_is_interrupted_and_no_response_exists()
  {
-    let failed = InterruptionReason::failed(FailureDetail::new("overloaded", None).unwrap());
+    let failed = InterruptionReason::failed(FailureDetail::new("overloaded").unwrap());
     for reason in [
-        InterruptionReason::Cancelled,
-        InterruptionReason::Truncated,
-        InterruptionReason::Interrupted,
+        InterruptionReason::cancelled(),
+        InterruptionReason::truncated(),
+        InterruptionReason::interrupted(),
         failed,
     ] {
         let mut draft = run(vec![start_text(10, 0)]);
 
         let outcome = ok(&mut draft, DeltaOp::response_interrupted(reason.clone()));
 
-        assert_eq!(outcome, DeltaOutcome::Interrupted);
+        assert!(matches!(outcome, DeltaOutcome::Interrupted { .. }));
         assert_eq!(draft.phase(), &DraftPhase::Interrupted(reason));
         assert!(draft.response().is_none());
     }
@@ -165,7 +180,7 @@ fn given_an_interrupted_draft_when_inspected_then_complete_blocks_stay_complete_
 
     ok(
         &mut draft,
-        DeltaOp::response_interrupted(InterruptionReason::Truncated),
+        DeltaOp::response_interrupted(InterruptionReason::truncated()),
     );
 
     let view = draft.view();
@@ -187,7 +202,7 @@ fn given_an_interrupted_draft_when_more_deltas_arrive_then_stream_phase() {
     let mut draft = run(vec![start_text(10, 0)]);
     ok(
         &mut draft,
-        DeltaOp::response_interrupted(InterruptionReason::Cancelled),
+        DeltaOp::response_interrupted(InterruptionReason::cancelled()),
     );
 
     for op in [text(10, "x"), finalize(10), finish(), start_text(11, 1)] {

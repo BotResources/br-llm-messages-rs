@@ -20,27 +20,29 @@ use crate::error::{Error, ErrorCode};
 use crate::id::{BlockId, EntryId, TurnId};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum DraftPhase {
-    Producing,
+    #[non_exhaustive]
+    Producing {},
     Interrupted(InterruptionReason),
-    Completed,
+    #[non_exhaustive]
+    Completed {},
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum DeltaOutcome {
-    Applied,
     #[non_exhaustive]
-    BlockDiscarded {
-        block: BlockId,
-        position: u32,
-    },
-    Completed,
-    Interrupted,
+    Applied {},
+    #[non_exhaustive]
+    BlockDiscarded { block: BlockId, position: u32 },
+    #[non_exhaustive]
+    Completed {},
+    #[non_exhaustive]
+    Interrupted {},
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ResponseDraft {
     pub(in crate::stream) turn: TurnId,
     pub(in crate::stream) entry: EntryId,
@@ -66,7 +68,7 @@ impl ResponseDraft {
             DeltaOp::ResponseStarted { metadata } => Ok(ResponseDraft {
                 turn: first.turn(),
                 entry: first.entry(),
-                phase: DraftPhase::Producing,
+                phase: DraftPhase::Producing {},
                 metadata: metadata.clone(),
                 slots: BTreeMap::new(),
                 positions: HashMap::new(),
@@ -117,7 +119,7 @@ impl ResponseDraft {
         if delta.turn() != self.turn || delta.entry() != self.entry {
             return Err(target_error());
         }
-        if self.phase != DraftPhase::Producing {
+        if !matches!(self.phase, DraftPhase::Producing { .. }) {
             return Err(phase_error());
         }
         match delta.op() {
@@ -128,38 +130,38 @@ impl ResponseDraft {
                 start,
             } => self
                 .start_block(*block, *position, start)
-                .map(|()| DeltaOutcome::Applied),
+                .map(|()| DeltaOutcome::Applied {}),
             DeltaOp::TextAppended { block, text } => self
                 .append_text(*block, text)
-                .map(|()| DeltaOutcome::Applied),
+                .map(|()| DeltaOutcome::Applied {}),
             DeltaOp::ThinkingAppended { block, text } => self
                 .append_thinking(*block, text)
-                .map(|()| DeltaOutcome::Applied),
+                .map(|()| DeltaOutcome::Applied {}),
             DeltaOp::JsonAppended { block, fragment } => self
                 .append_json(*block, fragment)
-                .map(|()| DeltaOutcome::Applied),
+                .map(|()| DeltaOutcome::Applied {}),
             DeltaOp::ReplayFragmentAppended {
                 block,
                 format,
                 fragment,
             } => self
                 .append_replay(*block, format, fragment)
-                .map(|()| DeltaOutcome::Applied),
+                .map(|()| DeltaOutcome::Applied {}),
             DeltaOp::ReplayMaterialSet { block, material } => self
                 .set_replay(*block, material)
-                .map(|()| DeltaOutcome::Applied),
+                .map(|()| DeltaOutcome::Applied {}),
             DeltaOp::BlockMetadataUpdated { block, update } => self
                 .update_block(*block, update)
-                .map(|()| DeltaOutcome::Applied),
+                .map(|()| DeltaOutcome::Applied {}),
             DeltaOp::BlockInserted { position, block } => self
                 .insert_block(*position, block)
-                .map(|()| DeltaOutcome::Applied),
+                .map(|()| DeltaOutcome::Applied {}),
             DeltaOp::BlockFinalized {
                 block,
                 finalization,
             } => self
                 .finalize_block(*block, finalization)
-                .map(|()| DeltaOutcome::Applied),
+                .map(|()| DeltaOutcome::Applied {}),
             DeltaOp::BlockDiscarded { block } => {
                 self.discard_block(*block)
                     .map(|position| DeltaOutcome::BlockDiscarded {
@@ -169,14 +171,14 @@ impl ResponseDraft {
             }
             DeltaOp::ResponseMetadataUpdated { update } => {
                 self.metadata = update.replacing(&self.metadata);
-                Ok(DeltaOutcome::Applied)
+                Ok(DeltaOutcome::Applied {})
             }
             DeltaOp::ResponseCompleted { ending } => {
-                self.complete(ending).map(|()| DeltaOutcome::Completed)
+                self.complete(ending).map(|()| DeltaOutcome::Completed {})
             }
             DeltaOp::ResponseInterrupted { reason } => {
                 self.phase = DraftPhase::Interrupted(reason.clone());
-                Ok(DeltaOutcome::Interrupted)
+                Ok(DeltaOutcome::Interrupted {})
             }
         }
     }

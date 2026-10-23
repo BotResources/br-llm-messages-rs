@@ -1,5 +1,5 @@
+use crate::opaque_json::OpaqueJson;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use crate::block::ContentBlockKind;
 use crate::error::{Error, ErrorCode};
@@ -7,7 +7,7 @@ use crate::value::{
     Citation, ExecutionStatus, ExternalId, ProviderOperation, ReplayMaterial, ToolName,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct TextPartial {
     pub(crate) text: String,
@@ -19,7 +19,7 @@ pub(crate) struct TextPartial {
     pub(crate) replay_fragments: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct ThinkingPartial {
     pub(crate) text: String,
@@ -29,13 +29,13 @@ pub(crate) struct ThinkingPartial {
     pub(crate) replay_fragments: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct StructuredPartial {
     pub(crate) raw_json: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct RuntimeCallPartial {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -49,7 +49,7 @@ pub(crate) struct RuntimeCallPartial {
     pub(crate) replay_fragments: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct ProviderCallPartial {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -63,7 +63,7 @@ pub(crate) struct ProviderCallPartial {
     pub(crate) replay_fragments: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct RecordPartial {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -74,16 +74,16 @@ pub(crate) struct RecordPartial {
     pub(crate) status: Option<ExecutionStatus>,
 }
 
-pub(crate) fn decode<T: serde::de::DeserializeOwned>(payload: &Value) -> Result<T, Error> {
-    crate::json::decode_ref(payload)
+pub(crate) fn decode<T: serde::de::DeserializeOwned>(payload: &OpaqueJson) -> Result<T, Error> {
+    payload.deserialize_into()
 }
 
-pub(crate) fn encode<T: Serialize>(partial: &T) -> Result<Value, Error> {
-    serde_json::to_value(partial).map_err(|_| Error::new(ErrorCode::InvalidContent))
+pub(crate) fn encode<T: Serialize>(partial: &T) -> Result<OpaqueJson, Error> {
+    OpaqueJson::from_serialize(partial)
 }
 
-pub(crate) fn check(kind: ContentBlockKind, payload: &Value) -> Result<(), Error> {
-    if !payload.is_object() {
+pub(crate) fn check(kind: ContentBlockKind, payload: &OpaqueJson) -> Result<(), Error> {
+    if !payload.inner().is_object() {
         return Err(Error::new(ErrorCode::InvalidRecord).at("payload"));
     }
     match kind {

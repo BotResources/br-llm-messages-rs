@@ -14,7 +14,7 @@ fn text_row(payload: Value) -> BlockRecord {
         ContentBlockKind::Text,
         0,
         RepresentationState::Complete,
-        payload,
+        common::oj(payload),
     )
 }
 
@@ -25,7 +25,7 @@ fn completed(payload: Value) -> EntryRecord {
         TurnEntryKind::TaskCompleted,
         0,
         RepresentationState::Complete,
-        payload,
+        common::oj(payload),
     )
 }
 
@@ -67,4 +67,67 @@ fn given_a_blank_task_summary_when_checked_locally_then_invalid_content_like_the
     );
     assert!(named.check_local().is_ok());
     assert!(none.check_local().is_ok());
+}
+
+fn deep(levels: usize) -> Value {
+    (0..levels).fold(json!(1), |inner, _| json!([inner]))
+}
+
+fn opaque_row(kind: ContentBlockKind, payload: Value) -> BlockRecord {
+    BlockRecord::new(
+        bid(3),
+        eid(2),
+        kind,
+        0,
+        RepresentationState::Complete,
+        common::oj(payload),
+    )
+}
+
+#[test]
+fn given_an_opaque_value_beyond_the_depth_limit_when_a_row_is_checked_locally_then_it_is_refused() {
+    let at_limit = [
+        opaque_row(
+            ContentBlockKind::StructuredContent,
+            json!({"value": deep(64)}),
+        ),
+        opaque_row(
+            ContentBlockKind::RuntimeToolCall,
+            json!({"name": "t", "arguments": deep(64)}),
+        ),
+        opaque_row(
+            ContentBlockKind::ProviderToolCall,
+            json!({"arguments": deep(64)}),
+        ),
+    ];
+    let beyond = [
+        (
+            opaque_row(
+                ContentBlockKind::StructuredContent,
+                json!({"value": deep(65)}),
+            ),
+            "payload.value",
+        ),
+        (
+            opaque_row(
+                ContentBlockKind::RuntimeToolCall,
+                json!({"name": "t", "arguments": deep(65)}),
+            ),
+            "payload.arguments",
+        ),
+        (
+            opaque_row(
+                ContentBlockKind::ProviderToolCall,
+                json!({"arguments": deep(65)}),
+            ),
+            "payload.arguments",
+        ),
+    ];
+
+    assert!(at_limit.iter().all(|row| row.check_local().is_ok()));
+    for (row, location) in beyond {
+        let error = row.check_local().unwrap_err();
+        assert_eq!(error.code(), ErrorCode::InvalidContent);
+        assert_eq!(error.location(), Some(location));
+    }
 }

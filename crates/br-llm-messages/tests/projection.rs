@@ -25,8 +25,8 @@ fn conversation(turns: Vec<Turn>) -> Conversation {
 fn public_text(entry: u64, block: u64, text: &str) -> TurnEntry {
     response(
         entry,
-        vec![TextBlock::plain(bid(block), text).unwrap().into()],
-        ResponseEnding::Finished,
+        vec![TextBlock::new(bid(block), text).unwrap().into()],
+        ResponseEnding::finished(),
     )
 }
 
@@ -120,16 +120,14 @@ fn given_other_agent_response_when_projected_then_only_public_content_remains() 
 fn given_text_with_replay_and_citation_when_projected_then_replay_is_stripped_and_citation_kept() {
     let cite = br_llm_messages::Citation::new(
         cid(70),
-        br_llm_messages::CitationSource::new("doc", None).unwrap(),
-        Some(br_llm_messages::TextRange::new(0, 3).unwrap()),
-    );
-    let text = TextBlock::new(
-        bid(71),
-        "see it",
-        vec![cite.clone()],
-        Some(signature("sig")),
+        br_llm_messages::CitationSource::new("doc").unwrap(),
     )
-    .unwrap();
+    .with_range(br_llm_messages::TextRange::new(0, 3).unwrap());
+    let text = TextBlock::new(bid(71), "see it")
+        .unwrap()
+        .with_citations(vec![cite.clone()])
+        .unwrap()
+        .with_replay(signature("sig"));
     let conversation = conversation(vec![turn_of(
         1,
         2,
@@ -137,7 +135,7 @@ fn given_text_with_replay_and_citation_when_projected_then_replay_is_stripped_an
         vec![response(
             11,
             vec![text.into(), png(72).into()],
-            ResponseEnding::Finished,
+            ResponseEnding::finished(),
         )],
     )]);
 
@@ -162,13 +160,15 @@ fn given_private_blocks_only_when_projected_then_the_response_is_omitted() {
     let private = response(
         11,
         vec![
-            ThinkingBlock::new(bid(12), "plan", Some(signature("sig"))).into(),
-            RuntimeToolCall::new(bid(13), tool("lookup"), json!({}))
+            ThinkingBlock::new(bid(12), "plan")
+                .with_replay(signature("sig"))
+                .into(),
+            RuntimeToolCall::new(bid(13), tool("lookup"), common::oj(json!({})))
                 .unwrap()
                 .into(),
             ProviderToolCall::new(bid(14)).into(),
         ],
-        ResponseEnding::ToolResultsRequested,
+        ResponseEnding::tool_results_requested(),
     );
     let conversation = conversation(vec![turn_of(1, 2, "Claude", vec![private])]);
 
@@ -182,13 +182,11 @@ fn given_private_blocks_only_when_projected_then_the_response_is_omitted() {
 
 #[test]
 fn given_nested_tool_output_when_projected_then_no_nested_content_leaks() {
-    let hosted =
-        ProviderToolResult::new(bid(22), bid(21), None, vec![plain_text(23, SENTINEL)], None)
-            .unwrap();
+    let hosted = ProviderToolResult::new(bid(22), bid(21), vec![plain_text(23, SENTINEL)]).unwrap();
     let blocks = vec![
         ProviderToolCall::new(bid(21)).into(),
         hosted.into(),
-        StructuredBlock::new(bid(24), json!({"public": true}))
+        StructuredBlock::new(bid(24), common::oj(json!({"public": true})))
             .unwrap()
             .into(),
     ];
@@ -196,7 +194,7 @@ fn given_nested_tool_output_when_projected_then_no_nested_content_leaks() {
         1,
         2,
         "Claude",
-        vec![response(11, blocks, ResponseEnding::Finished)],
+        vec![response(11, blocks, ResponseEnding::finished())],
     )]);
 
     let projection = Perspective::of(aid(1)).project(&conversation);

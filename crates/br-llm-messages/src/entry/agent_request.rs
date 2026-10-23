@@ -7,7 +7,7 @@ use crate::id::{AgentId, ConversationId, EntryId};
 use crate::value::Author;
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "AgentRequestWire")]
 pub struct AgentRequest {
     id: EntryId,

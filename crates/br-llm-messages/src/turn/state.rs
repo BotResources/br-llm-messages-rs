@@ -9,7 +9,7 @@ use crate::id::{BlockId, EntryId, TurnId};
 use crate::value::{ExecutionStatus, ResponseEnding, ToolName};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TurnState {
     closure: Option<ClosureReason>,
     outstanding_runtime_calls: Vec<BlockId>,
@@ -39,7 +39,7 @@ impl TurnState {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Tracker {
     pub(crate) ids: HashMap<Uuid, Place>,
     pub(crate) calls: HashMap<BlockId, ToolName>,
@@ -85,7 +85,8 @@ impl Tracker {
         match entry {
             TurnEntry::ModelResponse(response) => {
                 self.pending.clear();
-                let results_requested = *response.ending() == ResponseEnding::ToolResultsRequested;
+                let results_requested =
+                    *response.ending() == ResponseEnding::tool_results_requested();
                 for block in response.blocks() {
                     match block {
                         ContentBlock::RuntimeToolCall(call) => {

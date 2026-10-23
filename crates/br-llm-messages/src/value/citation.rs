@@ -7,7 +7,7 @@ use crate::error::{Error, ErrorCode};
 use crate::id::CitationId;
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(try_from = "TextRangeWire")]
 pub struct TextRange {
     start: u64,
@@ -47,7 +47,7 @@ impl TryFrom<TextRangeWire> for TextRange {
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "CitationSourceWire")]
 pub struct CitationSource {
     reference: String,
@@ -63,12 +63,20 @@ struct CitationSourceWire {
 }
 
 impl CitationSource {
-    pub fn new(reference: impl Into<String>, title: Option<String>) -> Result<Self, Error> {
+    pub fn new(reference: impl Into<String>) -> Result<Self, Error> {
         let reference = reference.into();
         if reference.is_empty() {
             return Err(Error::new(ErrorCode::InvalidContent).at("reference"));
         }
-        Ok(CitationSource { reference, title })
+        Ok(CitationSource {
+            reference,
+            title: None,
+        })
+    }
+
+    pub fn with_title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self
     }
 
     pub fn reference(&self) -> &str {
@@ -84,12 +92,16 @@ impl TryFrom<CitationSourceWire> for CitationSource {
     type Error = Error;
 
     fn try_from(wire: CitationSourceWire) -> Result<Self, Error> {
-        CitationSource::new(wire.reference, wire.title)
+        let source = CitationSource::new(wire.reference)?;
+        Ok(match wire.title {
+            Some(title) => source.with_title(title),
+            None => source,
+        })
     }
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "CitationWire")]
 pub struct Citation {
     id: CitationId,
@@ -107,8 +119,17 @@ struct CitationWire {
 }
 
 impl Citation {
-    pub fn new(id: CitationId, source: CitationSource, range: Option<TextRange>) -> Self {
-        Citation { id, source, range }
+    pub fn new(id: CitationId, source: CitationSource) -> Self {
+        Citation {
+            id,
+            source,
+            range: None,
+        }
+    }
+
+    pub fn with_range(mut self, range: TextRange) -> Self {
+        self.range = Some(range);
+        self
     }
 
     pub fn id(&self) -> CitationId {
@@ -120,11 +141,11 @@ impl Citation {
     }
 
     pub fn range(&self) -> Option<TextRange> {
-        self.range
+        self.range.clone()
     }
 
     pub fn validate_against(&self, text: &PlainText) -> Result<(), Error> {
-        match self.range {
+        match &self.range {
             Some(range) if range.end > text.scalar_count() => {
                 Err(Error::new(ErrorCode::InvalidContent)
                     .with_id(self.id.as_uuid())
@@ -153,6 +174,10 @@ impl TryFrom<CitationWire> for Citation {
     type Error = Error;
 
     fn try_from(wire: CitationWire) -> Result<Self, Error> {
-        Ok(Citation::new(wire.id, wire.source, wire.range))
+        let citation = Citation::new(wire.id, wire.source);
+        Ok(match wire.range {
+            Some(range) => citation.with_range(range),
+            None => citation,
+        })
     }
 }

@@ -2,6 +2,7 @@ mod index;
 mod json;
 mod lookup;
 
+pub use json::CONVERSATION_SCHEMA;
 pub use lookup::{BlockRef, EntryRef};
 
 use index::Index;
@@ -11,7 +12,7 @@ use crate::error::{Error, ErrorCode};
 use crate::id::{ConversationId, TurnId};
 use crate::turn::{Class, Declared, Turn, places_of_incoming, turn_place};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Conversation {
     id: ConversationId,
     turns: Vec<Turn>,

@@ -83,7 +83,10 @@ fn given_an_extra_field_on_any_kind_when_loaded_then_unsupported_field() {
 fn given_a_missing_required_field_on_any_kind_when_loaded_then_missing_content() {
     for kind in KINDS {
         let (value, required) = sample(kind);
-        assert!(ContentBlock::from_value(value.clone()).is_ok(), "{kind}");
+        assert!(
+            ContentBlock::from_value(common::oj(value.clone())).is_ok(),
+            "{kind}"
+        );
         for field in required {
             let mut stripped = value.clone();
             stripped.as_object_mut().unwrap().remove(*field);
@@ -135,7 +138,7 @@ fn given_text_blank_or_with_out_of_range_or_repeated_citations_when_loaded_then_
         code(&cited(json!([citation(2, 1), citation(2, 2)]))),
         ErrorCode::ReusedIdentity
     );
-    assert!(ContentBlock::from_value(cited(json!([citation(2, 3)]))).is_ok());
+    assert!(ContentBlock::from_value(common::oj(cited(json!([citation(2, 3)])))).is_ok());
 }
 
 #[test]

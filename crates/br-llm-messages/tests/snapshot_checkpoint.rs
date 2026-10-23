@@ -1,4 +1,5 @@
 mod common;
+use common::Raw as _;
 mod snapshot_support;
 mod stream_support;
 
@@ -31,9 +32,9 @@ fn load(
     change: impl FnOnce(&mut Value),
     count: usize,
 ) -> Result<DraftSnapshot, br_llm_messages::Error> {
-    let mut document = snapshot_at(count).to_value().unwrap();
+    let mut document = snapshot_at(count).to_value().unwrap().raw();
     change(&mut document);
-    DraftSnapshot::from_value(document)
+    DraftSnapshot::from_value(common::oj(document))
 }
 
 #[test]
@@ -111,7 +112,7 @@ fn given_a_checkpoint_when_serialized_then_it_names_its_schema_and_round_trips()
     let reloaded = DraftSnapshot::from_json(&json).unwrap();
 
     assert_eq!(DraftSnapshot::schema(), "br-llm-messages-draft/1");
-    assert_eq!(snapshot.to_value().unwrap()["schema"], DRAFT_SCHEMA);
+    assert_eq!(snapshot.to_value().unwrap().raw()["schema"], DRAFT_SCHEMA);
     assert_eq!(reloaded, snapshot);
     assert_eq!(reloaded.to_json().unwrap(), json);
 }
@@ -234,13 +235,13 @@ fn given_a_producing_row_inside_an_interrupted_snapshot_when_loaded_then_it_is_r
     let mut draft = draft_after(&deltas(&script()), 24);
     draft
         .apply(&delta(DeltaOp::response_interrupted(
-            br_llm_messages::InterruptionReason::Cancelled,
+            br_llm_messages::InterruptionReason::cancelled(),
         )))
         .unwrap();
-    let mut document = draft.to_snapshot().unwrap().to_value().unwrap();
+    let mut document = draft.to_snapshot().unwrap().to_value().unwrap().raw();
     block_row(&mut document, common::v7(10))["state"] = json!("producing");
 
-    let error = DraftSnapshot::from_value(document).unwrap_err();
+    let error = DraftSnapshot::from_value(common::oj(document)).unwrap_err();
 
     assert_eq!(error.code(), ErrorCode::InvalidRecord);
 }

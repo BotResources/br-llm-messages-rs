@@ -7,7 +7,7 @@ use crate::error::{Error, ErrorCode};
 use crate::id::{AgentId, HumanId};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RepresentationState {
     Producing,
@@ -17,7 +17,7 @@ pub enum RepresentationState {
 }
 
 impl RepresentationState {
-    pub const ALL: [RepresentationState; 4] = [
+    pub const ALL: &'static [RepresentationState] = &[
         RepresentationState::Producing,
         RepresentationState::Complete,
         RepresentationState::Interrupted,
@@ -39,7 +39,8 @@ impl FromStr for RepresentationState {
 
     fn from_str(value: &str) -> Result<Self, Error> {
         RepresentationState::ALL
-            .into_iter()
+            .iter()
+            .copied()
             .find(|state| state.as_str() == value)
             .ok_or_else(|| Error::new(ErrorCode::UnsupportedVariant))
     }
@@ -52,7 +53,7 @@ impl fmt::Display for RepresentationState {
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ActorRef {
     #[non_exhaustive]

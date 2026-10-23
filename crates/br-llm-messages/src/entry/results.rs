@@ -8,7 +8,7 @@ use crate::error::{Error, ErrorCode};
 use crate::id::EntryId;
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "RuntimeToolResultsWire")]
 pub struct RuntimeToolResults {
     id: EntryId,

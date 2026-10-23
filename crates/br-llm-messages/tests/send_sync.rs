@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use br_llm_messages::{
     AITurn, AgentMail, AgentRequest, ClosureReason, ContentBlock, Conversation, HumanMessage,
-    ImageBlock, IncomingEntry, InputTurn, ModelResponse, PlainBlock, ProviderToolCall,
+    ImageBlock, IncomingEntry, InputTurn, ModelResponse, OpaqueJson, PlainBlock, ProviderToolCall,
     ProviderToolExecutionRecord, ProviderToolResult, QueuePosition, RedactedThinkingBlock,
     RequestAccepted, RuntimeToolCall, RuntimeToolResult, RuntimeToolResults, StructuredBlock,
     TaskCompleted, TaskFailed, TaskStarted, TextBlock, ThinkingBlock, ToolMounted, ToolUnmounted,
@@ -21,6 +21,7 @@ macro_rules! assert_all {
 fn given_the_conversation_types_when_checked_statically_then_they_are_clone_eq_debug_send_sync() {
     assert_all!(
         Conversation,
+        OpaqueJson,
         Turn,
         InputTurn,
         AITurn,

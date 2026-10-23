@@ -28,7 +28,7 @@ fn given_a_pending_provider_execution_when_completed_closure_pushed_then_unresol
             vec![response(
                 10,
                 vec![hosted_record(11, status)],
-                ResponseEnding::Finished,
+                ResponseEnding::finished(),
             )],
         );
 
@@ -53,7 +53,7 @@ fn given_settled_provider_executions_when_completed_closure_pushed_then_accepted
         };
         pushed(
             &mut turn,
-            vec![response(10, vec![record], ResponseEnding::Finished)],
+            vec![response(10, vec![record], ResponseEnding::finished())],
         );
 
         turn.push_entry(close(20, ClosureReason::completed()))
@@ -67,7 +67,11 @@ fn given_a_last_response_ending_in_provider_continuation_when_completed_then_con
     let mut turn = open_turn(1);
     pushed(
         &mut turn,
-        vec![response(10, vec![], ResponseEnding::ProviderContinuation)],
+        vec![response(
+            10,
+            vec![],
+            ResponseEnding::provider_continuation(),
+        )],
     );
 
     let error = refused(turn.push_entry(close(20, ClosureReason::completed())));
@@ -81,7 +85,7 @@ fn given_a_continuation_followed_by_a_finished_response_when_completed_then_acce
     pushed(
         &mut turn,
         vec![
-            response(10, vec![], ResponseEnding::ProviderContinuation),
+            response(10, vec![], ResponseEnding::provider_continuation()),
             finished(11),
             close(12, ClosureReason::completed()),
         ],
@@ -107,9 +111,9 @@ fn given_results_delivered_and_no_further_response_when_completed_then_accepted(
 fn given_outstanding_calls_when_abnormal_closure_pushed_then_accepted_without_synthetic_results() {
     let reasons = [
         ClosureReason::cancelled(None).unwrap(),
-        ClosureReason::interrupted(FailureDetail::new("kill", None).unwrap()),
+        ClosureReason::interrupted(FailureDetail::new("kill").unwrap()),
         ClosureReason::budget_exhausted(BudgetKind::Tokens),
-        ClosureReason::failed(FailureDetail::new("boom", None).unwrap()),
+        ClosureReason::failed(FailureDetail::new("boom").unwrap()),
     ];
     for reason in reasons {
         let mut turn = open_turn(1);
@@ -134,7 +138,11 @@ fn given_abnormal_closure_after_a_continuation_when_pushed_then_accepted() {
     let mut turn = open_turn(1);
     pushed(
         &mut turn,
-        vec![response(10, vec![], ResponseEnding::ProviderContinuation)],
+        vec![response(
+            10,
+            vec![],
+            ResponseEnding::provider_continuation(),
+        )],
     );
 
     turn.push_entry(close(20, ClosureReason::cancelled(None).unwrap()))
@@ -164,7 +172,7 @@ fn given_runtime_calls_and_provider_executions_when_state_read_then_each_fact_is
                 hosted_record(13, ExecutionStatus::Completed),
                 hosted_call(14),
             ],
-            ResponseEnding::ToolResultsRequested,
+            ResponseEnding::tool_results_requested(),
         )],
     );
 
@@ -174,7 +182,7 @@ fn given_runtime_calls_and_provider_executions_when_state_read_then_each_fact_is
     assert_eq!(state.pending_provider_executions(), [bid(12)]);
     assert_eq!(
         state.last_ending(),
-        Some(&ResponseEnding::ToolResultsRequested)
+        Some(&ResponseEnding::tool_results_requested())
     );
     assert_eq!(state.closure(), None);
 }
@@ -189,12 +197,12 @@ fn given_a_later_response_when_state_read_then_pending_executions_come_from_the_
             response(
                 10,
                 vec![hosted_record(11, ExecutionStatus::Pending)],
-                ResponseEnding::ProviderContinuation,
+                ResponseEnding::provider_continuation(),
             ),
             response(
                 12,
                 vec![hosted_record(13, ExecutionStatus::Completed)],
-                ResponseEnding::Finished,
+                ResponseEnding::finished(),
             ),
         ],
     );
@@ -202,7 +210,7 @@ fn given_a_later_response_when_state_read_then_pending_executions_come_from_the_
     let state = turn.state();
 
     assert!(state.pending_provider_executions().is_empty());
-    assert_eq!(state.last_ending(), Some(&ResponseEnding::Finished));
+    assert_eq!(state.last_ending(), Some(&ResponseEnding::finished()));
 }
 
 #[test]
@@ -230,7 +238,7 @@ fn given_a_provider_call_without_exposed_result_when_state_read_then_it_is_not_o
                 hosted_call(11),
                 hosted_record(12, ExecutionStatus::Completed),
             ],
-            ResponseEnding::Finished,
+            ResponseEnding::finished(),
         )],
     );
 

@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use super::kinds::RepresentationState;
 use super::partial;
@@ -7,9 +6,10 @@ use super::schema::{as_object, block_fields, check_object};
 use crate::block::ContentBlockKind;
 use crate::error::{Error, ErrorCode};
 use crate::id::{BlockId, EntryId};
+use crate::opaque_json::OpaqueJson;
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "BlockRecordWire")]
 pub struct BlockRecord {
     id: BlockId,
@@ -21,7 +21,7 @@ pub struct BlockRecord {
     state: RepresentationState,
     #[serde(skip_serializing_if = "Option::is_none")]
     call: Option<BlockId>,
-    payload: Value,
+    payload: OpaqueJson,
 }
 
 #[derive(Deserialize)]
@@ -34,8 +34,7 @@ struct BlockRecordWire {
     position: u32,
     state: RepresentationState,
     call: Option<BlockId>,
-    #[serde(deserialize_with = "crate::json::unique_value")]
-    payload: Value,
+    payload: OpaqueJson,
 }
 
 impl BlockRecord {
@@ -45,7 +44,7 @@ impl BlockRecord {
         kind: ContentBlockKind,
         position: u32,
         state: RepresentationState,
-        payload: Value,
+        payload: OpaqueJson,
     ) -> Self {
         BlockRecord {
             id,
@@ -97,7 +96,7 @@ impl BlockRecord {
         self.call
     }
 
-    pub fn payload(&self) -> &Value {
+    pub fn payload(&self) -> &OpaqueJson {
         &self.payload
     }
 
@@ -113,14 +112,18 @@ impl BlockRecord {
         self.check_parent()?;
         match self.state {
             RepresentationState::Complete => {
-                let object = as_object(&self.payload)?;
+                let object = as_object(self.payload.inner())?;
                 check_object(object, &block_fields(self.kind)).map_err(|error| error.at("payload"))
             }
             RepresentationState::Producing | RepresentationState::Interrupted => {
                 partial::check(self.kind, &self.payload)
             }
             RepresentationState::Discarded => {
-                let empty = self.payload.as_object().is_some_and(|o| o.is_empty());
+                let empty = self
+                    .payload
+                    .inner()
+                    .as_object()
+                    .is_some_and(|o| o.is_empty());
                 if self.kind != ContentBlockKind::Text || !empty {
                     return Err(Error::new(ErrorCode::InvalidRecord).at("payload"));
                 }

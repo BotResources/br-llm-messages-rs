@@ -59,7 +59,7 @@ fn given_unknown_type_or_replay_on_plain_content_when_loaded_then_unsupported_va
         ),
         ErrorCode::InvalidContent
     );
-    assert!(ContentBlock::from_value(replayed).is_ok());
+    assert!(ContentBlock::from_value(common::oj(replayed)).is_ok());
 }
 
 #[test]
@@ -91,7 +91,7 @@ fn given_provider_result_without_content_or_replay_when_loaded_then_missing_cont
 
     assert_eq!(code(&bare), ErrorCode::MissingContent);
     assert_eq!(code(&empty), ErrorCode::MissingContent);
-    assert!(ContentBlock::from_value(opaque).is_ok());
+    assert!(ContentBlock::from_value(common::oj(opaque)).is_ok());
 }
 
 #[test]

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::{Error, ErrorCode};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TurnKind {
     #[serde(rename = "input_turn")]
     InputTurn,
@@ -15,7 +15,7 @@ pub enum TurnKind {
 }
 
 impl TurnKind {
-    pub const ALL: [TurnKind; 2] = [TurnKind::InputTurn, TurnKind::AITurn];
+    pub const ALL: &'static [TurnKind] = &[TurnKind::InputTurn, TurnKind::AITurn];
 
     pub fn as_str(self) -> &'static str {
         match self {
@@ -30,7 +30,8 @@ impl FromStr for TurnKind {
 
     fn from_str(value: &str) -> Result<Self, Error> {
         TurnKind::ALL
-            .into_iter()
+            .iter()
+            .copied()
             .find(|kind| kind.as_str() == value)
             .ok_or_else(|| Error::new(ErrorCode::UnsupportedVariant))
     }

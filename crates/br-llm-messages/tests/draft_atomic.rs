@@ -174,7 +174,10 @@ fn given_a_foreign_turn_or_entry_when_applied_then_refused_and_unchanged() {
 fn given_a_completion_that_direct_construction_refuses_when_applied_then_the_draft_is_unchanged() {
     let mut draft = run(vec![start_text(10, 0), text(10, "x"), finalize(10)]);
 
-    let error = refuse(&mut draft, complete(ResponseEnding::ToolResultsRequested));
+    let error = refuse(
+        &mut draft,
+        complete(ResponseEnding::tool_results_requested()),
+    );
 
     assert_eq!(error.code(), ErrorCode::MissingContent);
     assert_eq!(error.object_id(), Some(draft.entry().as_uuid()));
@@ -213,7 +216,7 @@ fn given_a_terminal_draft_when_any_delta_arrives_then_refused_and_unchanged() {
     let mut interrupted = rich_draft();
     ok(
         &mut interrupted,
-        DeltaOp::response_interrupted(InterruptionReason::Cancelled),
+        DeltaOp::response_interrupted(InterruptionReason::cancelled()),
     );
 
     for draft in [&mut completed, &mut interrupted] {

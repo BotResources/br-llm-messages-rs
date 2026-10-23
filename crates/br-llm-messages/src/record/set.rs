@@ -3,6 +3,8 @@ use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 
+use crate::opaque_json::OpaqueJson;
+
 use super::block::BlockRecord;
 use super::decompose::{position, turn_rows};
 use super::entry::EntryRecord;
@@ -16,7 +18,7 @@ use crate::turn::Turn;
 pub const RECORD_SCHEMA: &str = "br-llm-messages-records/1";
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct RecordSet {
     pub(super) turns: Vec<TurnRecord>,
     pub(super) entries: Vec<EntryRecord>,
@@ -34,16 +36,23 @@ struct RecordSetWire {
 }
 
 impl RecordSet {
-    pub fn new(
-        turns: Vec<TurnRecord>,
-        entries: Vec<EntryRecord>,
-        blocks: Vec<BlockRecord>,
-    ) -> Self {
-        RecordSet {
-            turns,
-            entries,
-            blocks,
-        }
+    pub fn new() -> Self {
+        RecordSet::default()
+    }
+
+    pub fn with_turns(mut self, turns: Vec<TurnRecord>) -> Self {
+        self.turns = turns;
+        self
+    }
+
+    pub fn with_entries(mut self, entries: Vec<EntryRecord>) -> Self {
+        self.entries = entries;
+        self
+    }
+
+    pub fn with_blocks(mut self, blocks: Vec<BlockRecord>) -> Self {
+        self.blocks = blocks;
+        self
     }
 
     pub fn schema() -> &'static str {
@@ -62,14 +71,11 @@ impl RecordSet {
         &self.blocks
     }
 
-    pub fn into_parts(self) -> (Vec<TurnRecord>, Vec<EntryRecord>, Vec<BlockRecord>) {
-        (self.turns, self.entries, self.blocks)
-    }
-
     pub fn from_conversation(conversation: &Conversation) -> Result<RecordSet, Error> {
         let mut set = RecordSet::default();
         for (index, turn) in conversation.turns().iter().enumerate() {
-            turn_rows(turn, position(index), &mut set)
+            position(index)
+                .and_then(|at| turn_rows(turn, at, &mut set))
                 .map_err(|error| error.at(format!("turns[{index}]")))?;
         }
         Ok(set)
@@ -110,15 +116,16 @@ impl RecordSet {
         crate::json::encode(self)
     }
 
-    pub fn to_value(&self) -> Result<Value, Error> {
-        crate::json::encode_value(self)
+    pub fn to_value(&self) -> Result<OpaqueJson, Error> {
+        crate::json::encode_value(self).map(OpaqueJson::from_inner)
     }
 
     pub fn from_json(text: &str) -> Result<RecordSet, Error> {
-        RecordSet::from_value(crate::json::decode(text)?)
+        RecordSet::from_value(OpaqueJson::from_inner(crate::json::parse(text)?))
     }
 
-    pub fn from_value(value: Value) -> Result<RecordSet, Error> {
+    pub fn from_value(value: OpaqueJson) -> Result<RecordSet, Error> {
+        let value = value.into_inner();
         match value.get("schema") {
             Some(Value::String(schema)) if schema == RECORD_SCHEMA => {}
             _ => return Err(Error::new(ErrorCode::SchemaMismatch).at("schema")),
@@ -155,6 +162,6 @@ impl Serialize for RecordSet {
 impl<'de> Deserialize<'de> for RecordSet {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value = crate::json::unique_value(deserializer)?;
-        RecordSet::from_value(value).map_err(serde::de::Error::custom)
+        RecordSet::from_value(OpaqueJson::from_inner(value)).map_err(serde::de::Error::custom)
     }
 }

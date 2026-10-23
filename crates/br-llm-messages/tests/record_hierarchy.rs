@@ -1,4 +1,5 @@
 mod common;
+use common::Raw as _;
 
 use br_llm_messages::{Error, ErrorCode, RepresentationState};
 use common::conversations::rich;
@@ -100,11 +101,15 @@ fn given_container_rows_when_decomposed_then_payloads_do_not_embed_their_childre
     let set = rich_set();
     let by_id = |n: u64| set.blocks().iter().find(|b| b.id() == bid(n)).unwrap();
 
-    assert!(by_id(22).payload().get("content").is_none());
-    assert!(by_id(17).payload().get("content").is_none());
-    assert!(by_id(19).payload()["exposure"].get("content").is_none());
-    assert_eq!(by_id(19).payload()["exposure"]["type"], "readable");
-    let serialized = serde_json::to_string(&set.to_value().unwrap()).unwrap();
+    assert!(by_id(22).payload().raw().get("content").is_none());
+    assert!(by_id(17).payload().raw().get("content").is_none());
+    assert!(
+        by_id(19).payload().raw()["exposure"]
+            .get("content")
+            .is_none()
+    );
+    assert_eq!(by_id(19).payload().raw()["exposure"]["type"], "readable");
+    let serialized = serde_json::to_string(&set.to_value().unwrap().raw()).unwrap();
     assert_eq!(serialized.matches("\"found\"").count(), 1);
 }
 

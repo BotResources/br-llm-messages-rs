@@ -49,14 +49,14 @@ fn given_a_provider_result_in_a_later_response_when_pushed_then_the_link_by_iden
         vec![response(
             10,
             vec![hosted_call(11), text_block(12, "between").into()],
-            ResponseEnding::ProviderContinuation,
+            ResponseEnding::provider_continuation(),
         )],
     );
 
     turn.push_entry(response(
         13,
         vec![text_block(14, "other").into(), hosted_result(15, 11)],
-        ResponseEnding::Finished,
+        ResponseEnding::finished(),
     ))
     .unwrap();
 
@@ -70,7 +70,7 @@ fn given_a_provider_result_before_its_call_in_one_response_when_pushed_then_acce
     turn.push_entry(response(
         10,
         vec![hosted_result(11, 12), hosted_call(12)],
-        ResponseEnding::Finished,
+        ResponseEnding::finished(),
     ))
     .unwrap();
 }
@@ -82,7 +82,7 @@ fn given_a_provider_result_linking_nothing_when_pushed_then_unknown_reference() 
     let error = refused(turn.push_entry(response(
         10,
         vec![hosted_result(11, 99)],
-        ResponseEnding::Finished,
+        ResponseEnding::finished(),
     )));
 
     assert_eq!(error.code(), ErrorCode::UnknownReference);
@@ -98,7 +98,7 @@ fn given_a_provider_result_linking_a_wrong_kind_when_pushed_then_wrong_kind_refe
         vec![response(
             10,
             vec![call(11, "t").into(), text_block(12, "x").into()],
-            ResponseEnding::ToolResultsRequested,
+            ResponseEnding::tool_results_requested(),
         )],
     );
     pushed(&mut turn, vec![delivery(20, &[(21, 11, "t")])]);
@@ -107,7 +107,7 @@ fn given_a_provider_result_linking_a_wrong_kind_when_pushed_then_wrong_kind_refe
         let error = refused(turn.push_entry(response(
             30 + target,
             vec![hosted_result(40 + target, target)],
-            ResponseEnding::Finished,
+            ResponseEnding::finished(),
         )));
         assert_eq!(error.code(), ErrorCode::WrongKindReference);
     }
@@ -122,7 +122,7 @@ fn given_provider_calls_and_results_when_the_turn_runs_then_no_runtime_result_is
             response(
                 10,
                 vec![hosted_call(11), hosted_result(12, 11)],
-                ResponseEnding::Finished,
+                ResponseEnding::finished(),
             ),
             finished(13),
             close(14, ClosureReason::completed()),
@@ -168,10 +168,10 @@ fn call_ending(entry: u64, call_id: u64, ending: ResponseEnding) -> TurnEntry {
 #[test]
 fn given_a_call_under_a_non_requesting_ending_when_more_is_pushed_then_no_result_is_required() {
     for ending in [
-        ResponseEnding::Finished,
-        ResponseEnding::ProviderContinuation,
-        ResponseEnding::OutputExhausted,
-        ResponseEnding::StopSequence,
+        ResponseEnding::finished(),
+        ResponseEnding::provider_continuation(),
+        ResponseEnding::output_exhausted(),
+        ResponseEnding::stop_sequence(),
     ] {
         let mut turn = open_turn(1);
         pushed(&mut turn, vec![call_ending(10, 11, ending)]);
@@ -189,7 +189,11 @@ fn given_a_call_under_a_requesting_ending_when_more_is_pushed_then_both_are_bloc
     let mut turn = open_turn(1);
     pushed(
         &mut turn,
-        vec![call_ending(10, 11, ResponseEnding::ToolResultsRequested)],
+        vec![call_ending(
+            10,
+            11,
+            ResponseEnding::tool_results_requested(),
+        )],
     );
 
     assert_eq!(turn.state().outstanding_runtime_calls(), &[bid(11)]);
@@ -209,7 +213,7 @@ fn given_a_call_under_a_non_requesting_ending_when_a_result_arrives_then_it_is_c
     let mut turn = open_turn(1);
     pushed(
         &mut turn,
-        vec![call_ending(10, 11, ResponseEnding::Finished)],
+        vec![call_ending(10, 11, ResponseEnding::finished())],
     );
 
     assert_eq!(

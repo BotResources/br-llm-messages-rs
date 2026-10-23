@@ -6,7 +6,7 @@ use crate::error::Error;
 use crate::id::EntryId;
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "ToolMountedWire")]
 pub struct ToolMounted {
     id: EntryId,
@@ -50,7 +50,7 @@ impl TryFrom<ToolMountedWire> for ToolMounted {
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "ToolUnmountedWire")]
 pub struct ToolUnmounted {
     id: EntryId,

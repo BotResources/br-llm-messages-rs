@@ -76,7 +76,7 @@ fn class_of(tracker: &Tracker, declared: &Declared, id: Uuid) -> Option<Class> {
 }
 
 fn check_closure(tracker: &Tracker, id: EntryId, reason: &ClosureReason) -> Result<(), Error> {
-    if !matches!(reason, ClosureReason::Completed) {
+    if !matches!(reason, ClosureReason::Completed { .. }) {
         return Ok(());
     }
     let unresolved = tracker
@@ -88,7 +88,7 @@ fn check_closure(tracker: &Tracker, id: EntryId, reason: &ClosureReason) -> Resu
             .with_id(block.as_uuid())
             .at("reason"));
     }
-    if tracker.last_ending == Some(ResponseEnding::ProviderContinuation) {
+    if tracker.last_ending == Some(ResponseEnding::provider_continuation()) {
         return Err(Error::new(ErrorCode::ContinuationPending)
             .with_id(id.as_uuid())
             .at("reason"));

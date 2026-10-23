@@ -17,6 +17,20 @@ pub fn v7(n: u64) -> Uuid {
     uuid_with(n, Version::SortRand, Variant::RFC4122)
 }
 
+pub fn oj(value: serde_json::Value) -> br_llm_messages::OpaqueJson {
+    br_llm_messages::OpaqueJson::from_serialize(&value).unwrap()
+}
+
+pub trait Raw {
+    fn raw(&self) -> serde_json::Value;
+}
+
+impl Raw for br_llm_messages::OpaqueJson {
+    fn raw(&self) -> serde_json::Value {
+        self.deserialize_into().unwrap()
+    }
+}
+
 pub fn code_of<T: serde::de::DeserializeOwned>(json: &str) -> ErrorCode {
     let failure = serde_json::from_str::<T>(json)
         .err()
@@ -49,12 +63,12 @@ pub fn signature(value: &str) -> br_llm_messages::ReplayMaterial {
 pub fn envelope(value: serde_json::Value) -> br_llm_messages::ReplayMaterial {
     br_llm_messages::ReplayMaterial::new(
         br_llm_messages::ReplayFormat::new("openai.reasoning").unwrap(),
-        br_llm_messages::ReplayPayload::json(value).unwrap(),
+        br_llm_messages::ReplayPayload::json(oj(value)).unwrap(),
     )
 }
 
 pub fn text_block(n: u64, text: &str) -> br_llm_messages::TextBlock {
-    br_llm_messages::TextBlock::plain(bid(n), text).unwrap()
+    br_llm_messages::TextBlock::new(bid(n), text).unwrap()
 }
 
 pub fn plain_text(n: u64, text: &str) -> br_llm_messages::PlainBlock {
@@ -104,7 +118,7 @@ pub fn author(label: &str) -> br_llm_messages::Author {
 }
 
 pub fn call(n: u64, name: &str) -> br_llm_messages::RuntimeToolCall {
-    br_llm_messages::RuntimeToolCall::new(bid(n), tool(name), serde_json::json!({})).unwrap()
+    br_llm_messages::RuntimeToolCall::new(bid(n), tool(name), oj(serde_json::json!({}))).unwrap()
 }
 
 pub fn result(n: u64, call: u64, name: &str) -> br_llm_messages::RuntimeToolResult {

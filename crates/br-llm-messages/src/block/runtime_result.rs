@@ -7,7 +7,7 @@ use crate::id::BlockId;
 use crate::value::{ResultStatus, ToolName};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "RuntimeToolResultWire")]
 pub struct RuntimeToolResult {
     id: BlockId,
@@ -59,7 +59,7 @@ impl RuntimeToolResult {
     }
 
     pub fn status(&self) -> ResultStatus {
-        self.status
+        self.status.clone()
     }
 
     pub fn content(&self) -> &[PlainBlock] {

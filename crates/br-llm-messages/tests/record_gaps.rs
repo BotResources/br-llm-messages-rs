@@ -16,7 +16,7 @@ fn two_blocks() -> RecordSet {
                 text_block(11, "first").into(),
                 text_block(12, "third").into(),
             ],
-            ResponseEnding::Finished,
+            ResponseEnding::finished(),
         )],
     );
     RecordSet::from_turn(&Turn::AITurn(turn), 0).unwrap()

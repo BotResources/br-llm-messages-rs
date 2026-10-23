@@ -6,7 +6,7 @@ use crate::id::BlockId;
 use crate::value::ImageSource;
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ImageBlock {
     id: BlockId,

@@ -1,5 +1,7 @@
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
+
+use crate::opaque_json::OpaqueJson;
 use uuid::Uuid;
 
 use super::ContentBlock;
@@ -12,7 +14,7 @@ use crate::error::{Error, ErrorCode};
 use crate::id::BlockId;
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum PlainBlock {
     Text(TextBlock),
@@ -54,15 +56,21 @@ impl PlainBlock {
     }
 
     pub fn from_json(text: &str) -> Result<Self, Error> {
-        crate::json::decode(text)
+        PlainBlock::from_checked(crate::json::parse(text)?)
     }
 
-    pub fn to_value(&self) -> Result<Value, Error> {
-        crate::json::encode_value(self)
+    pub fn to_value(&self) -> Result<OpaqueJson, Error> {
+        crate::json::encode_value(self).map(OpaqueJson::from_inner)
     }
 
-    pub fn from_value(value: Value) -> Result<Self, Error> {
-        crate::json::decode_value(value)
+    pub fn from_value(value: OpaqueJson) -> Result<Self, Error> {
+        PlainBlock::from_checked(value.into_inner())
+    }
+
+    fn from_checked(value: Value) -> Result<Self, Error> {
+        refuse_non_plain(&value)?;
+        let wire: PlainBlockWire = crate::json::decode_value(value)?;
+        PlainBlock::try_from(wire)
     }
 
     pub(crate) fn collect_ids(&self, sink: &mut IdSink) -> Result<(), Error> {
@@ -158,9 +166,6 @@ fn refuse_non_plain(value: &Value) -> Result<(), Error> {
 impl<'de> Deserialize<'de> for PlainBlock {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value = crate::json::unique_value(deserializer)?;
-        refuse_non_plain(&value).map_err(serde::de::Error::custom)?;
-        let wire = PlainBlockWire::deserialize(value)
-            .map_err(|error| serde::de::Error::custom(Error::from_json_error(&error)))?;
-        PlainBlock::try_from(wire).map_err(serde::de::Error::custom)
+        PlainBlock::from_checked(value).map_err(serde::de::Error::custom)
     }
 }

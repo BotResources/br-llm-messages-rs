@@ -7,21 +7,21 @@ use crate::value::{
     Citation, ExecutionStatus, ExternalId, ProviderOperation, ReplayMaterial, ToolName,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(in crate::stream) enum Slot {
     Open(OpenBlock),
     Final(ContentBlock),
     Discarded { id: BlockId, kind: ContentBlockKind },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(in crate::stream) struct OpenBlock {
     pub(in crate::stream) id: BlockId,
     pub(in crate::stream) body: OpenBody,
     pub(in crate::stream) replay_fragments: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(in crate::stream) enum OpenBody {
     Text {
         text: String,
@@ -93,16 +93,16 @@ impl OpenBlock {
 impl OpenBody {
     fn from_start(start: &BlockStart) -> Self {
         match start {
-            BlockStart::Text => OpenBody::Text {
+            BlockStart::Text { .. } => OpenBody::Text {
                 text: String::new(),
                 citations: Vec::new(),
                 replay: None,
             },
-            BlockStart::Thinking => OpenBody::Thinking {
+            BlockStart::Thinking { .. } => OpenBody::Thinking {
                 text: String::new(),
                 replay: None,
             },
-            BlockStart::StructuredContent => OpenBody::Structured { raw: String::new() },
+            BlockStart::StructuredContent { .. } => OpenBody::Structured { raw: String::new() },
             BlockStart::RuntimeToolCall { name, external_id } => OpenBody::RuntimeCall {
                 name: name.clone(),
                 external_id: external_id.clone(),
@@ -125,7 +125,7 @@ impl OpenBody {
             } => OpenBody::Record {
                 operation: operation.clone(),
                 external_id: external_id.clone(),
-                status: *status,
+                status: status.clone(),
             },
         }
     }

@@ -1,5 +1,5 @@
+use crate::opaque_json::OpaqueJson;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use crate::entry::ResponseMetadata;
 use crate::error::Error;
@@ -20,24 +20,25 @@ struct Header {
     interruption: Option<InterruptionReason>,
 }
 
-pub(super) fn write(metadata: &ResponseMetadata, phase: &DraftPhase) -> Result<Value, Error> {
+pub(super) fn write(metadata: &ResponseMetadata, phase: &DraftPhase) -> Result<OpaqueJson, Error> {
     let interruption = match phase {
         DraftPhase::Interrupted(reason) => Some(reason.clone()),
         _ => None,
     };
     let header = Header {
-        usage: metadata.usage().copied(),
+        usage: metadata.usage().cloned(),
         model: metadata.model().cloned(),
         provider_response_id: metadata.provider_response_id().cloned(),
         interruption,
     };
-    crate::json::encode_value(&header)
+    crate::json::encode_value(&header).map(OpaqueJson::from_inner)
 }
 
 pub(super) fn read(
-    payload: Value,
+    payload: &OpaqueJson,
 ) -> Result<(ResponseMetadata, Option<InterruptionReason>), Error> {
-    let header: Header = crate::json::decode_value(payload).map_err(|error| error.at("payload"))?;
+    let header: Header =
+        crate::json::decode_ref(payload.inner()).map_err(|error| error.at("payload"))?;
     let mut metadata = ResponseMetadata::new();
     if let Some(usage) = header.usage {
         metadata = metadata.with_usage(usage);

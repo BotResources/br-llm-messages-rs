@@ -1,4 +1,5 @@
 mod common;
+use common::Raw as _;
 
 use br_llm_messages::{
     AITurn, ClosureReason, ErrorCode, IncomingEntry, InputTurn, Turn, TurnEntry, TurnKind,
@@ -34,10 +35,10 @@ fn given_a_non_incoming_entry_in_input_turn_json_when_loaded_then_disallowed_ent
         let json = json!({
             "type": "input_turn",
             "id": tid(1).to_string(),
-            "entry": entry.to_value().unwrap(),
+            "entry": entry.to_value().unwrap().raw(),
         });
 
-        let error = refused(Turn::from_value(json));
+        let error = refused(Turn::from_value(common::oj(json)));
 
         assert_eq!(error.code(), ErrorCode::DisallowedEntryKind);
         assert_eq!(error.location(), Some("entry"));
@@ -46,10 +47,10 @@ fn given_a_non_incoming_entry_in_input_turn_json_when_loaded_then_disallowed_ent
 
 #[test]
 fn given_an_author_key_on_an_input_turn_when_loaded_then_author_forbidden() {
-    let mut json = input_turn(1, 2).to_value().unwrap();
+    let mut json = input_turn(1, 2).to_value().unwrap().raw();
     json["author"] = json!("someone");
 
-    let error = refused(Turn::from_value(json));
+    let error = refused(Turn::from_value(common::oj(json)));
 
     assert_eq!(error.code(), ErrorCode::AuthorForbidden);
     assert_eq!(error.object_id(), Some(tid(1).as_uuid()));
@@ -57,7 +58,7 @@ fn given_an_author_key_on_an_input_turn_when_loaded_then_author_forbidden() {
 
 #[test]
 fn given_an_input_turn_when_serialized_then_it_has_no_author_and_one_entry() {
-    let json = input_turn(1, 2).to_value().unwrap();
+    let json = input_turn(1, 2).to_value().unwrap().raw();
 
     assert_eq!(json["type"], "input_turn");
     assert!(json.get("author").is_none());
@@ -106,28 +107,28 @@ fn given_the_same_label_on_two_agents_when_turns_opened_then_the_agents_stay_dis
 
 #[test]
 fn given_ai_turn_json_without_author_when_loaded_then_missing_content() {
-    let mut json = open_turn(1).to_value().unwrap();
+    let mut json = open_turn(1).to_value().unwrap().raw();
     json.as_object_mut().unwrap().remove("author");
 
     assert_eq!(
-        refused(Turn::from_value(json)).code(),
+        refused(Turn::from_value(common::oj(json))).code(),
         ErrorCode::MissingContent
     );
 }
 
 #[test]
 fn given_ai_turn_json_with_a_blank_author_or_no_agent_when_loaded_then_refused() {
-    let mut blank = open_turn(1).to_value().unwrap();
+    let mut blank = open_turn(1).to_value().unwrap().raw();
     blank["author"] = json!("   ");
-    let mut no_agent = open_turn(1).to_value().unwrap();
+    let mut no_agent = open_turn(1).to_value().unwrap().raw();
     no_agent.as_object_mut().unwrap().remove("agent");
 
     assert_eq!(
-        refused(Turn::from_value(blank)).code(),
+        refused(Turn::from_value(common::oj(blank))).code(),
         ErrorCode::InvalidAuthor
     );
     assert_eq!(
-        refused(Turn::from_value(no_agent)).code(),
+        refused(Turn::from_value(common::oj(no_agent))).code(),
         ErrorCode::MissingContent
     );
 }
@@ -160,13 +161,16 @@ fn given_a_closure_when_a_second_one_is_pushed_then_turn_closed() {
 
 #[test]
 fn given_a_closure_in_the_middle_of_entries_json_when_loaded_then_turn_closed_at_the_next_entry() {
-    let mut json = open_turn(1).to_value().unwrap();
+    let mut json = open_turn(1).to_value().unwrap().raw();
     json["entries"] = json!([
-        close(10, ClosureReason::completed()).to_value().unwrap(),
-        human(11).to_value().unwrap(),
+        close(10, ClosureReason::completed())
+            .to_value()
+            .unwrap()
+            .raw(),
+        human(11).to_value().unwrap().raw(),
     ]);
 
-    let error = refused(AITurn::from_value(json));
+    let error = refused(AITurn::from_value(common::oj(json)));
 
     assert_eq!(error.code(), ErrorCode::TurnClosed);
     assert_eq!(error.location(), Some("entries[1]"));

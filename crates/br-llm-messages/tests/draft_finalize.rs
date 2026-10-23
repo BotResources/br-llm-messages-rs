@@ -41,20 +41,20 @@ fn given_accumulated_content_when_finalized_then_each_kind_becomes_a_validated_b
     assert_eq!(block(10), text_block(10, "hello").into());
     assert_eq!(
         block(11),
-        StructuredBlock::new(bid(11), json!({"k": [1, 2]}))
+        StructuredBlock::new(bid(11), common::oj(json!({"k": [1, 2]})))
             .unwrap()
             .into()
     );
     assert_eq!(
         block(12),
-        RuntimeToolCall::new(bid(12), tool("lookup"), json!({"q": "x"}))
+        RuntimeToolCall::new(bid(12), tool("lookup"), common::oj(json!({"q": "x"})))
             .unwrap()
             .with_external_id(ExternalId::new("toolu_1").unwrap())
             .into()
     );
     let expected_provider = ProviderToolCall::new(bid(13))
         .with_operation(ProviderOperation::new("web_search").unwrap())
-        .with_arguments(json!({"p": 1}))
+        .with_arguments(common::oj(json!({"p": 1})))
         .unwrap();
     assert_eq!(block(13), expected_provider.into());
     assert!(matches!(
@@ -117,9 +117,13 @@ fn given_an_authoritative_value_when_finalized_then_provisional_fields_are_repla
         start_call(10, 0, Some("draft_name"), Some("provisional")),
         json(10, "{\"half\":"),
     ]);
-    let value = RuntimeToolCall::new(bid(10), tool("real_name"), json!({"full": true}))
-        .unwrap()
-        .with_external_id(ExternalId::new("toolu_final").unwrap());
+    let value = RuntimeToolCall::new(
+        bid(10),
+        tool("real_name"),
+        common::oj(json!({"full": true})),
+    )
+    .unwrap()
+    .with_external_id(ExternalId::new("toolu_final").unwrap());
 
     ok(&mut draft, authoritative(value.clone()));
 
@@ -134,7 +138,7 @@ fn given_an_authoritative_text_when_finalized_then_it_replaces_the_accumulated_t
 
     ok(
         &mut draft,
-        authoritative(TextBlock::plain(bid(10), "Hello").unwrap()),
+        authoritative(TextBlock::new(bid(10), "Hello").unwrap()),
     );
     ok(&mut draft, finish());
 
@@ -151,7 +155,9 @@ fn given_an_authoritative_value_when_it_replaces_replay_then_the_replacement_is_
         text(10, "x"),
         DeltaOp::replay_material_set(bid(10), signature("old")),
     ]);
-    let value = TextBlock::new(bid(10), "x", vec![], Some(signature("new"))).unwrap();
+    let value = TextBlock::new(bid(10), "x")
+        .unwrap()
+        .with_replay(signature("new"));
 
     ok(&mut draft, authoritative(value));
 
@@ -182,7 +188,10 @@ fn given_an_authoritative_value_with_another_id_or_kind_when_finalized_then_inco
 #[test]
 fn given_an_authoritative_value_with_a_taken_nested_identity_when_finalized_then_reused_identity() {
     let mut draft = run(vec![start_text(10, 0), start_text(11, 1)]);
-    let value = TextBlock::new(bid(10), "x", vec![citation(11, 0, 1)], None).unwrap();
+    let value = TextBlock::new(bid(10), "x")
+        .unwrap()
+        .with_citations(vec![citation(11, 0, 1)])
+        .unwrap();
 
     let error = refuse(&mut draft, authoritative(value));
 

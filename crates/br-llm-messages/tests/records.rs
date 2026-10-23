@@ -1,4 +1,5 @@
 mod common;
+use common::Raw as _;
 
 use br_llm_messages::{
     ActorRef, BlockRecord, ContentBlockKind, EntryRecord, RECORD_SCHEMA, RecordSet,
@@ -27,7 +28,7 @@ fn given_the_record_kinds_when_listed_then_discriminants_are_stable_snake_case()
         ContentBlockKind::ProviderToolExecutionRecord.as_str(),
         "provider_tool_execution_record"
     );
-    let document = rich_set().to_value().unwrap();
+    let document = rich_set().to_value().unwrap().raw();
     assert_eq!(document["turns"][0]["kind"], "input_turn");
     assert_eq!(document["entries"][0]["state"], "complete");
     assert_eq!(document["entries"][0]["kind"], "human_message");
@@ -37,7 +38,7 @@ fn given_the_record_kinds_when_listed_then_discriminants_are_stable_snake_case()
 fn given_a_record_set_when_serialized_then_it_carries_its_schema() {
     assert_eq!(RecordSet::schema(), "br-llm-messages-records/1");
     assert_eq!(RECORD_SCHEMA, RecordSet::schema());
-    let document = rich_set().to_value().unwrap();
+    let document = rich_set().to_value().unwrap().raw();
     assert_eq!(document["schema"], RECORD_SCHEMA);
 }
 
@@ -48,15 +49,17 @@ fn given_another_schema_when_the_record_set_is_loaded_then_it_is_refused() {
         json!("br-llm-messages/4"),
         json!(7),
     ] {
-        let mut document = rich_set().to_value().unwrap();
+        let mut document = rich_set().to_value().unwrap().raw();
         document["schema"] = schema;
-        let error = RecordSet::from_value(document).unwrap_err();
+        let error = RecordSet::from_value(common::oj(document)).unwrap_err();
         assert_eq!(error.code(), br_llm_messages::ErrorCode::SchemaMismatch);
     }
-    let mut document = rich_set().to_value().unwrap();
+    let mut document = rich_set().to_value().unwrap().raw();
     document.as_object_mut().unwrap().remove("schema");
     assert_eq!(
-        RecordSet::from_value(document).unwrap_err().code(),
+        RecordSet::from_value(common::oj(document))
+            .unwrap_err()
+            .code(),
         br_llm_messages::ErrorCode::SchemaMismatch
     );
 }
@@ -138,14 +141,14 @@ fn given_the_sender_columns_when_decomposed_then_each_kind_maps_to_its_actor() {
 
 #[test]
 fn given_rows_built_by_hand_when_reconstructed_then_no_database_assumption_is_needed() {
-    let turn = TurnRecord::new(tid(1), TurnKind::InputTurn, 0, None, None);
+    let turn = TurnRecord::new(tid(1), TurnKind::InputTurn, 0);
     let entry = EntryRecord::new(
         eid(2),
         tid(1),
         TurnEntryKind::HumanMessage,
         0,
         RepresentationState::Complete,
-        json!({}),
+        common::oj(json!({})),
     )
     .with_sender(ActorRef::human(hid(1)));
     let block = BlockRecord::new(
@@ -154,10 +157,13 @@ fn given_rows_built_by_hand_when_reconstructed_then_no_database_assumption_is_ne
         ContentBlockKind::Text,
         0,
         RepresentationState::Complete,
-        json!({"text": "hello"}),
+        common::oj(json!({"text": "hello"})),
     );
 
-    let conversation = RecordSet::new(vec![turn], vec![entry], vec![block])
+    let conversation = RecordSet::new()
+        .with_turns(vec![turn])
+        .with_entries(vec![entry])
+        .with_blocks(vec![block])
         .into_conversation(cvid(9))
         .unwrap();
 

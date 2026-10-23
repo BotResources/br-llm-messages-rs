@@ -64,7 +64,7 @@ fn given_json_material_when_a_fragment_arrives_then_replay_mismatch_and_objects_
             let payload = block.replay().unwrap().payload();
             assert_eq!(
                 payload,
-                &ReplayPayload::json(serde_json::json!({"enc": "A"})).unwrap()
+                &ReplayPayload::json(common::oj(serde_json::json!({"enc": "A"}))).unwrap()
             );
         }
         other => panic!("unexpected {other:?}"),
@@ -140,7 +140,7 @@ fn given_a_tool_call_when_replay_is_set_then_it_survives_finalization() {
         Some(ContentBlock::RuntimeToolCall(call)) => {
             let expected = ReplayMaterial::new(
                 format("openai.reasoning"),
-                ReplayPayload::json(serde_json::json!({"item": 1})).unwrap(),
+                ReplayPayload::json(common::oj(serde_json::json!({"item": 1}))).unwrap(),
             );
             assert_eq!(call.replay(), Some(&expected));
         }

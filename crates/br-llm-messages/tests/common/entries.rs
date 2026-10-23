@@ -31,12 +31,12 @@ pub fn all_entries() -> Vec<TurnEntry> {
         RequestAccepted::new(eid(4), rid(1)).into(),
         QueuePosition::new(eid(5), rid(1), 1).unwrap().into(),
         TaskStarted::new(eid(6), rid(1), kid(1)).into(),
-        TaskCompleted::new(eid(7), kid(1), None).unwrap().into(),
-        TaskFailed::new(eid(8), kid(1), FailureDetail::new("boom", None).unwrap()).into(),
+        TaskCompleted::new(eid(7), kid(1)).into(),
+        TaskFailed::new(eid(8), kid(1), FailureDetail::new("boom").unwrap()).into(),
         ModelResponse::new(
             eid(9),
             vec![],
-            ResponseEnding::Finished,
+            ResponseEnding::finished(),
             ResponseMetadata::new(),
         )
         .unwrap()

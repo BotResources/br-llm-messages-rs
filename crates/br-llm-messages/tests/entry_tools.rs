@@ -1,7 +1,8 @@
 mod common;
+use common::Raw as _;
 
 use br_llm_messages::{
-    BudgetKind, ClosureReason, ErrorCode, FailureDetail, RuntimeToolResults, ToolDefinition,
+    BudgetKind, ClosureReason, Error, ErrorCode, FailureDetail, RuntimeToolResults, ToolDefinition,
     ToolUnmounted, TurnEntry, TurnEntryKind,
 };
 use common::entries::all_entries;
@@ -45,7 +46,7 @@ fn given_runtime_tool_results_json_with_a_non_result_block_when_loaded_then_disa
     let value = json!({"type": "runtime_tool_results", "id": eid(1).to_string(),
         "results": [{"type": "text", "id": bid(2).to_string(), "text": "hi"}]});
 
-    let error = refused(TurnEntry::from_value(value));
+    let error = refused(TurnEntry::from_value(common::oj(value)));
 
     assert_eq!(error.code(), ErrorCode::DisallowedBlockKind);
 }
@@ -58,7 +59,7 @@ fn given_runtime_tool_results_json_with_a_repeated_call_when_loaded_then_duplica
     };
     let value = json!({"type": "runtime_tool_results", "id": eid(1).to_string(), "results": [item(10), item(11)]});
 
-    let error = refused(TurnEntry::from_value(value));
+    let error = refused(TurnEntry::from_value(common::oj(value)));
 
     assert_eq!(error.code(), ErrorCode::DuplicateToolResult);
 }
@@ -73,12 +74,17 @@ fn given_a_result_reusing_the_entry_id_when_built_then_reused_identity() {
 #[test]
 fn given_an_inline_tool_definition_when_schema_is_not_an_object_then_refused() {
     for schema in [json!(null), json!([]), json!("{}"), json!(1)] {
-        let error = refused(ToolDefinition::inline(tool("t"), "d", schema.clone()));
+        let error = refused(ToolDefinition::inline(
+            tool("t"),
+            "d",
+            common::oj(schema.clone()),
+        ));
 
         assert_eq!(error.code(), ErrorCode::InvalidContent, "{schema}");
         assert_eq!(error.location(), Some("input_schema"));
     }
-    let kept = ToolDefinition::inline(tool("t"), "d", json!({"type": "object"})).unwrap();
+    let kept =
+        ToolDefinition::inline(tool("t"), "d", common::oj(json!({"type": "object"}))).unwrap();
     assert_eq!(kept.name(), &tool("t"));
 }
 
@@ -145,7 +151,11 @@ fn given_a_cancelled_closure_with_an_empty_detail_when_built_then_refused() {
 
 #[test]
 fn given_the_five_closure_reasons_when_serialized_then_typed_details_are_golden() {
-    let failure = || FailureDetail::new("oom", Some("out of memory".into())).unwrap();
+    let failure = || {
+        FailureDetail::new("oom")
+            .unwrap()
+            .with_message("out of memory")
+    };
     let cases = [
         (ClosureReason::completed(), json!({"type": "completed"})),
         (
@@ -162,7 +172,7 @@ fn given_the_five_closure_reasons_when_serialized_then_typed_details_are_golden(
         ),
         (
             ClosureReason::failed(failure()),
-            json!({"type": "failed", "failure": {"code": "oom", "message": "out of memory"}}),
+            json!({"type": "failed", "detail": {"code": "oom", "message": "out of memory"}}),
         ),
     ];
     for (reason, golden) in cases {
@@ -179,7 +189,7 @@ fn given_a_closure_with_an_unknown_reason_when_loaded_then_unsupported_variant()
     let value =
         json!({"type": "turn_closure", "id": eid(1).to_string(), "reason": {"type": "abducted"}});
 
-    let error = refused(TurnEntry::from_value(value));
+    let error = refused(TurnEntry::from_value(common::oj(value)));
 
     assert_eq!(error.code(), ErrorCode::UnsupportedVariant);
 }
@@ -192,15 +202,15 @@ fn given_a_closure_reason_missing_or_with_extra_details_when_loaded_then_refused
     let bad_budget = json!({"type": "turn_closure", "id": eid(1).to_string(), "reason": {"type": "budget_exhausted", "budget": "patience"}});
 
     assert_eq!(
-        refused(TurnEntry::from_value(missing)).code(),
+        refused(TurnEntry::from_value(common::oj(missing))).code(),
         ErrorCode::MissingContent
     );
     assert_eq!(
-        refused(TurnEntry::from_value(extra)).code(),
+        refused(TurnEntry::from_value(common::oj(extra))).code(),
         ErrorCode::UnsupportedField
     );
     assert_eq!(
-        refused(TurnEntry::from_value(bad_budget)).code(),
+        refused(TurnEntry::from_value(common::oj(bad_budget))).code(),
         ErrorCode::UnsupportedVariant
     );
 }
@@ -210,12 +220,12 @@ fn given_every_forbidden_author_kind_when_json_carries_an_author_then_author_for
     for entry in all_entries() {
         let kind = entry.kind();
         let required = matches!(kind, TurnEntryKind::AgentRequest | TurnEntryKind::AgentMail);
-        let mut value = entry.to_value().unwrap();
+        let mut value = entry.to_value().unwrap().raw();
         let had_author = value.get("author").is_some();
 
         assert_eq!(had_author, required, "{kind}");
         value["author"] = json!("Codex GPT-6.1-Sol high");
-        let outcome = TurnEntry::from_value(value);
+        let outcome = TurnEntry::from_value(common::oj(value));
 
         if required {
             assert!(outcome.is_ok(), "{kind}");
@@ -235,9 +245,22 @@ fn given_a_forbidden_author_error_when_displayed_then_it_names_the_entry_without
     let value = json!({"type": "turn_closure", "id": eid(1).to_string(),
         "reason": {"type": "completed"}, "author": "SENTINEL-AUTHOR-LABEL"});
 
-    let error = refused(TurnEntry::from_value(value));
+    let error = refused(TurnEntry::from_value(common::oj(value)));
 
     assert_eq!(error.object_id(), Some(eid(1).as_uuid()));
     assert!(!error.to_string().contains("SENTINEL"));
     assert!(!format!("{error:?}").contains("SENTINEL"));
+}
+
+#[test]
+fn given_a_failed_closure_reason_written_with_the_retired_failure_key_when_loaded_then_unsupported_field()
+ {
+    let retired = json!({"type": "failed", "failure": {"code": "oom"}});
+
+    let error = serde_json::from_value::<ClosureReason>(retired).unwrap_err();
+
+    assert_eq!(
+        Error::from_json_error(&error).code(),
+        ErrorCode::UnsupportedField
+    );
 }

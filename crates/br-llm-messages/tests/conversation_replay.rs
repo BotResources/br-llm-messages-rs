@@ -1,4 +1,5 @@
 mod common;
+use common::Raw as _;
 
 use br_llm_messages::{
     AITurn, Conversation, ErrorCode, ExecutionStatus, ResponseEnding, TurnEntry,
@@ -50,7 +51,7 @@ fn cases() -> Vec<Case> {
         Case {
             name: "result for a provider call",
             entries: vec![
-                response(10, vec![hosted_call(11)], ResponseEnding::Finished),
+                response(10, vec![hosted_call(11)], ResponseEnding::finished()),
                 delivery(20, &[(21, 11, "a")]),
             ],
             code: ErrorCode::WrongKindReference,
@@ -77,7 +78,7 @@ fn cases() -> Vec<Case> {
             entries: vec![response(
                 10,
                 vec![hosted_result(11, 99)],
-                ResponseEnding::Finished,
+                ResponseEnding::finished(),
             )],
             code: ErrorCode::UnknownReference,
             index: 0,
@@ -94,7 +95,7 @@ fn cases() -> Vec<Case> {
                 response(
                     10,
                     vec![hosted_record(11, ExecutionStatus::Running)],
-                    ResponseEnding::Finished,
+                    ResponseEnding::finished(),
                 ),
                 completed(),
             ],
@@ -104,7 +105,7 @@ fn cases() -> Vec<Case> {
         Case {
             name: "completed after provider continuation",
             entries: vec![
-                response(10, vec![], ResponseEnding::ProviderContinuation),
+                response(10, vec![], ResponseEnding::provider_continuation()),
                 completed(),
             ],
             code: ErrorCode::ContinuationPending,
@@ -145,7 +146,7 @@ fn raw_turn(entries: &[TurnEntry]) -> Value {
         "id": tid(50).to_string(),
         "agent": aid(1).to_string(),
         "author": "Codex",
-        "entries": entries.iter().map(|e| e.to_value().unwrap()).collect::<Vec<_>>(),
+        "entries": entries.iter().map(|e| e.to_value().unwrap().raw()).collect::<Vec<_>>(),
     })
 }
 
@@ -158,10 +159,10 @@ fn given_json_breaking_a_build_rule_when_loaded_then_the_same_code_and_a_precise
     for case in cases() {
         let direct = refused(built(&case.entries));
         let input = serde_json::to_value(input_turn(1, 2)).unwrap();
-        let loaded = refused(Conversation::from_value(document(vec![
+        let loaded = refused(Conversation::from_value(common::oj(document(vec![
             input,
             raw_turn(&case.entries),
-        ])));
+        ]))));
 
         assert_eq!(direct.code(), case.code, "{}", case.name);
         assert_eq!(loaded.code(), case.code, "{}", case.name);
@@ -197,9 +198,9 @@ fn given_a_clash_between_turns_when_loaded_then_reused_identity_locates_the_entr
                 .into(),
         ],
     ));
-    let loaded = refused(Conversation::from_value(document(vec![
+    let loaded = refused(Conversation::from_value(common::oj(document(vec![
         first, second, third,
-    ])));
+    ]))));
 
     assert_eq!(direct.code(), ErrorCode::ReusedIdentity);
     assert_eq!(loaded.code(), ErrorCode::ReusedIdentity);
@@ -213,7 +214,9 @@ fn given_a_turn_id_reused_by_a_later_turn_when_loaded_then_reused_identity() {
     let mut second = raw_turn(&[human(10)]);
     second["id"] = first["id"].clone();
 
-    let loaded = refused(Conversation::from_value(document(vec![first, second])));
+    let loaded = refused(Conversation::from_value(common::oj(document(vec![
+        first, second,
+    ]))));
 
     assert_eq!(loaded.code(), ErrorCode::ReusedIdentity);
     assert_eq!(loaded.location(), Some("turns[1]"));
@@ -221,12 +224,12 @@ fn given_a_turn_id_reused_by_a_later_turn_when_loaded_then_reused_identity() {
 
 #[test]
 fn given_a_shape_error_in_an_entry_when_loaded_then_the_location_still_names_it() {
-    let mut bad = human(10).to_value().unwrap();
+    let mut bad = human(10).to_value().unwrap().raw();
     bad["content"] = json!([]);
     let mut turn = raw_turn(&[finished(5)]);
-    turn["entries"] = json!([finished(5).to_value().unwrap(), bad]);
+    turn["entries"] = json!([finished(5).to_value().unwrap().raw(), bad]);
 
-    let error = refused(Conversation::from_value(document(vec![turn])));
+    let error = refused(Conversation::from_value(common::oj(document(vec![turn]))));
 
     assert_eq!(error.code(), ErrorCode::MissingContent);
     assert!(error.location().unwrap().starts_with("turns[0].entries[1]"));
@@ -243,7 +246,7 @@ fn given_valid_entries_replayed_through_json_when_loaded_then_the_turn_equals_th
     ];
     let direct = built(&entries).unwrap();
 
-    let loaded = Conversation::from_value(document(vec![raw_turn(&entries)])).unwrap();
+    let loaded = Conversation::from_value(common::oj(document(vec![raw_turn(&entries)]))).unwrap();
 
     assert_eq!(loaded.turns()[0].as_ai().unwrap(), &direct);
 }

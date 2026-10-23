@@ -111,7 +111,7 @@ fn given_provisional_fields_and_metadata_when_previewed_then_they_are_exposed() 
     assert_eq!(record.status(), Some(ExecutionStatus::Running));
     assert_eq!(view.metadata().model().unwrap().as_str(), "model-x");
     assert_eq!(view.metadata().usage().unwrap().input_tokens(), Some(5));
-    assert_eq!(view.phase(), &DraftPhase::Producing);
+    assert!(matches!(view.phase(), DraftPhase::Producing { .. }));
     assert_eq!((view.turn(), view.entry()), (tid(1), eid(2)));
 }
 
@@ -192,14 +192,14 @@ fn given_an_interrupted_draft_when_previewed_then_the_phase_carries_the_reason()
     let mut draft = busy_draft();
     ok(
         &mut draft,
-        DeltaOp::response_interrupted(InterruptionReason::Truncated),
+        DeltaOp::response_interrupted(InterruptionReason::truncated()),
     );
 
     let view = draft.view();
 
     assert_eq!(
         view.phase(),
-        &DraftPhase::Interrupted(InterruptionReason::Truncated)
+        &DraftPhase::Interrupted(InterruptionReason::truncated())
     );
     assert_eq!(view.slot(bid(12)).unwrap().raw_json(), Some("{\"q\":"));
 }

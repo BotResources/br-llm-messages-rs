@@ -74,7 +74,7 @@ fn build_entry(row: &EntryRecord, tree: &BlockTree<'_>) -> Result<TurnEntry, Err
         blocks.push(tree.value_of(block)?);
     }
     let value = entry_value(row, blocks)?;
-    TurnEntry::from_value(value)
+    crate::json::decode_value(value)
 }
 
 fn build_turn(

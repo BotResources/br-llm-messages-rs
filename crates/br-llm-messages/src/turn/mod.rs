@@ -18,13 +18,14 @@ pub(crate) use declared::{
 };
 
 use serde::{Deserialize, Deserializer, Serialize};
-use serde_json::Value;
+
+use crate::opaque_json::OpaqueJson;
 
 use crate::error::Error;
 use crate::id::TurnId;
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum Turn {
     InputTurn(InputTurn),
@@ -65,14 +66,15 @@ impl Turn {
     }
 
     pub fn from_json(text: &str) -> Result<Self, Error> {
-        json::turn_from_value(crate::json::decode(text)?)
+        json::turn_from_value(crate::json::parse(text)?)
     }
 
-    pub fn to_value(&self) -> Result<Value, Error> {
-        crate::json::encode_value(self)
+    pub fn to_value(&self) -> Result<OpaqueJson, Error> {
+        crate::json::encode_value(self).map(OpaqueJson::from_inner)
     }
 
-    pub fn from_value(value: Value) -> Result<Self, Error> {
+    pub fn from_value(value: OpaqueJson) -> Result<Self, Error> {
+        let value = value.into_inner();
         json::turn_from_value(value)
     }
 }

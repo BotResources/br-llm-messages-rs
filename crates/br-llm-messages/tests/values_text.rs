@@ -134,14 +134,16 @@ fn given_provider_operation_names_when_built_then_any_non_empty_value_is_kept_as
 
 #[test]
 fn given_a_failure_detail_when_built_then_code_is_required_and_message_kept() {
-    let detail = FailureDetail::new("rate_limited", Some("  later ".to_owned())).unwrap();
+    let detail = FailureDetail::new("rate_limited")
+        .unwrap()
+        .with_message("  later ");
 
     assert_eq!(detail.code(), "rate_limited");
     assert_eq!(detail.message(), Some("  later "));
-    assert_eq!(FailureDetail::new("x", None).unwrap().message(), None);
-    assert!(FailureDetail::new("", None).is_err());
+    assert_eq!(FailureDetail::new("x").unwrap().message(), None);
+    assert!(FailureDetail::new("").is_err());
     let long = "x".repeat(4096);
-    assert_eq!(FailureDetail::new(long.clone(), None).unwrap().code(), long);
+    assert_eq!(FailureDetail::new(long.clone()).unwrap().code(), long);
     assert_eq!(
         code_of::<FailureDetail>("{\"code\":\"\"}"),
         ErrorCode::InvalidContent
@@ -152,7 +154,7 @@ fn given_a_failure_detail_when_built_then_code_is_required_and_message_kept() {
     );
     assert_eq!(code_of::<FailureDetail>("{}"), ErrorCode::MissingContent);
     assert_eq!(
-        serde_json::to_string(&FailureDetail::new("x", None).unwrap()).unwrap(),
+        serde_json::to_string(&FailureDetail::new("x").unwrap()).unwrap(),
         "{\"code\":\"x\"}"
     );
 }

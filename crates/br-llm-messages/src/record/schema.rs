@@ -57,8 +57,8 @@ fn typed<T: DeserializeOwned + Serialize>(value: &Value) -> Result<(), Error> {
     }
 }
 
-fn any(_: &Value) -> Result<(), Error> {
-    Ok(())
+fn opaque_value(value: &Value) -> Result<(), Error> {
+    crate::value::opaque::check_value(value)
 }
 
 fn queue_position(value: &Value) -> Result<(), Error> {
@@ -160,7 +160,7 @@ pub(super) fn block_fields(kind: ContentBlockKind) -> Vec<Field> {
             optional("replay", typed::<ReplayMaterial>),
         ],
         ContentBlockKind::Image => vec![required("source", typed::<ImageSource>)],
-        ContentBlockKind::StructuredContent => vec![required("value", any)],
+        ContentBlockKind::StructuredContent => vec![required("value", opaque_value)],
         ContentBlockKind::Thinking => vec![
             required("text", typed::<String>),
             optional("replay", typed::<ReplayMaterial>),
@@ -169,7 +169,7 @@ pub(super) fn block_fields(kind: ContentBlockKind) -> Vec<Field> {
         ContentBlockKind::RuntimeToolCall => vec![
             optional("external_id", typed::<ExternalId>),
             required("name", typed::<ToolName>),
-            required("arguments", any),
+            required("arguments", opaque_value),
             optional("replay", typed::<ReplayMaterial>),
         ],
         ContentBlockKind::RuntimeToolResult => vec![
@@ -179,7 +179,7 @@ pub(super) fn block_fields(kind: ContentBlockKind) -> Vec<Field> {
         ContentBlockKind::ProviderToolCall => vec![
             optional("external_id", typed::<ExternalId>),
             optional("operation", typed::<ProviderOperation>),
-            nullable("arguments", any),
+            nullable("arguments", opaque_value),
             optional("replay", typed::<ReplayMaterial>),
         ],
         ContentBlockKind::ProviderToolResult => vec![

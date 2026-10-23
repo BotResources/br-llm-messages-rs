@@ -7,6 +7,7 @@ mod ops;
 mod snapshot;
 
 pub use delta::{DeltaOp, ResponseDelta};
+pub use delta_json::DELTA_SCHEMA;
 pub use draft::{DeltaOutcome, DraftPhase, DraftView, ResponseDraft, SlotLifecycle, SlotView};
 pub use kind::{DeltaTarget, ResponseDeltaKind};
 pub use metadata::ResponseMetadataUpdate;

@@ -8,7 +8,7 @@ use serde_json::json;
 fn given_no_observation_when_usage_serialized_then_every_count_stays_absent() {
     let usage = Usage::new();
 
-    assert_eq!(serde_json::to_value(usage).unwrap(), json!({}));
+    assert_eq!(serde_json::to_value(&usage).unwrap(), json!({}));
     assert_eq!(usage.input_tokens(), None);
     assert_eq!(usage.thinking_tokens(), None);
     assert_eq!(serde_json::from_str::<Usage>("{}").unwrap(), usage);
@@ -18,7 +18,7 @@ fn given_no_observation_when_usage_serialized_then_every_count_stays_absent() {
 fn given_a_zero_count_when_usage_round_trips_then_zero_stays_distinct_from_absent() {
     let usage = Usage::new().with_input_tokens(0);
 
-    let value = serde_json::to_value(usage).unwrap();
+    let value = serde_json::to_value(&usage).unwrap();
 
     assert_eq!(value, json!({"input_tokens": 0}));
     let back: Usage = serde_json::from_value(value).unwrap();
@@ -74,25 +74,25 @@ fn given_unknown_or_malformed_usage_fields_when_loaded_then_refused() {
 #[test]
 fn given_every_ending_when_round_tripped_then_golden_json_is_stable() {
     let cases = [
-        (ResponseEnding::Finished, json!({"type":"finished"})),
+        (ResponseEnding::finished(), json!({"type":"finished"})),
         (
-            ResponseEnding::ToolResultsRequested,
+            ResponseEnding::tool_results_requested(),
             json!({"type":"tool_results_requested"}),
         ),
         (
-            ResponseEnding::ProviderContinuation,
+            ResponseEnding::provider_continuation(),
             json!({"type":"provider_continuation"}),
         ),
         (
-            ResponseEnding::OutputExhausted,
+            ResponseEnding::output_exhausted(),
             json!({"type":"output_exhausted"}),
         ),
         (
-            ResponseEnding::StopSequence,
+            ResponseEnding::stop_sequence(),
             json!({"type":"stop_sequence"}),
         ),
-        (ResponseEnding::Refusal, json!({"type":"refusal"})),
-        (ResponseEnding::Filtered, json!({"type":"filtered"})),
+        (ResponseEnding::refusal(), json!({"type":"refusal"})),
+        (ResponseEnding::filtered(), json!({"type":"filtered"})),
         (
             ResponseEnding::unclassified("pause_turn").unwrap(),
             json!({"type":"unclassified","reason":"pause_turn"}),
@@ -162,7 +162,7 @@ fn given_execution_and_result_statuses_when_round_tripped_then_snake_case() {
         (ExecutionStatus::Failed, "failed"),
         (ExecutionStatus::Incomplete, "incomplete"),
     ] {
-        assert_eq!(serde_json::to_value(status).unwrap(), json!(text));
+        assert_eq!(serde_json::to_value(&status).unwrap(), json!(text));
         assert_eq!(
             serde_json::from_value::<ExecutionStatus>(json!(text)).unwrap(),
             status

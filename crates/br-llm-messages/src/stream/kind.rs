@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::{Error, ErrorCode};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ResponseDeltaKind {
     ResponseStarted,
@@ -26,7 +26,7 @@ pub enum ResponseDeltaKind {
 }
 
 impl ResponseDeltaKind {
-    pub const ALL: [ResponseDeltaKind; 14] = [
+    pub const ALL: &'static [ResponseDeltaKind] = &[
         ResponseDeltaKind::ResponseStarted,
         ResponseDeltaKind::BlockStarted,
         ResponseDeltaKind::TextAppended,
@@ -78,7 +78,8 @@ impl FromStr for ResponseDeltaKind {
 
     fn from_str(value: &str) -> Result<Self, Error> {
         ResponseDeltaKind::ALL
-            .into_iter()
+            .iter()
+            .copied()
             .find(|kind| kind.as_str() == value)
             .ok_or_else(|| Error::new(ErrorCode::UnsupportedVariant))
     }

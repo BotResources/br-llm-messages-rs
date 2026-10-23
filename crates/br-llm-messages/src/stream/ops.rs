@@ -6,12 +6,15 @@ use crate::value::{
 };
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(from = "BlockStartWire", tag = "type", rename_all = "snake_case")]
 pub enum BlockStart {
-    Text,
-    Thinking,
-    StructuredContent,
+    #[non_exhaustive]
+    Text {},
+    #[non_exhaustive]
+    Thinking {},
+    #[non_exhaustive]
+    StructuredContent {},
     #[non_exhaustive]
     RuntimeToolCall {
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -61,9 +64,9 @@ enum BlockStartWire {
 impl From<BlockStartWire> for BlockStart {
     fn from(wire: BlockStartWire) -> Self {
         match wire {
-            BlockStartWire::Text {} => BlockStart::Text,
-            BlockStartWire::Thinking {} => BlockStart::Thinking,
-            BlockStartWire::StructuredContent {} => BlockStart::StructuredContent,
+            BlockStartWire::Text {} => BlockStart::Text {},
+            BlockStartWire::Thinking {} => BlockStart::Thinking {},
+            BlockStartWire::StructuredContent {} => BlockStart::StructuredContent {},
             BlockStartWire::RuntimeToolCall { name, external_id } => {
                 BlockStart::RuntimeToolCall { name, external_id }
             }
@@ -89,15 +92,15 @@ impl From<BlockStartWire> for BlockStart {
 
 impl BlockStart {
     pub fn text() -> Self {
-        BlockStart::Text
+        BlockStart::Text {}
     }
 
     pub fn thinking() -> Self {
-        BlockStart::Thinking
+        BlockStart::Thinking {}
     }
 
     pub fn structured_content() -> Self {
-        BlockStart::StructuredContent
+        BlockStart::StructuredContent {}
     }
 
     pub fn runtime_tool_call(name: Option<ToolName>, external_id: Option<ExternalId>) -> Self {
@@ -128,9 +131,9 @@ impl BlockStart {
 
     pub fn kind(&self) -> ContentBlockKind {
         match self {
-            BlockStart::Text => ContentBlockKind::Text,
-            BlockStart::Thinking => ContentBlockKind::Thinking,
-            BlockStart::StructuredContent => ContentBlockKind::StructuredContent,
+            BlockStart::Text { .. } => ContentBlockKind::Text,
+            BlockStart::Thinking { .. } => ContentBlockKind::Thinking,
+            BlockStart::StructuredContent { .. } => ContentBlockKind::StructuredContent,
             BlockStart::RuntimeToolCall { .. } => ContentBlockKind::RuntimeToolCall,
             BlockStart::ProviderToolCall { .. } => ContentBlockKind::ProviderToolCall,
             BlockStart::ProviderToolExecutionRecord { .. } => {
@@ -141,7 +144,7 @@ impl BlockStart {
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum BlockMetadataUpdate {
     #[non_exhaustive]
@@ -192,14 +195,13 @@ impl BlockMetadataUpdate {
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(from = "FinalizationWire", tag = "type", rename_all = "snake_case")]
 pub enum Finalization {
-    Accumulated,
     #[non_exhaustive]
-    Authoritative {
-        block: Box<ContentBlock>,
-    },
+    Accumulated {},
+    #[non_exhaustive]
+    Authoritative { block: Box<ContentBlock> },
 }
 
 #[derive(Deserialize)]
@@ -212,7 +214,7 @@ enum FinalizationWire {
 impl From<FinalizationWire> for Finalization {
     fn from(wire: FinalizationWire) -> Self {
         match wire {
-            FinalizationWire::Accumulated {} => Finalization::Accumulated,
+            FinalizationWire::Accumulated {} => Finalization::Accumulated {},
             FinalizationWire::Authoritative { block } => Finalization::Authoritative { block },
         }
     }
@@ -220,7 +222,7 @@ impl From<FinalizationWire> for Finalization {
 
 impl Finalization {
     pub fn accumulated() -> Self {
-        Finalization::Accumulated
+        Finalization::Accumulated {}
     }
 
     pub fn authoritative(block: ContentBlock) -> Self {
@@ -231,20 +233,21 @@ impl Finalization {
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(
     from = "InterruptionReasonWire",
     tag = "type",
     rename_all = "snake_case"
 )]
 pub enum InterruptionReason {
-    Cancelled,
-    Truncated,
-    Interrupted,
     #[non_exhaustive]
-    Failed {
-        failure: FailureDetail,
-    },
+    Cancelled {},
+    #[non_exhaustive]
+    Truncated {},
+    #[non_exhaustive]
+    Interrupted {},
+    #[non_exhaustive]
+    Failed { failure: FailureDetail },
 }
 
 #[derive(Deserialize)]
@@ -259,15 +262,27 @@ enum InterruptionReasonWire {
 impl From<InterruptionReasonWire> for InterruptionReason {
     fn from(wire: InterruptionReasonWire) -> Self {
         match wire {
-            InterruptionReasonWire::Cancelled {} => InterruptionReason::Cancelled,
-            InterruptionReasonWire::Truncated {} => InterruptionReason::Truncated,
-            InterruptionReasonWire::Interrupted {} => InterruptionReason::Interrupted,
+            InterruptionReasonWire::Cancelled {} => InterruptionReason::cancelled(),
+            InterruptionReasonWire::Truncated {} => InterruptionReason::truncated(),
+            InterruptionReasonWire::Interrupted {} => InterruptionReason::interrupted(),
             InterruptionReasonWire::Failed { failure } => InterruptionReason::Failed { failure },
         }
     }
 }
 
 impl InterruptionReason {
+    pub fn cancelled() -> Self {
+        InterruptionReason::Cancelled {}
+    }
+
+    pub fn truncated() -> Self {
+        InterruptionReason::Truncated {}
+    }
+
+    pub fn interrupted() -> Self {
+        InterruptionReason::Interrupted {}
+    }
+
     pub fn failed(failure: FailureDetail) -> Self {
         InterruptionReason::Failed { failure }
     }

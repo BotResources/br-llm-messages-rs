@@ -26,7 +26,7 @@ fn given_a_started_draft_when_beginning_then_identities_and_metadata_come_from_t
     assert_eq!(draft.turn(), tid(1));
     assert_eq!(draft.entry(), eid(2));
     assert_eq!(draft.metadata(), &metadata());
-    assert_eq!(draft.phase(), &DraftPhase::Producing);
+    assert!(matches!(draft.phase(), DraftPhase::Producing { .. }));
     assert!(draft.response().is_none());
 }
 
@@ -121,7 +121,7 @@ fn given_blocks_declared_out_of_order_when_completed_then_caller_ids_and_positio
         .map(ContentBlock::id)
         .collect();
     assert_eq!(ids, vec![bid(10), bid(20), bid(30)]);
-    assert_eq!(draft.phase(), &DraftPhase::Completed);
+    assert!(matches!(draft.phase(), DraftPhase::Completed { .. }));
 }
 
 #[test]

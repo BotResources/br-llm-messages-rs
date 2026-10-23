@@ -17,14 +17,17 @@ pub(crate) fn order<T>(
     contiguous: bool,
 ) -> Result<Vec<T>, Error> {
     rows.sort_by_key(|row| position(row));
+    let mut previous = None;
     for (index, row) in rows.iter().enumerate() {
         let invalid = || Error::new(ErrorCode::InvalidPosition).with_id(id(row));
-        if index > 0 && position(&rows[index - 1]) == position(row) {
+        let at = position(row);
+        if previous == Some(at) {
             return Err(invalid());
         }
-        if contiguous && usize::try_from(position(row)) != Ok(index) {
+        if contiguous && usize::try_from(at) != Ok(index) {
             return Err(invalid());
         }
+        previous = Some(at);
     }
     Ok(rows)
 }
@@ -109,13 +112,18 @@ fn check_references(
     Ok(())
 }
 
-fn check_containment(
+pub(super) fn check_containment(
     blocks: &[BlockRecord],
     rows: &HashMap<BlockId, &BlockRecord>,
 ) -> Result<(), Error> {
     for row in blocks {
         let Some(parent) = row.parent() else { continue };
-        let parent = rows[&parent];
+        let unknown = || {
+            Error::new(ErrorCode::UnknownReference)
+                .with_id(row.id().as_uuid())
+                .at("parent")
+        };
+        let parent = rows.get(&parent).ok_or_else(unknown)?;
         if !is_container(parent.kind()) {
             return Err(Error::new(ErrorCode::DisallowedBlockKind)
                 .with_id(row.id().as_uuid())
@@ -129,3 +137,7 @@ fn check_containment(
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "tree_tests.rs"]
+mod tests;

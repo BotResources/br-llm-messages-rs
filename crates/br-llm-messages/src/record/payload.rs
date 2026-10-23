@@ -8,6 +8,7 @@ use crate::entry::{TurnEntry, TurnEntryKind};
 use crate::error::{Error, ErrorCode};
 use crate::id::BlockId;
 use crate::json::encode_value;
+use crate::opaque_json::OpaqueJson;
 use crate::value::Author;
 
 fn into_object(value: Value) -> Result<Map<String, Value>, Error> {
@@ -25,8 +26,8 @@ pub(crate) fn call_of(block: &ContentBlock) -> Option<BlockId> {
     }
 }
 
-pub(crate) fn block_payload(block: &ContentBlock) -> Result<Value, Error> {
-    let mut object = into_object(block.to_value()?)?;
+pub(crate) fn block_payload(block: &ContentBlock) -> Result<OpaqueJson, Error> {
+    let mut object = into_object(encode_value(block)?)?;
     for key in ["type", "id", "call"] {
         object.remove(key);
     }
@@ -41,13 +42,14 @@ pub(crate) fn block_payload(block: &ContentBlock) -> Result<Value, Error> {
         }
         _ => {}
     }
-    Ok(Value::Object(object))
+    Ok(OpaqueJson::from_inner(Value::Object(object)))
 }
 
 pub(crate) fn block_value(row: &BlockRecord, children: Vec<Value>) -> Result<Value, Error> {
     let located = |error: Error| error.with_id(row.id().as_uuid());
     let mut object = row
         .payload()
+        .inner()
         .as_object()
         .cloned()
         .ok_or_else(|| located(Error::new(ErrorCode::InvalidRecord).at("payload")))?;
@@ -99,13 +101,13 @@ fn attach_exposure_content(
 }
 
 pub(crate) struct EntryParts {
-    pub(crate) payload: Value,
+    pub(crate) payload: OpaqueJson,
     pub(crate) sender: Option<ActorRef>,
     pub(crate) author: Option<Author>,
 }
 
 pub(crate) fn split_entry(entry: &TurnEntry) -> Result<EntryParts, Error> {
-    let mut object = into_object(entry.to_value()?)?;
+    let mut object = into_object(encode_value(entry)?)?;
     for key in [
         "type",
         "id",
@@ -131,7 +133,7 @@ pub(crate) fn split_entry(entry: &TurnEntry) -> Result<EntryParts, Error> {
         _ => (None, None),
     };
     Ok(EntryParts {
-        payload: Value::Object(object),
+        payload: OpaqueJson::from_inner(Value::Object(object)),
         sender,
         author,
     })
@@ -161,6 +163,7 @@ pub(crate) fn entry_value(row: &EntryRecord, blocks: Vec<Value>) -> Result<Value
     let located = |error: Error| error.with_id(row.id().as_uuid());
     let mut object = row
         .payload()
+        .inner()
         .as_object()
         .cloned()
         .ok_or_else(|| located(Error::new(ErrorCode::InvalidRecord).at("payload")))?;

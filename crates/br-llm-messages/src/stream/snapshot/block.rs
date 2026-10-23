@@ -64,7 +64,7 @@ pub(super) fn open_row(
         } => encode_partial(&RecordPartial {
             operation: operation.clone(),
             external_id: external_id.clone(),
-            status: *status,
+            status: status.clone(),
         }),
     }?;
     Ok(BlockRecord::new(

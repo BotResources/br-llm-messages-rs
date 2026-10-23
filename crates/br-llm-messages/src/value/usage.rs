@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Usage {
     #[serde(default, skip_serializing_if = "Option::is_none")]
