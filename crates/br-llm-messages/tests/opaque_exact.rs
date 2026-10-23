@@ -198,3 +198,16 @@ fn given_raw_json_accumulated_by_a_draft_when_finalized_then_the_opaque_text_is_
         assert!(block.to_json().unwrap().contains(NASTY));
     }
 }
+
+#[test]
+fn given_a_negative_zero_integer_when_stored_then_the_sign_is_not_kept() {
+    let written = |text: &str| {
+        let value = serde_json::from_str(text).unwrap();
+        ContentBlock::from(StructuredBlock::new(bid(1), value).unwrap())
+            .to_json()
+            .unwrap()
+    };
+
+    assert!(written("-0").ends_with("\"value\":0}"), "{}", written("-0"));
+    assert!(written("-0.0").ends_with("\"value\":-0.0}"));
+}

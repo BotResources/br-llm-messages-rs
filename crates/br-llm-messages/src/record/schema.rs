@@ -1,3 +1,4 @@
+use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value};
 
@@ -33,22 +34,27 @@ const fn optional(key: &'static str, check: Check) -> Field {
     Field {
         key,
         required: false,
-        nullable: true,
-        check,
-    }
-}
-
-const fn non_null(key: &'static str, check: Check) -> Field {
-    Field {
-        key,
-        required: false,
         nullable: false,
         check,
     }
 }
 
-fn typed<T: DeserializeOwned>(value: &Value) -> Result<(), Error> {
-    crate::json::decode_ref::<T>(value).map(|_| ())
+const fn nullable(key: &'static str, check: Check) -> Field {
+    Field {
+        key,
+        required: false,
+        nullable: true,
+        check,
+    }
+}
+
+fn typed<T: DeserializeOwned + Serialize>(value: &Value) -> Result<(), Error> {
+    let decoded = crate::json::decode_ref::<T>(value)?;
+    if crate::json::encode_value(&decoded)? == *value {
+        Ok(())
+    } else {
+        Err(Error::new(ErrorCode::InvalidContent))
+    }
 }
 
 fn any(_: &Value) -> Result<(), Error> {
@@ -150,7 +156,7 @@ pub(super) fn block_fields(kind: ContentBlockKind) -> Vec<Field> {
     match kind {
         ContentBlockKind::Text => vec![
             required("text", typed::<PlainText>),
-            non_null("citations", typed::<Vec<Citation>>),
+            optional("citations", typed::<Vec<Citation>>),
             optional("replay", typed::<ReplayMaterial>),
         ],
         ContentBlockKind::Image => vec![required("source", typed::<ImageSource>)],
@@ -173,7 +179,7 @@ pub(super) fn block_fields(kind: ContentBlockKind) -> Vec<Field> {
         ContentBlockKind::ProviderToolCall => vec![
             optional("external_id", typed::<ExternalId>),
             optional("operation", typed::<ProviderOperation>),
-            optional("arguments", any),
+            nullable("arguments", any),
             optional("replay", typed::<ReplayMaterial>),
         ],
         ContentBlockKind::ProviderToolResult => vec![

@@ -27,6 +27,11 @@ impl Error {
         self
     }
 
+    pub(crate) fn recoded(mut self, code: ErrorCode) -> Self {
+        self.code = code;
+        self
+    }
+
     pub(crate) fn at(mut self, segment: impl AsRef<str>) -> Self {
         let segment = segment.as_ref();
         self.location = Some(match self.location.take() {

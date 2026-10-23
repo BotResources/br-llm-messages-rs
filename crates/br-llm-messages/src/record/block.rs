@@ -34,6 +34,7 @@ struct BlockRecordWire {
     position: u32,
     state: RepresentationState,
     call: Option<BlockId>,
+    #[serde(deserialize_with = "crate::json::unique_value")]
     payload: Value,
 }
 

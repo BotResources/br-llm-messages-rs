@@ -33,7 +33,9 @@ fn accumulated(open: &OpenBlock) -> Result<ContentBlock, Error> {
             if is_blank(text) {
                 return Err(inconsistent("text"));
             }
-            Ok(TextBlock::new(id, text.clone(), citations.clone(), replay.clone())?.into())
+            let block = TextBlock::new(id, text.clone(), citations.clone(), replay.clone())
+                .map_err(|error| error.recoded(ErrorCode::InconsistentFinalization))?;
+            Ok(block.into())
         }
         OpenBody::Thinking { text, replay } => {
             Ok(ThinkingBlock::new(id, text.clone(), replay.clone()).into())

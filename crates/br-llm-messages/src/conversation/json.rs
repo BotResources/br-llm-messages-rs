@@ -31,7 +31,7 @@ impl Serialize for Conversation {
 
 impl<'de> Deserialize<'de> for Conversation {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value = Value::deserialize(deserializer)?;
+        let value = crate::json::unique_value(deserializer)?;
         Conversation::from_value(value).map_err(serde::de::Error::custom)
     }
 }

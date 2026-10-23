@@ -130,7 +130,7 @@ fn refuse_non_incoming(value: &Value) -> Result<(), Error> {
 
 impl<'de> Deserialize<'de> for IncomingEntry {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value = Value::deserialize(deserializer)?;
+        let value = crate::json::unique_value(deserializer)?;
         refuse_non_incoming(&value).map_err(serde::de::Error::custom)?;
         let entry = TurnEntry::deserialize(value)
             .map_err(|error| serde::de::Error::custom(Error::from_json_error(&error)))?;

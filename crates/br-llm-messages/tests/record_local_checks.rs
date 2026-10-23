@@ -44,10 +44,15 @@ fn given_a_null_for_a_non_optional_list_when_checked_locally_then_it_is_refused(
 }
 
 #[test]
-fn given_a_null_for_an_optional_scalar_when_checked_locally_then_it_reads_as_absent() {
-    let row = text_row(json!({"text": "hi", "replay": null}));
+fn given_a_null_for_an_optional_scalar_when_checked_locally_then_it_is_refused() {
+    let null = text_row(json!({"text": "hi", "replay": null}));
+    let absent = text_row(json!({"text": "hi"}));
 
-    assert!(row.check_local().is_ok());
+    assert_eq!(
+        null.check_local().unwrap_err().code(),
+        ErrorCode::InvalidContent
+    );
+    assert!(absent.check_local().is_ok());
 }
 
 #[test]

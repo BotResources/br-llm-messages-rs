@@ -94,7 +94,7 @@ macro_rules! deserialize_via_value {
         $(
             impl<'de> Deserialize<'de> for $turn {
                 fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-                    let value = Value::deserialize(deserializer)?;
+                    let value = crate::json::unique_value(deserializer)?;
                     $loader(value).map_err(serde::de::Error::custom)
                 }
             }

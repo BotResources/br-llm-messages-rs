@@ -157,7 +157,7 @@ fn refuse_non_plain(value: &Value) -> Result<(), Error> {
 
 impl<'de> Deserialize<'de> for PlainBlock {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value = Value::deserialize(deserializer)?;
+        let value = crate::json::unique_value(deserializer)?;
         refuse_non_plain(&value).map_err(serde::de::Error::custom)?;
         let wire = PlainBlockWire::deserialize(value)
             .map_err(|error| serde::de::Error::custom(Error::from_json_error(&error)))?;

@@ -35,7 +35,7 @@ impl Serialize for ResponseDelta {
 
 impl<'de> Deserialize<'de> for ResponseDelta {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value = Value::deserialize(deserializer)?;
+        let value = crate::json::unique_value(deserializer)?;
         ResponseDelta::from_value(value).map_err(serde::de::Error::custom)
     }
 }

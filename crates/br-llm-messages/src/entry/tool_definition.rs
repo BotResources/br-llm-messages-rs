@@ -28,6 +28,7 @@ enum ToolDefinitionWire {
     Inline {
         name: ToolName,
         description: String,
+        #[serde(deserialize_with = "crate::json::unique_value")]
         input_schema: Value,
     },
     Versioned {

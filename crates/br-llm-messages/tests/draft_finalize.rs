@@ -76,7 +76,7 @@ fn given_citations_added_while_streaming_when_finalized_then_they_are_validated_
 
     let error = refuse(&mut draft, finalize(10));
 
-    assert_eq!(error.code(), ErrorCode::InvalidContent);
+    assert_eq!(error.code(), ErrorCode::InconsistentFinalization);
     assert_eq!(error.object_id(), Some(cid(50).as_uuid()));
     assert_eq!(error.location(), Some("citations[0].range"));
 }

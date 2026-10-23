@@ -1,5 +1,5 @@
+use serde::Deserializer;
 use serde::de::Error as _;
-use serde::{Deserialize, Deserializer};
 use serde_json::Value;
 
 use crate::error::{Error, ErrorCode};
@@ -23,7 +23,7 @@ pub(crate) fn check(value: &Value) -> Result<(), Error> {
 }
 
 pub(crate) fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Value, D::Error> {
-    let value = Value::deserialize(deserializer)?;
+    let value = crate::json::unique_value(deserializer)?;
     check(&value).map_err(D::Error::custom)?;
     Ok(value)
 }

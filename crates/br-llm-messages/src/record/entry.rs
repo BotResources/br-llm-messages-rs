@@ -34,6 +34,7 @@ struct EntryRecordWire {
     state: RepresentationState,
     sender: Option<ActorRef>,
     author: Option<Author>,
+    #[serde(deserialize_with = "crate::json::unique_value")]
     payload: Value,
 }
 
