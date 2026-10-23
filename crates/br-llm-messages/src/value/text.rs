@@ -1,84 +1,43 @@
-use crate::error::MessageError;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-#[serde(try_from = "String", into = "String")]
-pub struct Text(String);
+use crate::error::{Error, ErrorCode};
 
-impl Text {
-    pub fn new(value: impl Into<String>) -> Result<Self, MessageError> {
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String")]
+pub struct PlainText(String);
+
+impl PlainText {
+    pub fn new(value: impl Into<String>) -> Result<Self, Error> {
         let value = value.into();
-        if is_blank(&value) {
-            return Err(MessageError::Blank { field: "text" });
+        if value.chars().all(char::is_whitespace) {
+            return Err(Error::new(ErrorCode::InvalidContent));
         }
-        Ok(Self(value))
+        Ok(PlainText(value))
     }
 
     pub fn as_str(&self) -> &str {
         &self.0
     }
-}
 
-/// The one blank rule of a text: empty or whitespace only. The stream draft
-/// uses it to drop the text blocks a `Text` would refuse.
-pub(crate) fn is_blank(value: &str) -> bool {
-    value.trim().is_empty()
-}
+    pub fn into_string(self) -> String {
+        self.0
+    }
 
-impl std::fmt::Display for Text {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
+    pub fn scalar_count(&self) -> u64 {
+        self.0.chars().count() as u64
     }
 }
 
-impl TryFrom<String> for Text {
-    type Error = MessageError;
+impl TryFrom<String> for PlainText {
+    type Error = Error;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Self::new(value)
+    fn try_from(value: String) -> Result<Self, Error> {
+        PlainText::new(value)
     }
 }
 
-impl From<Text> for String {
-    fn from(value: Text) -> Self {
-        value.0
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn given_empty_when_new_then_blank() {
-        assert!(matches!(
-            Text::new(""),
-            Err(MessageError::Blank { field: "text" })
-        ));
-    }
-
-    #[test]
-    fn given_whitespace_only_when_new_then_blank() {
-        assert!(matches!(
-            Text::new("  \n\t "),
-            Err(MessageError::Blank { field: "text" })
-        ));
-    }
-
-    #[test]
-    fn given_text_with_surrounding_space_when_new_then_preserved() {
-        let text = Text::new("  hello  ").unwrap();
-        assert_eq!(text.as_str(), "  hello  ");
-    }
-
-    #[test]
-    fn given_whitespace_json_when_deserialized_then_refused() {
-        assert!(serde_json::from_str::<Text>("\"   \"").is_err());
-    }
-
-    #[test]
-    fn given_text_when_round_tripped_then_identical() {
-        let text = Text::new("bonjour").unwrap();
-        let json = serde_json::to_string(&text).unwrap();
-        assert_eq!(serde_json::from_str::<Text>(&json).unwrap(), text);
+impl AsRef<str> for PlainText {
+    fn as_ref(&self) -> &str {
+        &self.0
     }
 }

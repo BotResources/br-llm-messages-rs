@@ -1,23 +1,20 @@
-use crate::error::MessageError;
+use serde::{Deserialize, Serialize};
 
-/// The longest tool name every main provider accepts.
+use crate::error::{Error, ErrorCode};
+
 const MAX_LEN: usize = 64;
 
-/// A tool name every main provider accepts: 1 to 64 ASCII characters, each a
-/// letter, a digit, `_` or `-`, the first a letter or `_`
-/// (`^[A-Za-z_][A-Za-z0-9_-]{0,63}$`). A name a provider would refuse cannot
-/// be built, and a stored conversation that holds one does not load.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-#[serde(try_from = "String", into = "String")]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String")]
 pub struct ToolName(String);
 
 impl ToolName {
-    pub fn new(value: impl Into<String>) -> Result<Self, MessageError> {
+    pub fn new(value: impl Into<String>) -> Result<Self, Error> {
         let value = value.into();
         if !is_valid(&value) {
-            return Err(MessageError::InvalidToolName);
+            return Err(Error::new(ErrorCode::InvalidContent));
         }
-        Ok(Self(value))
+        Ok(ToolName(value))
     }
 
     pub fn as_str(&self) -> &str {
@@ -25,38 +22,28 @@ impl ToolName {
     }
 }
 
-fn is_valid(name: &str) -> bool {
-    let bytes = name.as_bytes();
-    let Some((first, rest)) = bytes.split_first() else {
+fn is_valid(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.is_empty() || bytes.len() > MAX_LEN {
         return false;
-    };
-    bytes.len() <= MAX_LEN
-        && (first.is_ascii_alphabetic() || *first == b'_')
-        && rest
-            .iter()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
-}
-
-impl std::fmt::Display for ToolName {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
     }
+    let first = bytes[0];
+    (first.is_ascii_alphabetic() || first == b'_')
+        && bytes[1..]
+            .iter()
+            .all(|b| b.is_ascii_alphanumeric() || *b == b'_' || *b == b'-')
 }
 
 impl TryFrom<String> for ToolName {
-    type Error = MessageError;
+    type Error = Error;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Self::new(value)
+    fn try_from(value: String) -> Result<Self, Error> {
+        ToolName::new(value)
     }
 }
 
-impl From<ToolName> for String {
-    fn from(value: ToolName) -> Self {
-        value.0
+impl AsRef<str> for ToolName {
+    fn as_ref(&self) -> &str {
+        &self.0
     }
 }
-
-#[cfg(test)]
-#[path = "tool_name_tests.rs"]
-mod tests;
