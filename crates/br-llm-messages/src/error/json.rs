@@ -66,13 +66,17 @@ fn embedded(message: &str) -> Option<Error> {
             Some((raw, remainder)) => (raw, Some(remainder)),
             None => (after, None),
         };
-        error.id = Uuid::try_parse(raw).ok();
+        error.id = Some(Uuid::try_parse(raw).ok()?);
         rest = remainder;
     }
     if let Some(location) = rest.and_then(|text| text.strip_prefix("at ")) {
         error.location = Some(location.to_owned());
+        rest = None;
     }
-    Some(error)
+    if rest.is_some() {
+        return None;
+    }
+    (error.to_string() == message).then_some(error)
 }
 
 fn missing_field(message: &str) -> Option<&str> {

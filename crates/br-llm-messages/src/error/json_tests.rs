@@ -69,3 +69,39 @@ fn given_every_code_with_and_without_id_and_location_when_displayed_then_the_map
         }
     }
 }
+
+#[test]
+fn given_foreign_messages_that_mimic_the_display_format_when_mapped_then_none_is_recovered() {
+    let mimics = [
+        "TurnClosed and then free text",
+        "ReusedIdentity id=not-a-uuid at entries[1]",
+        "ReusedIdentity id=01890A5D-AC96-7AB2-80E2-4536629C90DE at entries[1]",
+        "ReusedIdentity id=01890a5d-ac96-7ab2-80e2-4536629c90de trailing at entries[1]",
+        "ReusedIdentity at entries[1] id=01890a5d-ac96-7ab2-80e2-4536629c90de",
+        "ReusedIdentity  at entries[1]",
+        "TurnClosed ",
+    ];
+    for mimic in mimics {
+        let failure = <serde_json::Error as serde::de::Error>::custom(mimic);
+
+        let mapped = Error::from_json_error(&failure);
+
+        assert_eq!(mapped.code(), ErrorCode::InvalidContent, "{mimic}");
+        assert_eq!(mapped.object_id(), None, "{mimic}");
+        assert_eq!(mapped.location(), None, "{mimic}");
+    }
+}
+
+#[test]
+fn given_canonical_message_embedded_in_foreign_text_when_mapped_then_it_is_not_recovered() {
+    let canonical = Error::new(ErrorCode::ReusedIdentity)
+        .at("entries[1]")
+        .to_string();
+    for text in [format!("payload: {canonical}"), format!(" {canonical}")] {
+        let failure = <serde_json::Error as serde::de::Error>::custom(text);
+
+        let mapped = Error::from_json_error(&failure);
+
+        assert_eq!(mapped.code(), ErrorCode::InvalidContent);
+    }
+}
