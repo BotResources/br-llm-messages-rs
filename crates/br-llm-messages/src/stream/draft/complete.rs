@@ -7,23 +7,14 @@ use crate::value::ResponseEnding;
 
 impl ResponseDraft {
     pub(super) fn complete(&mut self, ending: &ResponseEnding) -> Result<(), Error> {
-        if let Some((position, _)) = self
-            .slots
-            .iter()
-            .find(|(_, slot)| matches!(slot, Slot::Open(_)))
-        {
-            return Err(
-                Error::new(ErrorCode::InconsistentFinalization).at(format!("content[{position}]"))
-            );
-        }
         let mut blocks: Vec<ContentBlock> = Vec::with_capacity(self.slots.len());
-        for (expected, (position, slot)) in self.slots.iter().enumerate() {
-            if u32::try_from(expected) != Ok(*position) {
-                return Err(Error::new(ErrorCode::InvalidRecordStructure)
-                    .at(format!("content[{expected}]")));
-            }
-            if let Slot::Final(block) = slot {
-                blocks.push(block.clone());
+        for (index, slot) in self.slots.iter().enumerate() {
+            match slot {
+                Slot::Open(_) => {
+                    return Err(Error::new(ErrorCode::InconsistentFinalization)
+                        .at(format!("content[{index}]")));
+                }
+                Slot::Final(block) => blocks.push(block.clone()),
             }
         }
         let response =

@@ -13,14 +13,11 @@ use serde_json::json;
 use stream_support::{delta, feed, finish, ok, refuse, text};
 
 fn started(draft_time: u32) -> ResponseDraft {
-    let first = delta(DeltaOp::response_started(
-        ResponseMetadata::new().with_observed_at(at(draft_time)),
-    ));
-    ResponseDraft::begin(&first).unwrap()
+    stream_support::started(ResponseMetadata::new().with_observed_at(at(draft_time)))
 }
 
-fn stamped_start(block: u64, position: u32, start: BlockStart, time: u32) -> DeltaOp {
-    DeltaOp::block_started(bid(block), position, start.with_observed_at(at(time)))
+fn stamped_start(block: u64, start: BlockStart, time: u32) -> DeltaOp {
+    DeltaOp::block_started(bid(block), start.with_observed_at(at(time)))
 }
 
 #[test]
@@ -30,7 +27,7 @@ fn given_a_response_started_with_a_time_when_completed_then_the_response_carries
     feed(
         &mut draft,
         vec![
-            stamped_start(10, 0, BlockStart::text(), 2),
+            stamped_start(10, BlockStart::text(), 2),
             text(10, "hello"),
             stream_support::finalize(10),
             finish(),
@@ -57,16 +54,15 @@ fn given_every_progressively_exposed_block_kind_when_started_with_a_time_then_th
     feed(
         &mut draft,
         vec![
-            stamped_start(10, 0, BlockStart::text(), 10),
-            stamped_start(11, 1, BlockStart::thinking(), 11),
-            stamped_start(12, 2, BlockStart::structured_content(), 12),
+            stamped_start(10, BlockStart::text(), 10),
+            stamped_start(11, BlockStart::thinking(), 11),
+            stamped_start(12, BlockStart::structured_content(), 12),
             stamped_start(
                 13,
-                3,
                 BlockStart::runtime_tool_call(Some(common::tool("lookup")), None),
                 13,
             ),
-            stamped_start(14, 4, BlockStart::provider_tool_call(None, None), 14),
+            stamped_start(14, BlockStart::provider_tool_call(None, None), 14),
             text(10, "a"),
             DeltaOp::thinking_appended(bid(11), "plan"),
             stream_support::json(12, "{\"k\":1}"),
@@ -119,7 +115,7 @@ fn given_a_block_started_without_a_time_when_finalized_then_it_has_none() {
     feed(
         &mut draft,
         vec![
-            stream_support::start_text(10, 0),
+            stream_support::start_text(10),
             text(10, "x"),
             stream_support::finalize(10),
         ],
@@ -134,11 +130,8 @@ fn given_a_complete_block_inserted_when_the_draft_completes_then_it_keeps_its_ow
     feed(
         &mut draft,
         vec![
-            DeltaOp::block_inserted(0, common::png(10).with_observed_at(at(20))),
-            DeltaOp::block_inserted(
-                1,
-                StructuredBlock::new(bid(11), oj(json!({"a": 1}))).unwrap(),
-            ),
+            DeltaOp::block_inserted(common::png(10).with_observed_at(at(20))),
+            DeltaOp::block_inserted(StructuredBlock::new(bid(11), oj(json!({"a": 1}))).unwrap()),
             finish(),
         ],
     );
@@ -155,8 +148,8 @@ fn given_an_authoritative_block_when_finalizing_then_its_time_replaces_the_start
     feed(
         &mut draft,
         vec![
-            stamped_start(10, 0, BlockStart::text(), 5),
-            stamped_start(11, 1, BlockStart::text(), 6),
+            stamped_start(10, BlockStart::text(), 5),
+            stamped_start(11, BlockStart::text(), 6),
             text(10, "x"),
             text(11, "y"),
             DeltaOp::block_finalized(
@@ -199,16 +192,13 @@ fn given_deltas_with_times_when_serialized_then_the_time_sits_in_the_payload_and
     let response = delta(DeltaOp::response_started(
         ResponseMetadata::new().with_observed_at(at(1)),
     ));
-    let block = delta(stamped_start(10, 0, BlockStart::text(), 2));
+    let block = delta(stamped_start(10, BlockStart::text(), 2));
 
     let response_wire = response.to_value().unwrap().raw();
     let block_wire = block.to_value().unwrap().raw();
 
-    assert_eq!(
-        response_wire["op"]["metadata"]["observed_at"],
-        at(1).as_str()
-    );
-    assert_eq!(block_wire["op"]["start"]["observed_at"], at(2).as_str());
+    assert_eq!(response_wire["metadata"]["observed_at"], at(1).as_str());
+    assert_eq!(block_wire["start"]["observed_at"], at(2).as_str());
     assert_eq!(
         ResponseDelta::from_value(oj(response_wire)).unwrap(),
         response
@@ -222,12 +212,11 @@ fn given_a_bad_time_in_a_delta_when_loaded_then_invalid_content() {
         .to_value()
         .unwrap()
         .raw();
-    let block = delta(stamped_start(10, 0, BlockStart::text(), 2))
+    let block = delta(stamped_start(10, BlockStart::text(), 2))
         .to_value()
         .unwrap()
         .raw();
     let inserted = delta(DeltaOp::block_inserted(
-        0,
         common::png(10).with_observed_at(at(3)),
     ))
     .to_value()
@@ -240,11 +229,11 @@ fn given_a_bad_time_in_a_delta_when_loaded_then_invalid_content() {
         "2026-13-23T08:00:00Z",
     ] {
         let mut metadata = response.clone();
-        metadata["op"]["metadata"]["observed_at"] = json!(bad);
+        metadata["metadata"]["observed_at"] = json!(bad);
         let mut start = block.clone();
-        start["op"]["start"]["observed_at"] = json!(bad);
+        start["start"]["observed_at"] = json!(bad);
         let mut insert = inserted.clone();
-        insert["op"]["block"]["observed_at"] = json!(bad);
+        insert["content"]["observed_at"] = json!(bad);
         for document in [metadata, start, insert] {
             let error = ResponseDelta::from_value(oj(document)).unwrap_err();
             assert_eq!(error.code(), ErrorCode::InvalidContent, "{bad}");
@@ -255,7 +244,7 @@ fn given_a_bad_time_in_a_delta_when_loaded_then_invalid_content() {
 #[test]
 fn given_a_refused_delta_when_the_draft_has_times_then_the_draft_is_unchanged() {
     let mut draft = started(1);
-    ok(&mut draft, stamped_start(10, 0, BlockStart::text(), 2));
+    ok(&mut draft, stamped_start(10, BlockStart::text(), 2));
 
     let error = refuse(
         &mut draft,

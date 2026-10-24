@@ -7,20 +7,11 @@ released under the tag `v{version}`. Format follows
 Release headings are plain `## X.Y.Z` — the release pipeline greps that exact
 form to decide whether a version ships.
 
-## 1.0.0 - 2026-10-23
+## 1.0.0 - 2026-10-24
 
-Breaking rewrite of the conversation model: a conversation is an ordered list
-of turns (`InputTurn`, `AITurn`) holding typed entries and content blocks,
-and every internal id is a validated UUIDv7.
-The stored schema is `br-llm-messages/4`, with `br-llm-messages-delta/1`,
-`br-llm-messages-draft/1` and `br-llm-messages-records/1`; documents stored
-under earlier schemas do not load.
-Added streaming drafts, storage-neutral records and perspective projection;
-removed `Step`, `TurnItem`, `UserInput`, `lighten` and `render`.
-Repeated JSON keys are refused on every read path, `from_json` and serde alike.
-Schema ids are public consts, kind lists (`ALL`) are slices, unit endings use constructors.
-`OpaqueJson`: integers exact to `u64`/`i64`, other numbers `f64`, keys sorted, for any `serde_json` features.
-`ClosureReason::Failed` carries `detail`.
+Breaking rewrite of the model: turns of typed entries and content blocks, UUIDv7 ids, streaming drafts, storage records, perspective projection.
+Stored schemas are `br-llm-messages/4`, `br-llm-messages-delta/1`, `br-llm-messages-draft/1` and `br-llm-messages-records/1`; documents of earlier schemas do not load.
+Removed: `Step`, `TurnItem`, `UserInput`, `lighten`, `render`; tool offering is not this library's concern.
 
 ## 0.5.0 - 2026-10-15
 

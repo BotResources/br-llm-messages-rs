@@ -19,7 +19,6 @@ pub enum ResponseDeltaKind {
     BlockMetadataUpdated,
     BlockInserted,
     BlockFinalized,
-    BlockDiscarded,
     ResponseMetadataUpdated,
     ResponseCompleted,
     ResponseInterrupted,
@@ -37,7 +36,6 @@ impl ResponseDeltaKind {
         ResponseDeltaKind::BlockMetadataUpdated,
         ResponseDeltaKind::BlockInserted,
         ResponseDeltaKind::BlockFinalized,
-        ResponseDeltaKind::BlockDiscarded,
         ResponseDeltaKind::ResponseMetadataUpdated,
         ResponseDeltaKind::ResponseCompleted,
         ResponseDeltaKind::ResponseInterrupted,
@@ -55,20 +53,9 @@ impl ResponseDeltaKind {
             ResponseDeltaKind::BlockMetadataUpdated => "block_metadata_updated",
             ResponseDeltaKind::BlockInserted => "block_inserted",
             ResponseDeltaKind::BlockFinalized => "block_finalized",
-            ResponseDeltaKind::BlockDiscarded => "block_discarded",
             ResponseDeltaKind::ResponseMetadataUpdated => "response_metadata_updated",
             ResponseDeltaKind::ResponseCompleted => "response_completed",
             ResponseDeltaKind::ResponseInterrupted => "response_interrupted",
-        }
-    }
-
-    pub fn target(self) -> DeltaTarget {
-        match self {
-            ResponseDeltaKind::ResponseStarted
-            | ResponseDeltaKind::ResponseMetadataUpdated
-            | ResponseDeltaKind::ResponseCompleted
-            | ResponseDeltaKind::ResponseInterrupted => DeltaTarget::Response,
-            _ => DeltaTarget::Block,
         }
     }
 }
@@ -89,12 +76,4 @@ impl fmt::Display for ResponseDeltaKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
     }
-}
-
-#[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum DeltaTarget {
-    Response,
-    Block,
 }

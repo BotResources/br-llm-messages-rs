@@ -1,24 +1,25 @@
 use uuid::Uuid;
 
+use super::raw_json::RawJson;
 use crate::block::{ContentBlock, ContentBlockKind, PlainBlock};
 use crate::id::BlockId;
+use crate::opaque_json::OpaqueJson;
 use crate::stream::block_start::BlockStart;
 use crate::value::{
-    Citation, ExecutionStatus, ExternalId, ObservedAt, ProviderOperation, ReplayMaterial, ToolName,
+    Citation, ExecutionStatus, ExternalId, ItemRef, ObservedAt, ProviderOperation, ReplayMaterial,
+    ToolName,
 };
 
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::stream) enum Slot {
     Open(OpenBlock),
     Final(ContentBlock),
-    Discarded { id: BlockId, kind: ContentBlockKind },
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::stream) struct OpenBlock {
     pub(in crate::stream) id: BlockId,
     pub(in crate::stream) body: OpenBody,
-    pub(in crate::stream) replay_fragments: bool,
     pub(in crate::stream) observed_at: Option<ObservedAt>,
 }
 
@@ -27,31 +28,45 @@ pub(in crate::stream) enum OpenBody {
     Text {
         text: String,
         citations: Vec<Citation>,
+        item_ref: Option<ItemRef>,
         replay: Option<ReplayMaterial>,
     },
     Thinking {
         text: String,
         replay: Option<ReplayMaterial>,
     },
+    RedactedThinking {
+        replay: Option<ReplayMaterial>,
+    },
     Structured {
-        raw: String,
+        raw: RawJson,
     },
     RuntimeCall {
         name: Option<ToolName>,
         external_id: Option<ExternalId>,
-        raw: String,
+        item_ref: Option<ItemRef>,
+        provisional: Option<OpaqueJson>,
+        raw: RawJson,
         replay: Option<ReplayMaterial>,
     },
     ProviderCall {
         operation: Option<ProviderOperation>,
         external_id: Option<ExternalId>,
-        raw: String,
+        item_ref: Option<ItemRef>,
+        provisional: Option<OpaqueJson>,
+        raw: RawJson,
+        replay: Option<ReplayMaterial>,
+    },
+    ProviderResult {
+        call: BlockId,
+        external_id: Option<ExternalId>,
         replay: Option<ReplayMaterial>,
     },
     Record {
         operation: Option<ProviderOperation>,
         external_id: Option<ExternalId>,
         status: Option<ExecutionStatus>,
+        replay: Option<ReplayMaterial>,
     },
 }
 
@@ -60,7 +75,6 @@ impl Slot {
         match self {
             Slot::Open(open) => open.id,
             Slot::Final(block) => block.id(),
-            Slot::Discarded { id, .. } => *id,
         }
     }
 
@@ -68,7 +82,13 @@ impl Slot {
         match self {
             Slot::Open(open) => open.body.kind(),
             Slot::Final(block) => block.kind(),
-            Slot::Discarded { kind, .. } => *kind,
+        }
+    }
+
+    pub(in crate::stream) fn ids(&self) -> Vec<Uuid> {
+        match self {
+            Slot::Open(open) => open.ids(),
+            Slot::Final(block) => block_ids(block),
         }
     }
 }
@@ -78,7 +98,6 @@ impl OpenBlock {
         OpenBlock {
             id,
             body: OpenBody::from_start(start),
-            replay_fragments: false,
             observed_at: start.observed_at().cloned(),
         }
     }
@@ -95,32 +114,53 @@ impl OpenBlock {
 impl OpenBody {
     fn from_start(start: &BlockStart) -> Self {
         match start {
-            BlockStart::Text { .. } => OpenBody::Text {
+            BlockStart::Text { item_ref, .. } => OpenBody::Text {
                 text: String::new(),
                 citations: Vec::new(),
+                item_ref: item_ref.clone(),
                 replay: None,
             },
             BlockStart::Thinking { .. } => OpenBody::Thinking {
                 text: String::new(),
                 replay: None,
             },
-            BlockStart::StructuredContent { .. } => OpenBody::Structured { raw: String::new() },
+            BlockStart::RedactedThinking { .. } => OpenBody::RedactedThinking { replay: None },
+            BlockStart::StructuredContent { .. } => OpenBody::Structured {
+                raw: RawJson::default(),
+            },
             BlockStart::RuntimeToolCall {
-                name, external_id, ..
+                name,
+                external_id,
+                item_ref,
+                arguments,
+                ..
             } => OpenBody::RuntimeCall {
                 name: name.clone(),
                 external_id: external_id.clone(),
-                raw: String::new(),
+                item_ref: item_ref.clone(),
+                provisional: arguments.clone(),
+                raw: RawJson::default(),
                 replay: None,
             },
             BlockStart::ProviderToolCall {
                 operation,
                 external_id,
+                item_ref,
+                arguments,
                 ..
             } => OpenBody::ProviderCall {
                 operation: operation.clone(),
                 external_id: external_id.clone(),
-                raw: String::new(),
+                item_ref: item_ref.clone(),
+                provisional: arguments.clone(),
+                raw: RawJson::default(),
+                replay: None,
+            },
+            BlockStart::ProviderToolResult {
+                call, external_id, ..
+            } => OpenBody::ProviderResult {
+                call: *call,
+                external_id: external_id.clone(),
                 replay: None,
             },
             BlockStart::ProviderToolExecutionRecord {
@@ -132,6 +172,7 @@ impl OpenBody {
                 operation: operation.clone(),
                 external_id: external_id.clone(),
                 status: status.clone(),
+                replay: None,
             },
         }
     }
@@ -140,14 +181,16 @@ impl OpenBody {
         match self {
             OpenBody::Text { .. } => ContentBlockKind::Text,
             OpenBody::Thinking { .. } => ContentBlockKind::Thinking,
+            OpenBody::RedactedThinking { .. } => ContentBlockKind::RedactedThinking,
             OpenBody::Structured { .. } => ContentBlockKind::StructuredContent,
             OpenBody::RuntimeCall { .. } => ContentBlockKind::RuntimeToolCall,
             OpenBody::ProviderCall { .. } => ContentBlockKind::ProviderToolCall,
+            OpenBody::ProviderResult { .. } => ContentBlockKind::ProviderToolResult,
             OpenBody::Record { .. } => ContentBlockKind::ProviderToolExecutionRecord,
         }
     }
 
-    pub(in crate::stream) fn raw_json_mut(&mut self) -> Option<&mut String> {
+    pub(in crate::stream) fn raw_json_mut(&mut self) -> Option<&mut RawJson> {
         match self {
             OpenBody::Structured { raw }
             | OpenBody::RuntimeCall { raw, .. }
@@ -160,9 +203,12 @@ impl OpenBody {
         match self {
             OpenBody::Text { replay, .. }
             | OpenBody::Thinking { replay, .. }
+            | OpenBody::RedactedThinking { replay }
             | OpenBody::RuntimeCall { replay, .. }
-            | OpenBody::ProviderCall { replay, .. } => replay.as_ref(),
-            _ => None,
+            | OpenBody::ProviderCall { replay, .. }
+            | OpenBody::ProviderResult { replay, .. }
+            | OpenBody::Record { replay, .. } => replay.as_ref(),
+            OpenBody::Structured { .. } => None,
         }
     }
 
@@ -170,9 +216,12 @@ impl OpenBody {
         match self {
             OpenBody::Text { replay, .. }
             | OpenBody::Thinking { replay, .. }
+            | OpenBody::RedactedThinking { replay }
             | OpenBody::RuntimeCall { replay, .. }
-            | OpenBody::ProviderCall { replay, .. } => Some(replay),
-            _ => None,
+            | OpenBody::ProviderCall { replay, .. }
+            | OpenBody::ProviderResult { replay, .. }
+            | OpenBody::Record { replay, .. } => Some(replay),
+            OpenBody::Structured { .. } => None,
         }
     }
 }

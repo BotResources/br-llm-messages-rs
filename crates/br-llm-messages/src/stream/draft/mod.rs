@@ -1,12 +1,14 @@
 mod append;
+mod build;
 mod complete;
 mod finalize;
+pub(in crate::stream) mod raw_json;
 mod replay;
 pub(in crate::stream) mod slot;
 mod start;
 mod view;
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 
 use uuid::Uuid;
 
@@ -24,8 +26,11 @@ use crate::value::Usage;
 #[derive(Debug, Clone, PartialEq)]
 pub enum DraftPhase {
     #[non_exhaustive]
+    Unstarted {},
+    #[non_exhaustive]
     Producing {},
-    Interrupted(InterruptionReason),
+    #[non_exhaustive]
+    Interrupted { reason: InterruptionReason },
     #[non_exhaustive]
     Completed {},
 }
@@ -36,7 +41,7 @@ pub enum DeltaOutcome {
     #[non_exhaustive]
     Applied {},
     #[non_exhaustive]
-    BlockDiscarded { block: BlockId, position: u32 },
+    Finalized { replaced: bool },
     #[non_exhaustive]
     Completed {},
     #[non_exhaustive]
@@ -49,8 +54,8 @@ pub struct ResponseDraft {
     pub(in crate::stream) entry: EntryId,
     pub(in crate::stream) phase: DraftPhase,
     pub(in crate::stream) metadata: ResponseMetadata,
-    pub(in crate::stream) slots: BTreeMap<u32, Slot>,
-    pub(in crate::stream) positions: HashMap<BlockId, u32>,
+    pub(in crate::stream) slots: Vec<Slot>,
+    pub(in crate::stream) index: HashMap<BlockId, usize>,
     pub(in crate::stream) ids: HashSet<Uuid>,
     pub(in crate::stream) response: Option<ModelResponse>,
 }
@@ -68,23 +73,16 @@ fn phase_error() -> Error {
 }
 
 impl ResponseDraft {
-    pub fn begin(first: &ResponseDelta) -> Result<ResponseDraft, Error> {
-        match first.op() {
-            DeltaOp::ResponseStarted { metadata } => {
-                ensure_usage(metadata.usage())
-                    .map_err(|error| error.with_id(first.entry().as_uuid()))?;
-                Ok(ResponseDraft {
-                    turn: first.turn(),
-                    entry: first.entry(),
-                    phase: DraftPhase::Producing {},
-                    metadata: metadata.clone(),
-                    slots: BTreeMap::new(),
-                    positions: HashMap::new(),
-                    ids: HashSet::from([first.entry().as_uuid()]),
-                    response: None,
-                })
-            }
-            _ => Err(phase_error().with_id(first.entry().as_uuid())),
+    pub fn new(turn: TurnId, entry: EntryId) -> ResponseDraft {
+        ResponseDraft {
+            turn,
+            entry,
+            phase: DraftPhase::Unstarted {},
+            metadata: ResponseMetadata::new(),
+            slots: Vec::new(),
+            index: HashMap::new(),
+            ids: HashSet::from([entry.as_uuid()]),
+            response: None,
         }
     }
 
@@ -128,17 +126,23 @@ impl ResponseDraft {
         if delta.turn() != self.turn || delta.entry() != self.entry {
             return Err(target_error());
         }
-        if !matches!(self.phase, DraftPhase::Producing { .. }) {
-            return Err(phase_error());
+        match (&self.phase, delta.op()) {
+            (DraftPhase::Unstarted { .. }, DeltaOp::ResponseStarted { metadata }) => {
+                ensure_usage(metadata.usage())?;
+                self.metadata = metadata.clone();
+                self.phase = DraftPhase::Producing {};
+                return Ok(DeltaOutcome::Applied {});
+            }
+            (DraftPhase::Producing { .. }, DeltaOp::ResponseStarted { .. }) => {
+                return Err(phase_error());
+            }
+            (DraftPhase::Producing { .. }, _) => {}
+            _ => return Err(phase_error()),
         }
         match delta.op() {
             DeltaOp::ResponseStarted { .. } => Err(phase_error()),
-            DeltaOp::BlockStarted {
-                block,
-                position,
-                start,
-            } => self
-                .start_block(*block, *position, start)
+            DeltaOp::BlockStarted { block, start } => self
+                .start_block(*block, start)
                 .map(|()| DeltaOutcome::Applied {}),
             DeltaOp::TextAppended { block, text } => self
                 .append_text(*block, text)
@@ -162,22 +166,15 @@ impl ResponseDraft {
             DeltaOp::BlockMetadataUpdated { block, update } => self
                 .update_block(*block, update)
                 .map(|()| DeltaOutcome::Applied {}),
-            DeltaOp::BlockInserted { position, block } => self
-                .insert_block(*position, block)
-                .map(|()| DeltaOutcome::Applied {}),
+            DeltaOp::BlockInserted { block } => {
+                self.insert_block(block).map(|()| DeltaOutcome::Applied {})
+            }
             DeltaOp::BlockFinalized {
                 block,
                 finalization,
             } => self
                 .finalize_block(*block, finalization)
-                .map(|()| DeltaOutcome::Applied {}),
-            DeltaOp::BlockDiscarded { block } => {
-                self.discard_block(*block)
-                    .map(|position| DeltaOutcome::BlockDiscarded {
-                        block: *block,
-                        position,
-                    })
-            }
+                .map(|replaced| DeltaOutcome::Finalized { replaced }),
             DeltaOp::ResponseMetadataUpdated { update } => {
                 ensure_usage(update.usage())?;
                 self.metadata = update.replacing(&self.metadata);
@@ -187,17 +184,19 @@ impl ResponseDraft {
                 self.complete(ending).map(|()| DeltaOutcome::Completed {})
             }
             DeltaOp::ResponseInterrupted { reason } => {
-                self.phase = DraftPhase::Interrupted(reason.clone());
+                self.phase = DraftPhase::Interrupted {
+                    reason: reason.clone(),
+                };
                 Ok(DeltaOutcome::Interrupted {})
             }
         }
     }
 
     fn open_mut(&mut self, block: BlockId) -> Result<&mut OpenBlock, Error> {
-        let position = *self.positions.get(&block).ok_or_else(target_error)?;
-        match self.slots.get_mut(&position) {
+        let at = *self.index.get(&block).ok_or_else(target_error)?;
+        match self.slots.get_mut(at) {
             Some(Slot::Open(open)) => Ok(open),
-            Some(_) => Err(phase_error()),
+            Some(Slot::Final(_)) => Err(phase_error()),
             None => Err(target_error()),
         }
     }

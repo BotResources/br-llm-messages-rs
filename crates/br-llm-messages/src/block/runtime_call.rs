@@ -30,7 +30,7 @@ struct RuntimeToolCallWire {
     external_id: Option<ExternalId>,
     item_ref: Option<ItemRef>,
     name: ToolName,
-    #[serde(deserialize_with = "crate::value::opaque::deserialize")]
+    #[serde(deserialize_with = "crate::value::opaque::arguments")]
     arguments: OpaqueJson,
     replay: Option<ReplayMaterial>,
     observed_at: Option<ObservedAt>,

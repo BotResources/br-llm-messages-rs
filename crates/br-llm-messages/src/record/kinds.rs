@@ -13,7 +13,6 @@ pub enum RepresentationState {
     Producing,
     Complete,
     Interrupted,
-    Discarded,
 }
 
 impl RepresentationState {
@@ -21,7 +20,6 @@ impl RepresentationState {
         RepresentationState::Producing,
         RepresentationState::Complete,
         RepresentationState::Interrupted,
-        RepresentationState::Discarded,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -29,7 +27,6 @@ impl RepresentationState {
             RepresentationState::Producing => "producing",
             RepresentationState::Complete => "complete",
             RepresentationState::Interrupted => "interrupted",
-            RepresentationState::Discarded => "discarded",
         }
     }
 }
@@ -52,14 +49,15 @@ impl fmt::Display for RepresentationState {
     }
 }
 
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
-pub enum ActorRef {
+tagged_enum! {
     #[non_exhaustive]
-    Human { id: HumanId },
-    #[non_exhaustive]
-    Agent { id: AgentId },
+    #[derive(Debug, Clone, PartialEq)]
+    pub enum ActorRef, ActorRefWire, remote = "ActorRef", [tag = "type", rename_all = "snake_case", deny_unknown_fields] {
+        #[non_exhaustive]
+        Human { id: HumanId },
+        #[non_exhaustive]
+        Agent { id: AgentId },
+    }
 }
 
 impl ActorRef {

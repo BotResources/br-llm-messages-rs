@@ -11,7 +11,7 @@ use crate::value::{ObservedAt, opaque};
 #[serde(deny_unknown_fields)]
 pub struct StructuredBlock {
     id: BlockId,
-    #[serde(deserialize_with = "crate::value::opaque::deserialize")]
+    #[serde(deserialize_with = "crate::value::opaque::value")]
     value: OpaqueJson,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     observed_at: Option<ObservedAt>,

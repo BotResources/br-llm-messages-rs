@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, ErrorCode};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "String")]
 pub struct Base64Data(String);
 
@@ -26,8 +26,10 @@ fn is_standard_padded(bytes: &[u8]) -> bool {
     }
     let padding = bytes.iter().rev().take_while(|b| **b == b'=').count();
     padding <= 2
-        && bytes[..bytes.len() - padding]
+        && bytes
             .iter()
+            .rev()
+            .skip(padding)
             .all(|b| b.is_ascii_alphanumeric() || *b == b'+' || *b == b'/')
 }
 

@@ -11,7 +11,7 @@ use crate::id::{BlockId, EntryId, TurnId};
 use crate::turn::{Body, Class, Turn, body_of_entry, body_of_incoming};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum EntryRef<'a> {
     Incoming(&'a IncomingEntry),
     Turn(&'a TurnEntry),
@@ -34,7 +34,7 @@ impl EntryRef<'_> {
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum BlockRef<'a> {
     Plain(&'a PlainBlock),
     Content(&'a ContentBlock),
@@ -68,14 +68,20 @@ impl Conversation {
         }
     }
 
+    fn turn_at(&self, slot: &Slot, id: Uuid) -> Result<&Turn, Error> {
+        self.turns
+            .get(slot.turn)
+            .ok_or_else(|| Error::new(ErrorCode::UnknownReference).with_id(id))
+    }
+
     pub fn turn(&self, id: &TurnId) -> Result<&Turn, Error> {
         let slot = self.resolve(id.as_uuid(), |class| class == Class::Turn)?;
-        Ok(&self.turns[slot.turn])
+        self.turn_at(slot, id.as_uuid())
     }
 
     pub fn entry(&self, id: &EntryId) -> Result<EntryRef<'_>, Error> {
         let slot = self.resolve(id.as_uuid(), |class| matches!(class, Class::Entry(_)))?;
-        let found = match &self.turns[slot.turn] {
+        let found = match self.turn_at(slot, id.as_uuid())? {
             Turn::InputTurn(turn) => Some(EntryRef::Incoming(turn.entry())),
             Turn::AITurn(turn) => turn.entries().get(slot.place.entry).map(EntryRef::Turn),
         };
@@ -84,7 +90,7 @@ impl Conversation {
 
     pub fn block(&self, id: &BlockId) -> Result<BlockRef<'_>, Error> {
         let slot = self.resolve(id.as_uuid(), |class| matches!(class, Class::Block(_)))?;
-        let body = match &self.turns[slot.turn] {
+        let body = match self.turn_at(slot, id.as_uuid())? {
             Turn::InputTurn(turn) => Some(body_of_incoming(turn.entry())),
             Turn::AITurn(turn) => turn.entries().get(slot.place.entry).map(body_of_entry),
         };

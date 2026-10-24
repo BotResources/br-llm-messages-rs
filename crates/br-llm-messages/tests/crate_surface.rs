@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 
 use br_llm_messages::{
     ActorRef, BlockRecord, BlockStart, CONVERSATION_SCHEMA, ContentBlockKind, DELTA_SCHEMA,
-    DRAFT_SCHEMA, DraftSnapshot, EntryRecord, Error, ErrorCode, OtherItem, OtherTurn, Perspective,
-    ProjectedTurn, Projection, PublicResponse, RECORD_SCHEMA, RecordSet, RepresentationState,
+    DRAFT_SCHEMA, DeltaStream, DraftSnapshot, EntryRecord, Error, ErrorCode, OtherItem, OtherTurn,
+    OwnTurn, Perspective, ProjectedTurn, Projection, RECORD_SCHEMA, RecordSet, RepresentationState,
     ResponseDelta, ResponseDeltaKind, ResponseDraft, TurnEntryKind, TurnKind, TurnRecord,
 };
 
@@ -48,7 +48,9 @@ const GROWTH_FAMILIES: &[&str] = &[
     "ProjectedTurn",
     "OtherItem",
     "OtherTurn",
-    "PublicResponse",
+    "OwnTurn",
+    "InterruptionKind",
+    "DeltaStream",
     "Projection",
     "Perspective",
 ];
@@ -115,7 +117,8 @@ fn given_the_value_types_when_checked_statically_then_snapshots_records_and_proj
     assert_all::<ProjectedTurn>();
     assert_all::<OtherTurn>();
     assert_all::<OtherItem>();
-    assert_all::<PublicResponse>();
+    assert_all::<OwnTurn>();
+    assert_all::<DeltaStream>();
     assert_all::<Perspective>();
     assert_all::<ResponseDraft>();
     assert_all::<ResponseDelta>();
@@ -128,8 +131,8 @@ fn given_the_public_kind_enums_when_listed_then_each_is_reachable_from_the_crate
     assert_eq!(TurnKind::ALL.len(), 2);
     assert_eq!(TurnEntryKind::ALL.len(), 11);
     assert_eq!(ContentBlockKind::ALL.len(), 10);
-    assert_eq!(ResponseDeltaKind::ALL.len(), 14);
-    assert_eq!(RepresentationState::ALL.len(), 4);
+    assert_eq!(ResponseDeltaKind::ALL.len(), 13);
+    assert_eq!(RepresentationState::ALL.len(), 3);
     assert!(ErrorCode::ALL.contains(&ErrorCode::InvalidRecordStructure));
 }
 
@@ -160,9 +163,11 @@ fn given_the_growth_families_when_the_sources_are_scanned_then_each_is_non_exhau
                 let enum_decl = format!("pub enum {family} ");
                 let struct_decl = format!("pub struct {family} ");
                 let struct_open = format!("pub struct {family}(");
+                let macro_decl = format!("pub enum {family}, ");
                 let declared = line.starts_with(&enum_decl)
                     || line.starts_with(&struct_decl)
-                    || line.starts_with(&struct_open);
+                    || line.starts_with(&struct_open)
+                    || line.trim_start().starts_with(&macro_decl);
                 if declared {
                     seen.push(*family);
                     if !attributes_above(&lines, index).contains("non_exhaustive") {

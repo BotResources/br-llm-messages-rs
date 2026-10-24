@@ -3,8 +3,10 @@ use super::{DraftPhase, ResponseDraft};
 use crate::block::{ContentBlock, ContentBlockKind};
 use crate::entry::ResponseMetadata;
 use crate::id::{BlockId, EntryId, TurnId};
+use crate::opaque_json::OpaqueJson;
 use crate::value::{
-    Citation, ExecutionStatus, ExternalId, ObservedAt, ProviderOperation, ReplayMaterial, ToolName,
+    Citation, ExecutionStatus, ExternalId, ItemRef, ObservedAt, ProviderOperation, ReplayMaterial,
+    ToolName,
 };
 
 #[non_exhaustive]
@@ -12,17 +14,15 @@ use crate::value::{
 pub enum SlotLifecycle {
     Open,
     Final,
-    Discarded,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct DraftView<'a> {
     draft: &'a ResponseDraft,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct SlotView<'a> {
-    position: u32,
     slot: &'a Slot,
 }
 
@@ -51,27 +51,17 @@ impl<'a> DraftView<'a> {
         self.draft
             .slots
             .iter()
-            .map(|(position, slot)| SlotView {
-                position: *position,
-                slot,
-            })
+            .map(|slot| SlotView { slot })
             .collect()
     }
 
     pub fn slot(&self, block: BlockId) -> Option<SlotView<'a>> {
-        let position = *self.draft.positions.get(&block)?;
-        self.draft
-            .slots
-            .get(&position)
-            .map(|slot| SlotView { position, slot })
+        let at = *self.draft.index.get(&block)?;
+        self.draft.slots.get(at).map(|slot| SlotView { slot })
     }
 }
 
 impl<'a> SlotView<'a> {
-    pub fn position(&self) -> u32 {
-        self.position
-    }
-
     pub fn block(&self) -> BlockId {
         self.slot.id()
     }
@@ -84,7 +74,6 @@ impl<'a> SlotView<'a> {
         match self.slot {
             Slot::Open(_) => SlotLifecycle::Open,
             Slot::Final(_) => SlotLifecycle::Final,
-            Slot::Discarded { .. } => SlotLifecycle::Discarded,
         }
     }
 
@@ -92,7 +81,6 @@ impl<'a> SlotView<'a> {
         match self.slot {
             Slot::Open(open) => open.observed_at.as_ref(),
             Slot::Final(block) => block.observed_at(),
-            Slot::Discarded { .. } => None,
         }
     }
 
@@ -113,7 +101,7 @@ impl<'a> SlotView<'a> {
             Slot::Open(open) => match &open.body {
                 OpenBody::Structured { raw }
                 | OpenBody::RuntimeCall { raw, .. }
-                | OpenBody::ProviderCall { raw, .. } => Some(raw),
+                | OpenBody::ProviderCall { raw, .. } => Some(raw.as_str()),
                 _ => None,
             },
             _ => None,
@@ -136,6 +124,7 @@ impl<'a> SlotView<'a> {
             Slot::Open(open) => match &open.body {
                 OpenBody::RuntimeCall { external_id, .. }
                 | OpenBody::ProviderCall { external_id, .. }
+                | OpenBody::ProviderResult { external_id, .. }
                 | OpenBody::Record { external_id, .. } => external_id.as_ref(),
                 _ => None,
             },
@@ -143,6 +132,32 @@ impl<'a> SlotView<'a> {
             Slot::Final(ContentBlock::ProviderToolCall(call)) => call.external_id(),
             Slot::Final(ContentBlock::ProviderToolResult(result)) => result.external_id(),
             Slot::Final(ContentBlock::ProviderToolExecutionRecord(record)) => record.external_id(),
+            _ => None,
+        }
+    }
+
+    pub fn item_ref(&self) -> Option<&'a ItemRef> {
+        match self.slot {
+            Slot::Open(open) => match &open.body {
+                OpenBody::Text { item_ref, .. }
+                | OpenBody::RuntimeCall { item_ref, .. }
+                | OpenBody::ProviderCall { item_ref, .. } => item_ref.as_ref(),
+                _ => None,
+            },
+            Slot::Final(ContentBlock::Text(block)) => block.item_ref(),
+            Slot::Final(ContentBlock::RuntimeToolCall(call)) => call.item_ref(),
+            Slot::Final(ContentBlock::ProviderToolCall(call)) => call.item_ref(),
+            _ => None,
+        }
+    }
+
+    pub fn provisional_arguments(&self) -> Option<&'a OpaqueJson> {
+        match self.slot {
+            Slot::Open(open) => match &open.body {
+                OpenBody::RuntimeCall { provisional, .. }
+                | OpenBody::ProviderCall { provisional, .. } => provisional.as_ref(),
+                _ => None,
+            },
             _ => None,
         }
     }
@@ -193,9 +208,9 @@ impl<'a> SlotView<'a> {
                 ContentBlock::RuntimeToolCall(block) => block.replay(),
                 ContentBlock::ProviderToolCall(block) => block.replay(),
                 ContentBlock::ProviderToolResult(block) => block.replay(),
+                ContentBlock::ProviderToolExecutionRecord(block) => block.replay(),
                 _ => None,
             },
-            Slot::Discarded { .. } => None,
         }
     }
 

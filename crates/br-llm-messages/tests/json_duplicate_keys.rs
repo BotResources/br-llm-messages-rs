@@ -3,7 +3,7 @@ mod snapshot_support;
 mod stream_support;
 
 use br_llm_messages::{
-    ContentBlock, Conversation, DraftSnapshot, ErrorCode, RecordSet, ResponseDelta,
+    ContentBlock, Conversation, DeltaStream, DraftSnapshot, ErrorCode, RecordSet, ResponseDelta,
     StructuredBlock, TurnEntry,
 };
 use common::conversations::rich;
@@ -86,9 +86,16 @@ fn given_a_repeated_key_when_each_document_kind_is_loaded_then_all_refuse_it() {
     let step = delta(br_llm_messages::DeltaOp::text_appended(bid(11), "x"))
         .to_json()
         .unwrap();
+    let stream = DeltaStream::new(vec![delta(br_llm_messages::DeltaOp::text_appended(
+        bid(11),
+        "x",
+    ))])
+    .to_json()
+    .unwrap();
     let entry = common::entries::all_entries()[0].to_json().unwrap();
 
     assert!(RecordSet::from_json(&set).is_ok());
+    assert!(DeltaStream::from_json(&stream).is_ok());
     assert!(DraftSnapshot::from_json(&snapshot).is_ok());
     assert!(ResponseDelta::from_json(&step).is_ok());
     assert!(TurnEntry::from_json(&entry).is_ok());
@@ -104,6 +111,10 @@ fn given_a_repeated_key_when_each_document_kind_is_loaded_then_all_refuse_it() {
         ))),
         code_of(ResponseDelta::from_json(&repeat_first(
             &step,
+            "\"type\":\"text_appended\"",
+        ))),
+        code_of(DeltaStream::from_json(&repeat_first(
+            &stream,
             "\"schema\":\"br-llm-messages-delta/1\"",
         ))),
         code_of(TurnEntry::from_json(&repeat_first(
@@ -112,12 +123,12 @@ fn given_a_repeated_key_when_each_document_kind_is_loaded_then_all_refuse_it() {
         ))),
     ];
 
-    assert_eq!(refusals, [ErrorCode::MalformedJson; 4]);
+    assert_eq!(refusals, [ErrorCode::MalformedJson; 5]);
 }
 
 #[test]
 fn given_raw_json_with_a_repeated_key_when_a_draft_block_is_finalized_then_it_is_refused() {
-    let mut draft = run(vec![start_json(20, 0), json(20, "{\"a\":1,\"a\":2}")]);
+    let mut draft = run(vec![start_json(20), json(20, "{\"a\":1,\"a\":2}")]);
     let before = draft.clone();
 
     let error = refused(draft.apply(&delta(finalize(20))));

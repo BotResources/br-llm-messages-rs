@@ -1,0 +1,380 @@
+{
+  "blocks": [
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-000000000003",
+      "kind": "text",
+      "observed_at": "2026-10-23T08:00:01.12Z",
+      "payload": {
+        "citations": [
+          {
+            "id": "ab000000-0000-7000-8000-000000000004",
+            "range": {
+              "end": 5,
+              "start": 0
+            },
+            "source": {
+              "reference": "doc-1",
+              "title": "A document"
+            }
+          }
+        ],
+        "text": "cited text"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000000c",
+      "id": "ab000000-0000-7000-8000-00000000000d",
+      "kind": "thinking",
+      "observed_at": "2026-10-23T08:00:04.12345Z",
+      "payload": {
+        "replay": {
+          "format": "anthropic.signature",
+          "payload": {
+            "type": "text",
+            "value": "sig"
+          }
+        },
+        "text": ""
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000000c",
+      "id": "ab000000-0000-7000-8000-00000000000e",
+      "kind": "text",
+      "observed_at": "2026-10-23T08:00:05.123456Z",
+      "payload": {
+        "item_ref": "msg_1",
+        "text": "calling"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000000c",
+      "id": "ab000000-0000-7000-8000-00000000000f",
+      "kind": "runtime_tool_call",
+      "observed_at": "2026-10-23T08:00:06.1234567Z",
+      "payload": {
+        "arguments": {
+          "q": "rust"
+        },
+        "external_id": "toolu_1",
+        "item_ref": "fc_1",
+        "name": "lookup"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000000c",
+      "id": "ab000000-0000-7000-8000-000000000010",
+      "kind": "provider_tool_call",
+      "observed_at": "2026-10-23T08:00:07.12345678Z",
+      "payload": {
+        "arguments": {
+          "query": "x"
+        },
+        "operation": "web_search"
+      },
+      "state": "complete"
+    },
+    {
+      "call": "ab000000-0000-7000-8000-000000000010",
+      "entry": "ab000000-0000-7000-8000-00000000000c",
+      "id": "ab000000-0000-7000-8000-000000000011",
+      "kind": "provider_tool_result",
+      "observed_at": "2026-10-23T08:00:08.123456789Z",
+      "payload": {},
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000000c",
+      "id": "ab000000-0000-7000-8000-000000000012",
+      "kind": "text",
+      "parent": "ab000000-0000-7000-8000-000000000011",
+      "payload": {
+        "text": "found"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000000c",
+      "id": "ab000000-0000-7000-8000-000000000013",
+      "kind": "provider_tool_execution_record",
+      "observed_at": "2026-10-23T08:00:09.1Z",
+      "payload": {
+        "status": "completed"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000000c",
+      "id": "ab000000-0000-7000-8000-000000000014",
+      "kind": "text",
+      "parent": "ab000000-0000-7000-8000-000000000013",
+      "payload": {
+        "text": "log"
+      },
+      "state": "complete"
+    },
+    {
+      "call": "ab000000-0000-7000-8000-00000000000f",
+      "entry": "ab000000-0000-7000-8000-000000000015",
+      "id": "ab000000-0000-7000-8000-000000000016",
+      "kind": "runtime_tool_result",
+      "observed_at": "2026-10-23T08:00:11.123Z",
+      "payload": {
+        "is_error": false,
+        "tool_name": "lookup"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000015",
+      "id": "ab000000-0000-7000-8000-000000000017",
+      "kind": "text",
+      "observed_at": "2026-10-23T08:00:01.12Z",
+      "parent": "ab000000-0000-7000-8000-000000000016",
+      "payload": {
+        "citations": [
+          {
+            "id": "ab000000-0000-7000-8000-00000000001f",
+            "range": {
+              "end": 5,
+              "start": 0
+            },
+            "source": {
+              "reference": "doc-1",
+              "title": "A document"
+            }
+          }
+        ],
+        "text": "cited text"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000015",
+      "id": "ab000000-0000-7000-8000-000000000018",
+      "kind": "image",
+      "observed_at": "2026-10-23T08:00:12.1234Z",
+      "parent": "ab000000-0000-7000-8000-000000000016",
+      "payload": {
+        "source": {
+          "data": "QUJD",
+          "media_type": "image/png",
+          "type": "inline"
+        }
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000015",
+      "id": "ab000000-0000-7000-8000-000000000019",
+      "kind": "structured_content",
+      "observed_at": "2026-10-23T08:00:13.12345Z",
+      "parent": "ab000000-0000-7000-8000-000000000016",
+      "payload": {
+        "value": {
+          "k": [
+            1,
+            2
+          ]
+        }
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000001a",
+      "id": "ab000000-0000-7000-8000-00000000001b",
+      "kind": "text",
+      "payload": {
+        "text": "fyi"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000001c",
+      "id": "ab000000-0000-7000-8000-00000000001d",
+      "kind": "text",
+      "observed_at": "2026-10-23T08:00:16.12345678Z",
+      "payload": {
+        "text": "done"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000029",
+      "id": "ab000000-0000-7000-8000-00000000002a",
+      "kind": "text",
+      "payload": {
+        "text": "please help"
+      },
+      "state": "complete"
+    }
+  ],
+  "entries": [
+    {
+      "id": "ab000000-0000-7000-8000-000000000002",
+      "kind": "human_message",
+      "observed_at": "2026-10-23T08:00:02.123Z",
+      "payload": {},
+      "sender": {
+        "id": "ab000000-0000-7000-8000-000000000001",
+        "type": "human"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000001"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000000c",
+      "kind": "model_response",
+      "observed_at": "2026-10-23T08:00:10.12Z",
+      "payload": {
+        "ending": {
+          "type": "tool_use"
+        },
+        "model": "gpt-6.1",
+        "provider_response_id": "resp_1",
+        "usage": {
+          "input_tokens": 10,
+          "output_tokens": 18446744073709551615
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-00000000000a"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000015",
+      "kind": "runtime_tool_results",
+      "observed_at": "2026-10-23T08:00:14.123456Z",
+      "payload": {},
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-00000000000a"
+    },
+    {
+      "author": "Claude",
+      "id": "ab000000-0000-7000-8000-00000000001a",
+      "kind": "agent_mail",
+      "observed_at": "2026-10-23T08:00:15.1234567Z",
+      "payload": {
+        "source_conversation": "ab000000-0000-7000-8000-000000000002"
+      },
+      "sender": {
+        "id": "ab000000-0000-7000-8000-000000000002",
+        "type": "agent"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-00000000000a"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000001c",
+      "kind": "model_response",
+      "observed_at": "2026-10-23T08:00:17.123456789Z",
+      "payload": {
+        "ending": {
+          "type": "finished"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-00000000000a"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000001e",
+      "kind": "turn_closure",
+      "observed_at": "2026-10-23T08:00:18.1Z",
+      "payload": {
+        "reason": {
+          "type": "completed"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-00000000000a"
+    },
+    {
+      "author": "Claude",
+      "id": "ab000000-0000-7000-8000-000000000029",
+      "kind": "agent_request",
+      "observed_at": "2026-10-23T08:00:20.123Z",
+      "payload": {
+        "origin": {
+          "block": "ab000000-0000-7000-8000-000000000384",
+          "type": "tool_call"
+        },
+        "source_conversation": "ab000000-0000-7000-8000-000000000002"
+      },
+      "sender": {
+        "id": "ab000000-0000-7000-8000-000000000002",
+        "type": "agent"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000028"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000033",
+      "kind": "request_accepted",
+      "observed_at": "2026-10-23T08:00:22.12345Z",
+      "payload": {
+        "request": "ab000000-0000-7000-8000-000000000001"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000032"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000034",
+      "kind": "task_started",
+      "observed_at": "2026-10-23T08:00:23.123456Z",
+      "payload": {
+        "conversation": "ab000000-0000-7000-8000-000000000003",
+        "request": "ab000000-0000-7000-8000-000000000001",
+        "task": "ab000000-0000-7000-8000-000000000001"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000032"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000003d",
+      "kind": "queue_position",
+      "observed_at": "2026-10-23T08:00:25.12345678Z",
+      "payload": {
+        "position": 2,
+        "request": "ab000000-0000-7000-8000-000000000001"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-00000000003c"
+    }
+  ],
+  "schema": "br-llm-messages-records/1",
+  "turns": [
+    {
+      "id": "ab000000-0000-7000-8000-000000000001",
+      "kind": "input_turn",
+      "observed_at": "2026-10-23T08:00:03.1234Z"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex GPT-6.1-Sol high",
+      "id": "ab000000-0000-7000-8000-00000000000a",
+      "kind": "ai_turn",
+      "observed_at": "2026-10-23T08:00:19.12Z"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000028",
+      "kind": "input_turn",
+      "observed_at": "2026-10-23T08:00:21.1234Z"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000002",
+      "author": "Claude",
+      "id": "ab000000-0000-7000-8000-000000000032",
+      "kind": "ai_turn",
+      "observed_at": "2026-10-23T08:00:24.1234567Z"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000003c",
+      "kind": "input_turn",
+      "observed_at": "2026-10-23T08:00:26.123456789Z"
+    }
+  ]
+}

@@ -2,22 +2,24 @@ mod common;
 mod stream_support;
 
 use br_llm_messages::{
-    DeltaOp, ErrorCode, ResponseDelta, ResponseDraft, ResponseMetadata, ResponseMetadataUpdate,
-    Usage,
+    DeltaOp, DraftPhase, ErrorCode, ResponseDelta, ResponseMetadata, ResponseMetadataUpdate, Usage,
 };
 use common::{eid, refused};
-use stream_support::{delta, draft, ok, refuse};
+use stream_support::{delta, draft, fresh, ok, refuse};
 
 #[test]
-fn given_an_empty_usage_in_the_first_delta_when_the_draft_begins_then_invalid_content() {
-    let first = delta(DeltaOp::response_started(
-        ResponseMetadata::new().with_usage(Usage::new()),
-    ));
+fn given_an_empty_usage_in_the_start_when_applied_then_invalid_content_and_the_draft_stays_unstarted()
+ {
+    let mut draft = fresh();
 
-    let error = refused(ResponseDraft::begin(&first));
+    let error = refuse(
+        &mut draft,
+        DeltaOp::response_started(ResponseMetadata::new().with_usage(Usage::new())),
+    );
 
     assert_eq!(error.code(), ErrorCode::InvalidContent);
     assert_eq!(error.object_id(), Some(eid(2).as_uuid()));
+    assert!(matches!(draft.phase(), DraftPhase::Unstarted { .. }));
 }
 
 #[test]
@@ -58,7 +60,7 @@ fn given_an_empty_usage_in_delta_json_when_loaded_then_invalid_content() {
     let mut wire: serde_json::Value = serde_json::from_str(&valid.to_json().unwrap()).unwrap();
     assert!(ResponseDelta::from_json(&wire.to_string()).is_ok());
 
-    wire["op"]["update"]["usage"] = serde_json::json!({});
+    wire["update"]["usage"] = serde_json::json!({});
     let error = refused(ResponseDelta::from_json(&wire.to_string()));
 
     assert_eq!(error.code(), ErrorCode::InvalidContent);

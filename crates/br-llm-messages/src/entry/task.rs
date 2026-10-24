@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 use super::{locate, refuse_author};
-use crate::block::IdSink;
 use crate::error::Error;
 use crate::id::{ConversationId, EntryId, RequestId, TaskId};
 use crate::value::{ObservedAt, PlainText};
@@ -70,10 +69,6 @@ impl TaskStarted {
 
     pub fn observed_at(&self) -> Option<&ObservedAt> {
         self.observed_at.as_ref()
-    }
-
-    pub(crate) fn collect_ids(&self, sink: &mut IdSink) -> Result<(), Error> {
-        sink.insert(self.id.as_uuid())
     }
 }
 
@@ -154,10 +149,6 @@ impl TaskCompleted {
     pub fn observed_at(&self) -> Option<&ObservedAt> {
         self.observed_at.as_ref()
     }
-
-    pub(crate) fn collect_ids(&self, sink: &mut IdSink) -> Result<(), Error> {
-        sink.insert(self.id.as_uuid())
-    }
 }
 
 impl TryFrom<TaskCompletedWire> for TaskCompleted {
@@ -229,10 +220,6 @@ impl TaskFailed {
 
     pub fn observed_at(&self) -> Option<&ObservedAt> {
         self.observed_at.as_ref()
-    }
-
-    pub(crate) fn collect_ids(&self, sink: &mut IdSink) -> Result<(), Error> {
-        sink.insert(self.id.as_uuid())
     }
 }
 

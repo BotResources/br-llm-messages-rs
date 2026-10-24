@@ -2,7 +2,7 @@ mod common;
 
 use br_llm_messages::{
     Author, Base64Data, Citation, CitationId, CitationSource, Error, ErrorCode, ExternalId,
-    PlainText, ReplayMaterial, ToolName,
+    PlainText, ReplayMaterial, TextBlock, ToolName,
 };
 use common::{code_of, refused, v7};
 
@@ -110,7 +110,11 @@ fn given_a_reused_citation_id_when_rendered_then_the_id_and_location_show_withou
     let list = [Citation::new(id, source.clone()), Citation::new(id, source)];
     let text = PlainText::new(SENTINEL).unwrap();
 
-    let error = refused(Citation::check_all(&text, &list));
+    let error = refused(
+        TextBlock::new(common::bid(99), text.as_str())
+            .unwrap()
+            .with_citations(list.to_vec()),
+    );
 
     assert_eq!(
         error.to_string(),
@@ -169,7 +173,7 @@ fn given_embedded_library_errors_when_mapped_then_the_original_code_survives() {
     assert_eq!(code_of::<Base64Data>("\"A\""), ErrorCode::InvalidContent);
     assert_eq!(
         code_of::<br_llm_messages::MediaType>("\"image/x\""),
-        ErrorCode::VariantMismatch
+        ErrorCode::InvalidContent
     );
 }
 

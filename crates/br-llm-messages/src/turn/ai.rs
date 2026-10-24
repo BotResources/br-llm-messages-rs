@@ -24,7 +24,8 @@ pub struct AITurn {
 
 impl Serialize for AITurn {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut turn = serializer.serialize_struct("AITurn", 6)?;
+        let mut turn =
+            serializer.serialize_struct("AITurn", 5 + usize::from(self.observed_at.is_some()))?;
         turn.serialize_field("type", TurnKind::AITurn.as_str())?;
         turn.serialize_field("id", &self.id)?;
         turn.serialize_field("agent", &self.agent)?;

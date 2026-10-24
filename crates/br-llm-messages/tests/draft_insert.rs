@@ -8,8 +8,8 @@ use br_llm_messages::{
 use common::{bid, call, envelope, plain_text, png, result, signature, text_block};
 use stream_support::{finish, ok, refuse, run, start_text, text};
 
-fn insert(position: u32, block: impl Into<ContentBlock>) -> DeltaOp {
-    DeltaOp::block_inserted(position, block)
+fn insert(block: impl Into<ContentBlock>) -> DeltaOp {
+    DeltaOp::block_inserted(block)
 }
 
 #[test]
@@ -20,10 +20,10 @@ fn given_atomic_kinds_when_inserted_then_they_complete_without_any_fragment_delt
         .with_replay(envelope(serde_json::json!({"enc": "x"})));
     let redacted = RedactedThinkingBlock::new(bid(11), signature("redacted"));
     let mut draft = run(vec![
-        insert(0, png(10)),
-        insert(1, redacted.clone()),
-        insert(2, provider_result.clone()),
-        insert(3, record.clone()),
+        insert(png(10)),
+        insert(redacted.clone()),
+        insert(provider_result.clone()),
+        insert(record.clone()),
     ]);
 
     ok(&mut draft, finish());
@@ -39,29 +39,39 @@ fn given_atomic_kinds_when_inserted_then_they_complete_without_any_fragment_delt
 fn given_a_runtime_tool_result_when_inserted_then_disallowed_kind() {
     let mut draft = run(vec![]);
 
-    let error = refuse(&mut draft, insert(0, result(10, 11, "t")));
+    let error = refuse(&mut draft, insert(result(10, 11, "t")));
 
     assert_eq!(error.code(), ErrorCode::DisallowedKind);
     assert_eq!(error.object_id(), Some(bid(10).as_uuid()));
 }
 
 #[test]
-fn given_an_occupied_position_when_a_block_is_inserted_there_then_invalid_position() {
-    let mut draft = run(vec![start_text(10, 0), insert(1, png(11))]);
+fn given_inserted_and_streamed_blocks_when_declared_in_turn_then_content_order_is_declaration_order()
+ {
+    let mut draft = run(vec![start_text(10), insert(png(11)), start_text(12)]);
+    ok(&mut draft, text(10, "a"));
+    ok(&mut draft, text(12, "b"));
+    ok(&mut draft, stream_support::finalize(12));
+    ok(&mut draft, stream_support::finalize(10));
 
-    for position in [0, 1] {
-        let error = refuse(&mut draft, insert(position, png(12)));
-        assert_eq!(error.code(), ErrorCode::InvalidRecordStructure);
-        assert_eq!(error.object_id(), Some(bid(12).as_uuid()));
-    }
+    ok(&mut draft, finish());
+
+    let ids: Vec<_> = draft
+        .response()
+        .unwrap()
+        .blocks()
+        .iter()
+        .map(ContentBlock::id)
+        .collect();
+    assert_eq!(ids, [bid(10), bid(11), bid(12)]);
 }
 
 #[test]
 fn given_a_known_identity_when_a_block_is_inserted_then_reused_identity() {
-    let mut draft = run(vec![start_text(10, 0), insert(1, png(11))]);
+    let mut draft = run(vec![start_text(10), insert(png(11))]);
 
-    let declared = refuse(&mut draft, insert(2, png(10)));
-    let inserted = refuse(&mut draft, insert(2, png(11)));
+    let declared = refuse(&mut draft, insert(png(10)));
+    let inserted = refuse(&mut draft, insert(png(11)));
 
     assert_eq!(declared.code(), ErrorCode::ReusedIdentity);
     assert_eq!(inserted.code(), ErrorCode::ReusedIdentity);
@@ -69,7 +79,7 @@ fn given_a_known_identity_when_a_block_is_inserted_then_reused_identity() {
 
 #[test]
 fn given_nested_identities_that_clash_when_inserted_then_reused_identity_and_unchanged() {
-    let mut draft = run(vec![insert(0, png(10))]);
+    let mut draft = run(vec![insert(png(10))]);
     let clash = ProviderToolResult::new(bid(11), bid(99), vec![plain_text(10, "x")]).unwrap();
     let cited = text_block(12, "cited");
     let with_citation = br_llm_messages::TextBlock::new(bid(13), "abc")
@@ -77,13 +87,10 @@ fn given_nested_identities_that_clash_when_inserted_then_reused_identity_and_unc
         .with_citations(vec![stream_support::citation(50, 0, 2)])
         .unwrap();
 
-    let nested = refuse(&mut draft, insert(1, clash));
-    ok(&mut draft, insert(1, cited));
-    ok(&mut draft, insert(2, with_citation));
-    let citation = refuse(
-        &mut draft,
-        insert(3, text_block(50, "reuses a citation id")),
-    );
+    let nested = refuse(&mut draft, insert(clash));
+    ok(&mut draft, insert(cited));
+    ok(&mut draft, insert(with_citation));
+    let citation = refuse(&mut draft, insert(text_block(50, "reuses a citation id")));
 
     assert_eq!(nested.code(), ErrorCode::ReusedIdentity);
     assert_eq!(citation.code(), ErrorCode::ReusedIdentity);
@@ -91,7 +98,7 @@ fn given_nested_identities_that_clash_when_inserted_then_reused_identity_and_unc
 
 #[test]
 fn given_an_inserted_complete_block_when_mutated_afterwards_then_stream_phase() {
-    let mut draft = run(vec![insert(0, text_block(10, "done"))]);
+    let mut draft = run(vec![insert(text_block(10, "done"))]);
 
     let append = refuse(&mut draft, text(10, " more"));
     let finalize = refuse(&mut draft, stream_support::finalize(10));
@@ -103,8 +110,8 @@ fn given_an_inserted_complete_block_when_mutated_afterwards_then_stream_phase() 
 #[test]
 fn given_inserted_and_streamed_blocks_when_mixed_then_completion_validates_the_whole_response() {
     let mut draft = run(vec![
-        insert(0, call(10, "lookup")),
-        start_text(11, 1),
+        insert(call(10, "lookup")),
+        start_text(11),
         text(11, "x"),
     ]);
     ok(&mut draft, stream_support::finalize(11));

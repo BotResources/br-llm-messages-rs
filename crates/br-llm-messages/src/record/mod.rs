@@ -18,7 +18,8 @@ pub use turn::TurnRecord;
 
 pub(crate) use decompose::block_rows;
 pub(crate) use partial::{
-    ProviderCallPartial, RecordPartial, RuntimeCallPartial, StructuredPartial, TextPartial,
-    ThinkingPartial, decode as decode_partial, encode as encode_partial,
+    ProviderCallPartial, ProviderResultPartial, RecordPartial, RedactedPartial, RuntimeCallPartial,
+    StructuredPartial, TextPartial, ThinkingPartial, decode as decode_partial,
+    encode as encode_partial,
 };
 pub(crate) use tree::BlockTree;

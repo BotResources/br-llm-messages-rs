@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::{Error, ErrorCode};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "UsageWire")]
 pub struct Usage {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -45,8 +45,15 @@ impl TryFrom<UsageWire> for Usage {
 }
 
 impl Usage {
+    #[allow(clippy::new_without_default)] // an empty usage is refused, so Usage has no Default
     pub fn new() -> Self {
-        Usage::default()
+        Usage {
+            input_tokens: None,
+            output_tokens: None,
+            cache_read_input_tokens: None,
+            cache_creation_input_tokens: None,
+            thinking_tokens: None,
+        }
     }
 
     pub fn with_input_tokens(mut self, count: u64) -> Self {
@@ -75,7 +82,7 @@ impl Usage {
     }
 
     pub fn is_empty(&self) -> bool {
-        *self == Usage::default()
+        *self == Usage::new()
     }
 
     pub(crate) fn ensure_observed(&self) -> Result<(), Error> {

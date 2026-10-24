@@ -42,17 +42,18 @@ impl AsRef<str> for ReplayFormat {
     }
 }
 
-#[non_exhaustive]
-#[derive(Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
-pub enum ReplayPayload {
+tagged_enum! {
     #[non_exhaustive]
-    Text { value: String },
-    #[non_exhaustive]
-    Json {
-        #[serde(deserialize_with = "super::opaque::deserialize")]
-        value: OpaqueJson,
-    },
+    #[derive(Clone, PartialEq)]
+    pub enum ReplayPayload, ReplayPayloadWire, remote = "ReplayPayload", [tag = "type", rename_all = "snake_case", deny_unknown_fields] {
+        #[non_exhaustive]
+        Text { value: String },
+        #[non_exhaustive]
+        Json {
+            #[serde(deserialize_with = "super::opaque::value")]
+            value: OpaqueJson,
+        },
+    }
 }
 
 impl std::fmt::Debug for ReplayPayload {

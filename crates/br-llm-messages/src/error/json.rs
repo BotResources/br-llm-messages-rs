@@ -3,6 +3,8 @@ use uuid::Uuid;
 
 use super::{Error, ErrorCode};
 
+const RECURSION_LIMIT: &str = "recursion limit exceeded";
+
 impl Error {
     pub(crate) fn from_json_error(error: &(dyn std::error::Error + 'static)) -> Error {
         match error.downcast_ref::<serde_json::Error>() {
@@ -11,10 +13,19 @@ impl Error {
         }
     }
 
+    pub(crate) fn from_data_error(error: &serde_json::Error) -> Error {
+        from_data_message(&error.to_string())
+    }
+
     fn from_serde_json(error: &serde_json::Error) -> Error {
         match error.classify() {
             Category::Syntax | Category::Eof | Category::Io => {
-                let mut mapped = Error::new(ErrorCode::MalformedJson);
+                let code = if error.to_string().starts_with(RECURSION_LIMIT) {
+                    ErrorCode::InvalidContent
+                } else {
+                    ErrorCode::MalformedJson
+                };
+                let mut mapped = Error::new(code);
                 if error.line() > 0 {
                     mapped.location =
                         Some(format!("line {} column {}", error.line(), error.column()));
@@ -38,7 +49,12 @@ fn from_data_message(message: &str) -> Error {
         return Error::new(ErrorCode::VariantMismatch);
     }
     if let Some(field) = missing_field(message) {
-        let mut missing = Error::new(ErrorCode::InvalidContent);
+        let code = if field == "type" {
+            ErrorCode::VariantMismatch
+        } else {
+            ErrorCode::InvalidContent
+        };
+        let mut missing = Error::new(code);
         missing.location = Some(field.to_owned());
         return missing;
     }
@@ -47,16 +63,15 @@ fn from_data_message(message: &str) -> Error {
 
 fn strip_position(message: &str) -> &str {
     const MARKER: &str = " at line ";
-    let Some(start) = message.rfind(MARKER) else {
+    let Some((head, tail)) = message.rsplit_once(MARKER) else {
         return message;
     };
-    let tail = &message[start + MARKER.len()..];
     let mut parts = tail.split(" column ");
     let line = parts.next().unwrap_or_default();
     let column = parts.next().unwrap_or_default();
     let numeric = |text: &str| !text.is_empty() && text.bytes().all(|b| b.is_ascii_digit());
     if numeric(line) && numeric(column) && parts.next().is_none() {
-        &message[..start]
+        head
     } else {
         message
     }

@@ -1,84 +1,64 @@
 use serde::{Deserialize, Serialize};
 
 use crate::block::ContentBlock;
+use crate::error::Error;
 use crate::value::{
-    Citation, ExecutionStatus, ExternalId, FailureDetail, ProviderOperation, ToolName,
+    Citation, ExecutionStatus, ExternalId, ItemRef, PlainText, ProviderOperation, ToolName,
 };
 
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
-pub enum BlockMetadataUpdate {
+tagged_enum! {
     #[non_exhaustive]
-    CitationAdded { citation: Citation },
-    #[non_exhaustive]
-    RuntimeToolCallIdentified {
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        name: Option<ToolName>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        external_id: Option<ExternalId>,
-    },
-    #[non_exhaustive]
-    ProviderReferencesUpdated {
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        operation: Option<ProviderOperation>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        external_id: Option<ExternalId>,
-    },
-    #[non_exhaustive]
-    ExecutionStatusObserved { status: ExecutionStatus },
+    #[derive(Debug, Clone, PartialEq)]
+    pub enum BlockMetadataUpdate, BlockMetadataUpdateWire, remote = "BlockMetadataUpdate", [tag = "type", rename_all = "snake_case", deny_unknown_fields] {
+        #[non_exhaustive]
+        ToolNameSet { name: ToolName },
+        #[non_exhaustive]
+        ExternalIdSet { external_id: ExternalId },
+        #[non_exhaustive]
+        ItemRefSet { item_ref: ItemRef },
+        #[non_exhaustive]
+        CitationAdded { citation: Citation },
+        #[non_exhaustive]
+        OperationSet { operation: ProviderOperation },
+        #[non_exhaustive]
+        ExecutionStatusSet { status: ExecutionStatus },
+    }
 }
 
 impl BlockMetadataUpdate {
+    pub fn tool_name_set(name: ToolName) -> Self {
+        BlockMetadataUpdate::ToolNameSet { name }
+    }
+
+    pub fn external_id_set(external_id: ExternalId) -> Self {
+        BlockMetadataUpdate::ExternalIdSet { external_id }
+    }
+
+    pub fn item_ref_set(item_ref: ItemRef) -> Self {
+        BlockMetadataUpdate::ItemRefSet { item_ref }
+    }
+
     pub fn citation_added(citation: Citation) -> Self {
         BlockMetadataUpdate::CitationAdded { citation }
     }
 
-    pub fn runtime_tool_call_identified(
-        name: Option<ToolName>,
-        external_id: Option<ExternalId>,
-    ) -> Self {
-        BlockMetadataUpdate::RuntimeToolCallIdentified { name, external_id }
+    pub fn operation_set(operation: ProviderOperation) -> Self {
+        BlockMetadataUpdate::OperationSet { operation }
     }
 
-    pub fn provider_references_updated(
-        operation: Option<ProviderOperation>,
-        external_id: Option<ExternalId>,
-    ) -> Self {
-        BlockMetadataUpdate::ProviderReferencesUpdated {
-            operation,
-            external_id,
-        }
-    }
-
-    pub fn execution_status_observed(status: ExecutionStatus) -> Self {
-        BlockMetadataUpdate::ExecutionStatusObserved { status }
+    pub fn execution_status_set(status: ExecutionStatus) -> Self {
+        BlockMetadataUpdate::ExecutionStatusSet { status }
     }
 }
 
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(from = "FinalizationWire", tag = "type", rename_all = "snake_case")]
-pub enum Finalization {
+tagged_enum! {
     #[non_exhaustive]
-    Accumulated {},
-    #[non_exhaustive]
-    Authoritative { block: Box<ContentBlock> },
-}
-
-#[derive(Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
-enum FinalizationWire {
-    Accumulated {},
-    Authoritative { block: Box<ContentBlock> },
-}
-
-impl From<FinalizationWire> for Finalization {
-    fn from(wire: FinalizationWire) -> Self {
-        match wire {
-            FinalizationWire::Accumulated {} => Finalization::Accumulated {},
-            FinalizationWire::Authoritative { block } => Finalization::Authoritative { block },
-        }
+    #[derive(Debug, Clone, PartialEq)]
+    pub enum Finalization, FinalizationWire, remote = "Finalization", [tag = "type", rename_all = "snake_case", deny_unknown_fields] {
+        #[non_exhaustive]
+        Accumulated {},
+        #[non_exhaustive]
+        Authoritative { block: Box<ContentBlock> },
     }
 }
 
@@ -95,57 +75,74 @@ impl Finalization {
 }
 
 #[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InterruptionKind {
+    Interrupted,
+    Cancelled,
+    Truncated,
+    Failed,
+}
+
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(
-    from = "InterruptionReasonWire",
-    tag = "type",
-    rename_all = "snake_case"
-)]
-pub enum InterruptionReason {
-    #[non_exhaustive]
-    Cancelled {},
-    #[non_exhaustive]
-    Truncated {},
-    #[non_exhaustive]
-    Interrupted {},
-    #[non_exhaustive]
-    Failed { failure: FailureDetail },
+#[serde(try_from = "InterruptionReasonWire")]
+pub struct InterruptionReason {
+    kind: InterruptionKind,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    detail: Option<PlainText>,
 }
 
 #[derive(Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
-enum InterruptionReasonWire {
-    Cancelled {},
-    Truncated {},
-    Interrupted {},
-    Failed { failure: FailureDetail },
+#[serde(deny_unknown_fields)]
+struct InterruptionReasonWire {
+    kind: InterruptionKind,
+    detail: Option<String>,
 }
 
-impl From<InterruptionReasonWire> for InterruptionReason {
-    fn from(wire: InterruptionReasonWire) -> Self {
-        match wire {
-            InterruptionReasonWire::Cancelled {} => InterruptionReason::cancelled(),
-            InterruptionReasonWire::Truncated {} => InterruptionReason::truncated(),
-            InterruptionReasonWire::Interrupted {} => InterruptionReason::interrupted(),
-            InterruptionReasonWire::Failed { failure } => InterruptionReason::Failed { failure },
+impl TryFrom<InterruptionReasonWire> for InterruptionReason {
+    type Error = Error;
+
+    fn try_from(wire: InterruptionReasonWire) -> Result<Self, Error> {
+        let reason = InterruptionReason::new(wire.kind);
+        match wire.detail {
+            Some(detail) => reason.with_detail(detail),
+            None => Ok(reason),
         }
     }
 }
 
 impl InterruptionReason {
-    pub fn cancelled() -> Self {
-        InterruptionReason::Cancelled {}
-    }
-
-    pub fn truncated() -> Self {
-        InterruptionReason::Truncated {}
+    pub fn new(kind: InterruptionKind) -> Self {
+        InterruptionReason { kind, detail: None }
     }
 
     pub fn interrupted() -> Self {
-        InterruptionReason::Interrupted {}
+        InterruptionReason::new(InterruptionKind::Interrupted)
     }
 
-    pub fn failed(failure: FailureDetail) -> Self {
-        InterruptionReason::Failed { failure }
+    pub fn cancelled() -> Self {
+        InterruptionReason::new(InterruptionKind::Cancelled)
+    }
+
+    pub fn truncated() -> Self {
+        InterruptionReason::new(InterruptionKind::Truncated)
+    }
+
+    pub fn failed() -> Self {
+        InterruptionReason::new(InterruptionKind::Failed)
+    }
+
+    pub fn with_detail(mut self, detail: impl Into<String>) -> Result<Self, Error> {
+        self.detail = Some(PlainText::new(detail).map_err(|error| error.at("detail"))?);
+        Ok(self)
+    }
+
+    pub fn kind(&self) -> InterruptionKind {
+        self.kind
+    }
+
+    pub fn detail(&self) -> Option<&str> {
+        self.detail.as_ref().map(PlainText::as_str)
     }
 }

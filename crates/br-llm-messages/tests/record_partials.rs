@@ -9,11 +9,11 @@ use common::{bid, eid, hid};
 use serde_json::{Value, json};
 
 fn entry(kind: TurnEntryKind, state: RepresentationState, payload: Value) -> EntryRecord {
-    EntryRecord::new(eid(2), tid(1), kind, 0, state, common::oj(payload))
+    EntryRecord::new(eid(2), tid(1), kind, state, common::oj(payload))
 }
 
 fn block(kind: ContentBlockKind, state: RepresentationState, payload: Value) -> BlockRecord {
-    BlockRecord::new(bid(3), eid(2), kind, 0, state, common::oj(payload))
+    BlockRecord::new(bid(3), eid(2), kind, state, common::oj(payload))
 }
 
 fn code<T>(result: Result<T, br_llm_messages::Error>) -> ErrorCode {
@@ -39,12 +39,7 @@ fn given_a_standalone_partial_text_row_when_checked_locally_then_draft_rules_app
 
 #[test]
 fn given_a_partial_row_of_a_kind_that_cannot_be_partial_when_checked_then_it_is_refused() {
-    for kind in [
-        ContentBlockKind::Image,
-        ContentBlockKind::RedactedThinking,
-        ContentBlockKind::ProviderToolResult,
-        ContentBlockKind::RuntimeToolResult,
-    ] {
+    for kind in [ContentBlockKind::Image, ContentBlockKind::RuntimeToolResult] {
         let row = block(kind, RepresentationState::Producing, json!({})).with_call(bid(1));
 
         assert_eq!(code(row.check_local()), ErrorCode::DisallowedKind);
@@ -52,32 +47,51 @@ fn given_a_partial_row_of_a_kind_that_cannot_be_partial_when_checked_then_it_is_
 }
 
 #[test]
-fn given_discarded_rows_when_checked_then_only_empty_text_rows_are_valid() {
-    let good = block(
-        ContentBlockKind::Text,
-        RepresentationState::Discarded,
+fn given_partial_rows_of_the_replay_only_kinds_when_checked_then_they_are_accepted() {
+    let redacted = block(
+        ContentBlockKind::RedactedThinking,
+        RepresentationState::Producing,
+        json!({"replay": {"format": "anthropic.redacted", "payload": {"type": "text", "value": "x"}}}),
+    );
+    let provider_result = block(
+        ContentBlockKind::ProviderToolResult,
+        RepresentationState::Producing,
         json!({}),
-    );
-    let wrong_kind = block(
-        ContentBlockKind::Thinking,
-        RepresentationState::Discarded,
-        json!({}),
-    );
-    let with_payload = block(
-        ContentBlockKind::Text,
-        RepresentationState::Discarded,
-        json!({"text": "x"}),
-    );
+    )
+    .with_call(bid(9));
 
-    assert!(good.check_local().is_ok());
+    assert!(redacted.check_local().is_ok());
+    assert!(provider_result.check_local().is_ok());
+}
+
+#[test]
+fn given_a_provisional_argument_that_is_not_an_object_when_a_call_row_is_checked_then_it_is_refused()
+ {
+    let row = |value: Value| {
+        block(
+            ContentBlockKind::RuntimeToolCall,
+            RepresentationState::Producing,
+            json!({"raw_arguments": "", "provisional_arguments": value}),
+        )
+    };
+
+    assert!(row(json!({"q": 1})).check_local().is_ok());
     assert_eq!(
-        code(wrong_kind.check_local()),
-        ErrorCode::InvalidRecordStructure
+        code(row(json!([1])).check_local()),
+        ErrorCode::InvalidContent
     );
+}
+
+#[test]
+fn given_the_discarded_state_when_parsed_then_it_is_not_a_representation_state() {
     assert_eq!(
-        code(with_payload.check_local()),
-        ErrorCode::InvalidRecordStructure
+        "discarded"
+            .parse::<RepresentationState>()
+            .unwrap_err()
+            .code(),
+        ErrorCode::VariantMismatch
     );
+    assert_eq!(RepresentationState::ALL.len(), 3);
 }
 
 #[test]
@@ -90,7 +104,7 @@ fn given_a_response_header_row_when_checked_locally_then_interruption_depends_on
     let producing_with_reason = entry(
         TurnEntryKind::ModelResponse,
         RepresentationState::Producing,
-        json!({"interruption": {"type": "cancelled"}}),
+        json!({"interruption": {"kind": "cancelled"}}),
     );
     let interrupted_without_reason = entry(
         TurnEntryKind::ModelResponse,
@@ -100,7 +114,7 @@ fn given_a_response_header_row_when_checked_locally_then_interruption_depends_on
     let interrupted = entry(
         TurnEntryKind::ModelResponse,
         RepresentationState::Interrupted,
-        json!({"interruption": {"type": "truncated"}}),
+        json!({"interruption": {"kind": "truncated", "detail": "cut"}}),
     );
 
     assert!(producing.check_local().is_ok());
@@ -123,15 +137,8 @@ fn given_a_non_response_entry_in_a_partial_state_when_checked_then_it_is_refused
         json!({}),
     )
     .with_sender(ActorRef::human(hid(1)));
-    let discarded = entry(
-        TurnEntryKind::ModelResponse,
-        RepresentationState::Discarded,
-        json!({}),
-    );
-
     assert_eq!(
         code(producing_human.check_local()),
         ErrorCode::DisallowedKind
     );
-    assert_eq!(code(discarded.check_local()), ErrorCode::DisallowedKind);
 }

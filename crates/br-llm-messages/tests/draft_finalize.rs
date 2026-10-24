@@ -2,14 +2,14 @@ mod common;
 mod stream_support;
 
 use br_llm_messages::{
-    ContentBlock, DeltaOp, DeltaOutcome, ErrorCode, ExternalId, Finalization, ProviderOperation,
+    ContentBlock, DeltaOp, ErrorCode, ExternalId, Finalization, ProviderOperation,
     ProviderToolCall, RuntimeToolCall, StructuredBlock, TextBlock,
 };
 use common::{bid, cid, signature, text_block, tool};
 use serde_json::json;
 use stream_support::{
     citation, finalize, finish, json, ok, refuse, run, start_call, start_json, start_provider_call,
-    start_record, start_text, start_thinking, text,
+    start_text, text,
 };
 
 fn authoritative(block: impl Into<ContentBlock>) -> DeltaOp {
@@ -20,16 +20,16 @@ fn authoritative(block: impl Into<ContentBlock>) -> DeltaOp {
 #[test]
 fn given_accumulated_content_when_finalized_then_each_kind_becomes_a_validated_block() {
     let mut draft = run(vec![
-        start_text(10, 0),
+        start_text(10),
         text(10, "hello"),
-        start_json(11, 1),
+        start_json(11),
         json(11, "{\"k\":"),
         json(11, "[1,2]}"),
-        start_call(12, 2, Some("lookup"), Some("toolu_1")),
+        start_call(12, Some("lookup"), Some("toolu_1")),
         json(12, "{\"q\":\"x\"}"),
-        start_provider_call(13, 3),
+        start_provider_call(13),
         json(13, "{\"p\":1}"),
-        start_provider_call(14, 4),
+        start_provider_call(14),
     ]);
 
     for block in [10, 11, 12, 13, 14] {
@@ -66,7 +66,7 @@ fn given_accumulated_content_when_finalized_then_each_kind_becomes_a_validated_b
 #[test]
 fn given_citations_added_while_streaming_when_finalized_then_they_are_validated_against_the_text() {
     let mut draft = run(vec![
-        start_text(10, 0),
+        start_text(10),
         text(10, "abc"),
         DeltaOp::block_metadata_updated(
             bid(10),
@@ -84,24 +84,23 @@ fn given_citations_added_while_streaming_when_finalized_then_they_are_validated_
 #[test]
 fn given_invalid_accumulated_content_when_finalized_then_the_specific_code_and_nothing_changes() {
     let mut draft = run(vec![
-        start_text(10, 0),
+        start_text(10),
         text(10, " \n "),
-        start_json(11, 1),
+        start_json(11),
         json(11, "{\"a\":"),
-        start_json(12, 2),
-        start_call(13, 3, None, None),
+        start_json(12),
+        start_call(13, None, None),
         json(13, "{}"),
-        start_call(14, 4, Some("t"), None),
-        start_record(15, 5),
+        start_call(14, Some("t"), None),
+        json(14, "{\"a\":"),
     ]);
 
     let cases = [
         (10, ErrorCode::InconsistentFinalization),
         (11, ErrorCode::MalformedJson),
-        (12, ErrorCode::MalformedJson),
+        (12, ErrorCode::InconsistentFinalization),
         (13, ErrorCode::InconsistentFinalization),
         (14, ErrorCode::MalformedJson),
-        (15, ErrorCode::InconsistentFinalization),
     ];
     for (block, code) in cases {
         let error = refuse(&mut draft, finalize(block));
@@ -114,7 +113,7 @@ fn given_invalid_accumulated_content_when_finalized_then_the_specific_code_and_n
 fn given_an_authoritative_value_when_finalized_then_provisional_fields_are_replaced_and_the_id_is_kept()
  {
     let mut draft = run(vec![
-        start_call(10, 0, Some("draft_name"), Some("provisional")),
+        start_call(10, Some("draft_name"), Some("provisional")),
         json(10, "{\"half\":"),
     ]);
     let value = RuntimeToolCall::new(
@@ -134,7 +133,7 @@ fn given_an_authoritative_value_when_finalized_then_provisional_fields_are_repla
 #[test]
 fn given_an_authoritative_text_when_finalized_then_it_replaces_the_accumulated_text_never_appended()
 {
-    let mut draft = run(vec![start_text(10, 0), text(10, "Hel")]);
+    let mut draft = run(vec![start_text(10), text(10, "Hel")]);
 
     ok(
         &mut draft,
@@ -151,7 +150,7 @@ fn given_an_authoritative_text_when_finalized_then_it_replaces_the_accumulated_t
 #[test]
 fn given_an_authoritative_value_when_it_replaces_replay_then_the_replacement_is_exact() {
     let mut draft = run(vec![
-        start_text(10, 0),
+        start_text(10),
         text(10, "x"),
         DeltaOp::replay_material_set(bid(10), signature("old")),
     ]);
@@ -168,7 +167,7 @@ fn given_an_authoritative_value_when_it_replaces_replay_then_the_replacement_is_
 #[test]
 fn given_an_authoritative_value_with_another_id_or_kind_when_finalized_then_inconsistent_finalization()
  {
-    let mut draft = run(vec![start_text(10, 0), text(10, "x")]);
+    let mut draft = run(vec![start_text(10), text(10, "x")]);
     let other_id = DeltaOp::block_finalized(
         bid(10),
         Finalization::authoritative(text_block(11, "x").into()),
@@ -187,7 +186,7 @@ fn given_an_authoritative_value_with_another_id_or_kind_when_finalized_then_inco
 
 #[test]
 fn given_an_authoritative_value_with_a_taken_nested_identity_when_finalized_then_reused_identity() {
-    let mut draft = run(vec![start_text(10, 0), start_text(11, 1)]);
+    let mut draft = run(vec![start_text(10), start_text(11)]);
     let value = TextBlock::new(bid(10), "x")
         .unwrap()
         .with_citations(vec![citation(11, 0, 1)])
@@ -200,13 +199,12 @@ fn given_an_authoritative_value_with_a_taken_nested_identity_when_finalized_then
 
 #[test]
 fn given_a_finalized_block_when_finalized_again_or_mutated_then_stream_phase() {
-    let mut draft = run(vec![start_text(10, 0), text(10, "x"), finalize(10)]);
+    let mut draft = run(vec![start_text(10), text(10, "x"), finalize(10)]);
 
     let ops = [
         finalize(10),
         authoritative(text_block(10, "y")),
         text(10, "more"),
-        DeltaOp::block_discarded(bid(10)),
     ];
     for op in ops {
         let error = refuse(&mut draft, op);
@@ -215,82 +213,14 @@ fn given_a_finalized_block_when_finalized_again_or_mutated_then_stream_phase() {
 }
 
 #[test]
-fn given_blank_provisional_text_when_discarded_then_the_position_stays_occupied_and_is_reported() {
-    let mut draft = run(vec![
-        start_text(10, 0),
-        start_text(11, 1),
-        start_text(12, 2),
-    ]);
-    ok(&mut draft, text(10, "kept"));
+fn given_blank_accumulated_text_when_finalized_then_inconsistent_finalization_and_the_block_stays_open()
+ {
+    let mut draft = run(vec![start_text(10), text(10, "\n\n")]);
+
+    let error = refuse(&mut draft, finalize(10));
+
+    assert_eq!(error.code(), ErrorCode::InconsistentFinalization);
+    assert_eq!(error.object_id(), Some(bid(10).as_uuid()));
+    ok(&mut draft, text(10, "late"));
     ok(&mut draft, finalize(10));
-    ok(&mut draft, text(11, "  "));
-
-    let outcome = ok(&mut draft, DeltaOp::block_discarded(bid(11)));
-
-    assert!(matches!(
-        outcome,
-        DeltaOutcome::BlockDiscarded { block, position, .. } if block == bid(11) && position == 1
-    ));
-    let reuse_position = refuse(&mut draft, start_text(13, 1));
-    let reuse_id = refuse(&mut draft, start_text(11, 5));
-    assert_eq!(reuse_position.code(), ErrorCode::InvalidRecordStructure);
-    assert_eq!(reuse_id.code(), ErrorCode::ReusedIdentity);
-    let phase = refuse(&mut draft, text(11, "late"));
-    assert_eq!(phase.code(), ErrorCode::StreamPhaseError);
-}
-
-#[test]
-fn given_a_discarded_block_when_completed_then_later_ids_and_positions_are_not_renumbered() {
-    let mut draft = run(vec![
-        start_text(10, 0),
-        start_text(11, 1),
-        start_text(12, 2),
-    ]);
-    ok(&mut draft, text(10, "a"));
-    ok(&mut draft, text(12, "c"));
-    ok(&mut draft, DeltaOp::block_discarded(bid(11)));
-    ok(&mut draft, finalize(10));
-    ok(&mut draft, finalize(12));
-
-    ok(&mut draft, finish());
-
-    let ids: Vec<_> = draft
-        .response()
-        .unwrap()
-        .blocks()
-        .iter()
-        .map(|b| b.id())
-        .collect();
-    assert_eq!(ids, vec![bid(10), bid(12)]);
-    let view = draft.view();
-    let positions: Vec<_> = view
-        .slots()
-        .iter()
-        .map(|s| (s.position(), s.block()))
-        .collect();
-    assert_eq!(positions, vec![(0, bid(10)), (1, bid(11)), (2, bid(12))]);
-}
-
-#[test]
-fn given_content_that_is_not_blank_provisional_text_when_discarded_then_inconsistent_finalization()
-{
-    let mut draft = run(vec![
-        start_text(10, 0),
-        text(10, "real"),
-        start_text(11, 1),
-        DeltaOp::replay_material_set(bid(11), signature("s")),
-        start_text(12, 2),
-        DeltaOp::block_metadata_updated(
-            bid(12),
-            br_llm_messages::BlockMetadataUpdate::citation_added(citation(50, 0, 1)),
-        ),
-        start_thinking(13, 3),
-        start_call(14, 4, None, None),
-    ]);
-
-    for block in [10, 11, 12, 13, 14] {
-        let error = refuse(&mut draft, DeltaOp::block_discarded(bid(block)));
-        assert_eq!(error.code(), ErrorCode::InconsistentFinalization);
-        assert_eq!(error.object_id(), Some(bid(block).as_uuid()));
-    }
 }

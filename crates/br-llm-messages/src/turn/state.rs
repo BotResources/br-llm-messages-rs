@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use super::declared::{Declared, Place, turn_place};
 use crate::block::ContentBlock;
-use crate::entry::{ClosureReason, TurnEntry};
+use crate::entry::{ClosureReason, TurnEntry, TurnEntryKind};
 use crate::id::{BlockId, TurnId};
 use crate::value::{ExecutionStatus, ResponseEnding, ToolName};
 
@@ -49,6 +49,7 @@ pub(crate) struct Tracker {
     pub(crate) closure: Option<ClosureReason>,
     pub(crate) last_ending: Option<ResponseEnding>,
     pub(crate) pending: Vec<BlockId>,
+    pub(crate) last_entry: Option<TurnEntryKind>,
 }
 
 impl Tracker {
@@ -62,6 +63,7 @@ impl Tracker {
             closure: None,
             last_ending: None,
             pending: Vec::new(),
+            last_entry: None,
         }
     }
 
@@ -85,14 +87,11 @@ impl Tracker {
         match entry {
             TurnEntry::ModelResponse(response) => {
                 self.pending.clear();
-                let results_requested = *response.ending() == ResponseEnding::tool_use();
                 for block in response.blocks() {
                     match block {
                         ContentBlock::RuntimeToolCall(call) => {
                             self.calls.insert(call.id(), call.name().clone());
-                            if results_requested {
-                                self.outstanding.push(call.id());
-                            }
+                            self.outstanding.push(call.id());
                         }
                         ContentBlock::ProviderToolResult(result) => {
                             self.answered_provider.insert(result.call());
@@ -121,5 +120,6 @@ impl Tracker {
             }
             _ => {}
         }
+        self.last_entry = Some(entry.kind());
     }
 }

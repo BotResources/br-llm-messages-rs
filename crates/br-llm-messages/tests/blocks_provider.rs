@@ -74,14 +74,15 @@ fn given_text_carrying_model_only_fields_when_made_plain_then_disallowed_kind() 
 }
 
 #[test]
-fn given_a_plain_slice_with_a_repeated_id_when_checked_then_reused_identity() {
-    let error = refused(PlainBlock::ensure_distinct_ids(&[
-        plain_text(1, "a"),
-        plain_text(1, "b"),
-    ]));
+fn given_a_provider_result_with_a_repeated_nested_id_when_built_then_reused_identity() {
+    let error = refused(ProviderToolResult::new(
+        bid(5),
+        bid(6),
+        vec![plain_text(1, "a"), plain_text(1, "b")],
+    ));
 
     assert_eq!(error.code(), ErrorCode::ReusedIdentity);
-    assert_eq!(error.location(), Some("[1]"));
+    assert_eq!(error.location(), Some("content[1]"));
 }
 
 #[test]

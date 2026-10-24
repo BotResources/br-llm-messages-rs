@@ -6,7 +6,7 @@ use serde_json::Value;
 use crate::opaque_json::OpaqueJson;
 
 use super::block::BlockRecord;
-use super::decompose::{position, turn_rows};
+use super::decompose::turn_rows;
 use super::entry::EntryRecord;
 use super::reconstruct::rebuild;
 use super::turn::TurnRecord;
@@ -18,7 +18,7 @@ use crate::turn::Turn;
 pub const RECORD_SCHEMA: &str = "br-llm-messages-records/1";
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RecordSet {
     pub(super) turns: Vec<TurnRecord>,
     pub(super) entries: Vec<EntryRecord>,
@@ -36,8 +36,13 @@ struct RecordSetWire {
 }
 
 impl RecordSet {
+    #[allow(clippy::new_without_default)] // a Default derive would freeze the field set
     pub fn new() -> Self {
-        RecordSet::default()
+        RecordSet {
+            turns: Vec::new(),
+            entries: Vec::new(),
+            blocks: Vec::new(),
+        }
     }
 
     pub fn with_turns(mut self, turns: Vec<TurnRecord>) -> Self {
@@ -72,18 +77,16 @@ impl RecordSet {
     }
 
     pub fn from_conversation(conversation: &Conversation) -> Result<RecordSet, Error> {
-        let mut set = RecordSet::default();
+        let mut set = RecordSet::new();
         for (index, turn) in conversation.turns().iter().enumerate() {
-            position(index)
-                .and_then(|at| turn_rows(turn, at, &mut set))
-                .map_err(|error| error.at(format!("turns[{index}]")))?;
+            turn_rows(turn, &mut set).map_err(|error| error.at(format!("turns[{index}]")))?;
         }
         Ok(set)
     }
 
-    pub fn from_turn(turn: &Turn, position: u32) -> Result<RecordSet, Error> {
-        let mut set = RecordSet::default();
-        turn_rows(turn, position, &mut set)?;
+    pub fn from_turn(turn: &Turn) -> Result<RecordSet, Error> {
+        let mut set = RecordSet::new();
+        turn_rows(turn, &mut set)?;
         Ok(set)
     }
 
@@ -104,11 +107,11 @@ impl RecordSet {
     }
 
     pub fn into_turns(self) -> Result<Vec<Turn>, Error> {
-        rebuild(&self, false)
+        rebuild(&self)
     }
 
     pub fn into_conversation(self, id: ConversationId) -> Result<Conversation, Error> {
-        let turns = rebuild(&self, true)?;
+        let turns = rebuild(&self)?;
         Conversation::from_parts(id, turns)
     }
 

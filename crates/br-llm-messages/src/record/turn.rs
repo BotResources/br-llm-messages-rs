@@ -11,7 +11,6 @@ use crate::value::{Author, ObservedAt};
 pub struct TurnRecord {
     id: TurnId,
     kind: TurnKind,
-    position: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
     agent: Option<AgentId>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -25,18 +24,16 @@ pub struct TurnRecord {
 struct TurnRecordWire {
     id: TurnId,
     kind: TurnKind,
-    position: u32,
     agent: Option<AgentId>,
     author: Option<Author>,
     observed_at: Option<ObservedAt>,
 }
 
 impl TurnRecord {
-    pub fn new(id: TurnId, kind: TurnKind, position: u32) -> Self {
+    pub fn new(id: TurnId, kind: TurnKind) -> Self {
         TurnRecord {
             id,
             kind,
-            position,
             agent: None,
             author: None,
             observed_at: None,
@@ -64,10 +61,6 @@ impl TurnRecord {
 
     pub fn kind(&self) -> TurnKind {
         self.kind
-    }
-
-    pub fn position(&self) -> u32 {
-        self.position
     }
 
     pub fn agent(&self) -> Option<AgentId> {
@@ -110,7 +103,7 @@ impl TryFrom<TurnRecordWire> for TurnRecord {
     type Error = Error;
 
     fn try_from(wire: TurnRecordWire) -> Result<Self, Error> {
-        let mut record = TurnRecord::new(wire.id, wire.kind, wire.position);
+        let mut record = TurnRecord::new(wire.id, wire.kind);
         record.agent = wire.agent;
         record.author = wire.author;
         record.observed_at = wire.observed_at;

@@ -201,10 +201,10 @@ fn given_a_conversation_when_decomposed_into_records_then_the_opaque_values_surv
 fn given_raw_json_accumulated_by_a_draft_when_finalized_then_the_value_is_the_parsed_json() {
     let (first, second) = NASTY.split_at(17);
     let mut draft = run(vec![
-        start_json(20, 0),
+        start_json(20),
         json(20, first),
         json(20, second),
-        start_call(21, 1, Some("lookup"), None),
+        start_call(21, Some("lookup"), None),
         json(21, NASTY),
     ]);
 

@@ -5,9 +5,21 @@ use br_llm_messages::{
     RedactedThinkingBlock, RuntimeToolCall, RuntimeToolResult, StructuredBlock, TextBlock,
     TextRange, ThinkingBlock,
 };
+use br_llm_messages::{
+    ModelResponse, ProviderToolCall, ProviderToolResult, ResponseEnding, ResponseMetadata,
+};
 use common::Raw as _;
-use common::{bid, cid, envelope, plain_text, png, refused, signature, text_block, tool, v7};
+use common::{bid, cid, eid, envelope, plain_text, png, refused, signature, text_block, tool, v7};
 use serde_json::{Value, json};
+
+fn response_of(blocks: Vec<ContentBlock>) -> Result<ModelResponse, br_llm_messages::Error> {
+    ModelResponse::new(
+        eid(10),
+        blocks,
+        ResponseEnding::finished(),
+        ResponseMetadata::new(),
+    )
+}
 
 fn cite(n: u64, start: u64, end: u64) -> Citation {
     Citation::new(cid(n), CitationSource::new("doc").unwrap())
@@ -62,15 +74,16 @@ fn given_a_text_citation_reusing_the_block_id_or_another_citation_when_built_the
 #[test]
 fn given_a_container_where_a_nested_id_repeats_a_sibling_block_when_checked_then_reused_identity_with_path()
  {
-    let call =
-        ContentBlock::from(RuntimeToolCall::new(bid(1), tool("t"), common::oj(json!({}))).unwrap());
-    let nested = ContentBlock::from(result_with(2, vec![plain_text(1, "dup")]).unwrap());
+    let call = ContentBlock::from(ProviderToolCall::new(bid(1)));
+    let nested = ContentBlock::from(
+        ProviderToolResult::new(bid(2), bid(1), vec![plain_text(1, "dup")]).unwrap(),
+    );
 
-    let error = refused(ContentBlock::ensure_distinct_ids(&[call, nested]));
+    let error = refused(response_of(vec![call, nested]));
 
     assert_eq!(error.code(), ErrorCode::ReusedIdentity);
     assert_eq!(error.object_id(), Some(v7(1)));
-    assert_eq!(error.location(), Some("[1].content[0]"));
+    assert_eq!(error.location(), Some("content[1].content[0]"));
 }
 
 #[test]
@@ -81,10 +94,7 @@ fn given_a_citation_id_equal_to_a_sibling_block_id_when_checked_then_reused_iden
         .unwrap();
     let sibling = ThinkingBlock::new(bid(2), "t").unwrap();
 
-    let error = refused(ContentBlock::ensure_distinct_ids(&[
-        cited.into(),
-        sibling.into(),
-    ]));
+    let error = refused(response_of(vec![cited.into(), sibling.into()]));
 
     assert_eq!(error.code(), ErrorCode::ReusedIdentity);
     assert_eq!(error.object_id(), Some(v7(2)));
@@ -98,7 +108,7 @@ fn given_distinct_ids_everywhere_when_checked_then_accepted() {
         ContentBlock::from(result_with(3, vec![plain_text(4, "n")]).unwrap()),
     ];
 
-    assert!(ContentBlock::ensure_distinct_ids(&blocks).is_ok());
+    assert!(response_of(vec![blocks[0].clone(), blocks[1].clone()]).is_ok());
     assert_eq!(blocks[2].id(), bid(3));
     assert_eq!(blocks[2].children().len(), 1);
     assert!(blocks[0].children().is_empty());

@@ -24,12 +24,14 @@ impl ToolName {
 
 fn is_valid(value: &str) -> bool {
     let bytes = value.as_bytes();
-    if bytes.is_empty() || bytes.len() > MAX_LEN {
+    if bytes.len() > MAX_LEN {
         return false;
     }
-    let first = bytes[0];
-    (first.is_ascii_alphabetic() || first == b'_')
-        && bytes[1..]
+    let Some((first, rest)) = bytes.split_first() else {
+        return false;
+    };
+    (first.is_ascii_alphabetic() || *first == b'_')
+        && rest
             .iter()
             .all(|b| b.is_ascii_alphanumeric() || *b == b'_' || *b == b'-')
 }

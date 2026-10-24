@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 use super::{locate, refuse_author};
-use crate::block::IdSink;
 use crate::error::{Error, ErrorCode};
 use crate::id::EntryId;
 use crate::value::{ObservedAt, PlainText};
@@ -38,14 +37,14 @@ pub enum ClosureReason {
     Failed { detail: PlainText },
 }
 
-#[derive(Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
-enum ClosureReasonWire {
-    Completed { detail: Option<String> },
-    Cancelled { detail: Option<String> },
-    Interrupted { detail: Option<String> },
-    BudgetExhausted { detail: Option<String> },
-    Failed { detail: Option<String> },
+tagged_enum! {
+    enum ClosureReasonWire, ClosureReasonRaw, remote = "ClosureReasonWire", [tag = "type", rename_all = "snake_case", deny_unknown_fields] {
+        Completed { detail: Option<String> },
+        Cancelled { detail: Option<String> },
+        Interrupted { detail: Option<String> },
+        BudgetExhausted { detail: Option<String> },
+        Failed { detail: Option<String> },
+    }
 }
 
 fn detail_at(text: String) -> Result<PlainText, Error> {
@@ -173,10 +172,6 @@ impl TurnClosure {
 
     pub fn observed_at(&self) -> Option<&ObservedAt> {
         self.observed_at.as_ref()
-    }
-
-    pub(crate) fn collect_ids(&self, sink: &mut IdSink) -> Result<(), Error> {
-        sink.insert(self.id.as_uuid())
     }
 }
 

@@ -3,6 +3,7 @@ mod declared;
 mod input;
 mod json;
 mod kind;
+mod order;
 mod results;
 mod rules;
 mod state;

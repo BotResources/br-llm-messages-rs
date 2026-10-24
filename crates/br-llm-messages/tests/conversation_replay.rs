@@ -39,7 +39,25 @@ fn cases() -> Vec<Case> {
         Case {
             name: "response with outstanding calls",
             entries: vec![calling(10, &[(11, "a")]), finished(12)],
-            code: ErrorCode::UnresolvedExecution,
+            code: ErrorCode::EntryOutOfOrder,
+            index: 1,
+        },
+        Case {
+            name: "incoming entry with outstanding calls",
+            entries: vec![calling(10, &[(11, "a")]), human(12)],
+            code: ErrorCode::EntryOutOfOrder,
+            index: 1,
+        },
+        Case {
+            name: "result with nothing outstanding",
+            entries: vec![finished(10), delivery(20, &[(21, 11, "a")])],
+            code: ErrorCode::EntryOutOfOrder,
+            index: 1,
+        },
+        Case {
+            name: "second response with no entry between",
+            entries: vec![finished(10), finished(11)],
+            code: ErrorCode::EntryOutOfOrder,
             index: 1,
         },
         Case {
@@ -51,7 +69,11 @@ fn cases() -> Vec<Case> {
         Case {
             name: "result for a provider call",
             entries: vec![
-                response(10, vec![hosted_call(11)], ResponseEnding::finished()),
+                response(
+                    10,
+                    vec![hosted_call(11), common::call(12, "a").into()],
+                    ResponseEnding::tool_use(),
+                ),
                 delivery(20, &[(21, 11, "a")]),
             ],
             code: ErrorCode::UnknownReference,
@@ -60,7 +82,7 @@ fn cases() -> Vec<Case> {
         Case {
             name: "second result for a call",
             entries: vec![
-                calling(10, &[(11, "a")]),
+                calling(10, &[(11, "a"), (12, "b")]),
                 delivery(20, &[(21, 11, "a")]),
                 delivery(30, &[(31, 11, "a")]),
             ],

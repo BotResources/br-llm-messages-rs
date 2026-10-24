@@ -6,7 +6,7 @@ use br_llm_messages::{
     RepresentationState, TurnEntryKind, TurnKind, TurnRecord,
 };
 use common::conversations::rich;
-use common::records::{edited, rich_set, shuffled};
+use common::records::{edited, interleaved, rich_set};
 use common::turns::tid;
 use common::{author, bid, cvid, eid, hid};
 use serde_json::json;
@@ -17,10 +17,7 @@ fn given_the_record_kinds_when_listed_then_discriminants_are_stable_snake_case()
         .iter()
         .map(|s| s.as_str())
         .collect();
-    assert_eq!(
-        states,
-        ["producing", "complete", "interrupted", "discarded"]
-    );
+    assert_eq!(states, ["producing", "complete", "interrupted"]);
     let turns: Vec<&str> = TurnKind::ALL.iter().map(|k| k.as_str()).collect();
     assert_eq!(turns, ["input_turn", "ai_turn"]);
     assert_eq!(TurnEntryKind::ALL[10].as_str(), "turn_closure");
@@ -74,9 +71,9 @@ fn given_a_rich_conversation_when_decomposed_then_reconstruction_equals_it() {
 }
 
 #[test]
-fn given_shuffled_rows_when_reconstructed_then_the_conversation_is_equal() {
+fn given_interleaved_rows_when_reconstructed_then_the_conversation_is_equal() {
     let original = rich();
-    let scrambled = shuffled(&rich_set());
+    let scrambled = interleaved(&rich_set());
     assert_ne!(scrambled, rich_set());
 
     let rebuilt = scrambled.into_conversation(original.id()).unwrap();
@@ -87,7 +84,7 @@ fn given_shuffled_rows_when_reconstructed_then_the_conversation_is_equal() {
 #[test]
 fn given_rows_through_json_when_reconstructed_then_the_conversation_is_equal() {
     let original = rich();
-    let json = shuffled(&rich_set()).to_json().unwrap();
+    let json = interleaved(&rich_set()).to_json().unwrap();
 
     let rebuilt = RecordSet::from_json(&json)
         .unwrap()
@@ -102,10 +99,7 @@ fn given_single_turn_rows_when_reconstructed_as_turns_then_each_turn_is_equal() 
     let original = rich();
     let turn = original.turns()[1].clone();
 
-    let rebuilt = RecordSet::from_turn(&turn, 4)
-        .unwrap()
-        .into_turns()
-        .unwrap();
+    let rebuilt = RecordSet::from_turn(&turn).unwrap().into_turns().unwrap();
 
     assert_eq!(rebuilt, vec![turn]);
 }
@@ -141,12 +135,11 @@ fn given_the_sender_columns_when_decomposed_then_each_kind_maps_to_its_actor() {
 
 #[test]
 fn given_rows_built_by_hand_when_reconstructed_then_no_database_assumption_is_needed() {
-    let turn = TurnRecord::new(tid(1), TurnKind::InputTurn, 0);
+    let turn = TurnRecord::new(tid(1), TurnKind::InputTurn);
     let entry = EntryRecord::new(
         eid(2),
         tid(1),
         TurnEntryKind::HumanMessage,
-        0,
         RepresentationState::Complete,
         common::oj(json!({})),
     )
@@ -155,7 +148,6 @@ fn given_rows_built_by_hand_when_reconstructed_then_no_database_assumption_is_ne
         bid(3),
         eid(2),
         ContentBlockKind::Text,
-        0,
         RepresentationState::Complete,
         common::oj(json!({"text": "hello"})),
     );

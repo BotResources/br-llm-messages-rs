@@ -123,23 +123,23 @@ fn given_refused_entries_when_pushed_then_history_and_index_are_unchanged() {
 
     let reasons = [
         refused(conversation.push_entry(&tid(10), finished(30))).code(),
-        refused(conversation.push_entry(&tid(10), human(11))).code(),
+        refused(conversation.push_entry(&tid(10), delivery(11, &[(21, 12, "t")]))).code(),
         refused(conversation.push_entry(&tid(10), delivery(20, &[(21, 99, "t")]))).code(),
     ];
 
     assert_eq!(
         reasons,
         [
-            ErrorCode::UnresolvedExecution,
+            ErrorCode::EntryOutOfOrder,
             ErrorCode::ReusedIdentity,
             ErrorCode::UnknownReference
         ]
     );
     assert_eq!(conversation, before);
-    conversation.push_entry(&tid(10), human(30)).unwrap();
     conversation
         .push_entry(&tid(10), delivery(20, &[(21, 12, "t")]))
         .unwrap();
+    conversation.push_entry(&tid(10), human(30)).unwrap();
 }
 
 #[test]

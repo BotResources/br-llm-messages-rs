@@ -25,7 +25,6 @@ fn given_a_parent_missing_from_the_index_when_containment_is_checked_then_unknow
         block_id(1),
         entry,
         ContentBlockKind::Text,
-        0,
         RepresentationState::Complete,
         OpaqueJson::empty_object(),
     )
@@ -35,7 +34,7 @@ fn given_a_parent_missing_from_the_index_when_containment_is_checked_then_unknow
 
     let error = check_containment(&blocks, &rows).unwrap_err();
 
-    assert_eq!(error.code(), ErrorCode::UnknownReference);
+    assert_eq!(error.code(), ErrorCode::InvalidRecordStructure);
     assert_eq!(error.object_id(), Some(block_id(1).as_uuid()));
     assert_eq!(error.location(), Some("parent"));
 }

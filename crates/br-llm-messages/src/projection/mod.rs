@@ -1,10 +1,12 @@
 mod other;
+mod own;
 
-pub use other::{OtherItem, OtherTurn, PublicResponse};
+pub use other::{OtherItem, OtherTurn};
+pub use own::OwnTurn;
 
 use crate::conversation::Conversation;
 use crate::id::{AgentId, TurnId};
-use crate::turn::{AITurn, InputTurn, Turn};
+use crate::turn::{InputTurn, Turn};
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
@@ -16,12 +18,12 @@ pub struct Perspective {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ProjectedTurn {
     Input(InputTurn),
-    Own(AITurn),
+    Own(OwnTurn),
     Other(OtherTurn),
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Projection {
     turns: Vec<ProjectedTurn>,
 }
@@ -44,7 +46,7 @@ impl Perspective {
             .iter()
             .map(|turn| match turn {
                 Turn::InputTurn(input) => ProjectedTurn::Input(input.clone()),
-                Turn::AITurn(ai) if ai.agent() == self.agent => ProjectedTurn::Own(ai.clone()),
+                Turn::AITurn(ai) if ai.agent() == self.agent => ProjectedTurn::Own(OwnTurn::of(ai)),
                 Turn::AITurn(ai) => ProjectedTurn::Other(OtherTurn::of(ai)),
             })
             .collect();

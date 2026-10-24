@@ -1,7 +1,5 @@
-use serde::{Deserialize, Serialize};
-
 use super::block_start::BlockStart;
-use super::kind::{DeltaTarget, ResponseDeltaKind};
+use super::kind::ResponseDeltaKind;
 use super::metadata::ResponseMetadataUpdate;
 use super::ops::{BlockMetadataUpdate, Finalization, InterruptionReason};
 use crate::block::ContentBlock;
@@ -9,55 +7,53 @@ use crate::entry::ResponseMetadata;
 use crate::id::{BlockId, EntryId, TurnId};
 use crate::value::{ReplayFormat, ReplayMaterial, ResponseEnding};
 
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
-pub enum DeltaOp {
+tagged_enum! {
     #[non_exhaustive]
-    ResponseStarted { metadata: ResponseMetadata },
-    #[non_exhaustive]
-    BlockStarted {
-        block: BlockId,
-        position: u32,
-        start: BlockStart,
-    },
-    #[non_exhaustive]
-    TextAppended { block: BlockId, text: String },
-    #[non_exhaustive]
-    ThinkingAppended { block: BlockId, text: String },
-    #[non_exhaustive]
-    JsonAppended { block: BlockId, fragment: String },
-    #[non_exhaustive]
-    ReplayFragmentAppended {
-        block: BlockId,
-        format: ReplayFormat,
-        fragment: String,
-    },
-    #[non_exhaustive]
-    ReplayMaterialSet {
-        block: BlockId,
-        material: ReplayMaterial,
-    },
-    #[non_exhaustive]
-    BlockMetadataUpdated {
-        block: BlockId,
-        update: BlockMetadataUpdate,
-    },
-    #[non_exhaustive]
-    BlockInserted { position: u32, block: ContentBlock },
-    #[non_exhaustive]
-    BlockFinalized {
-        block: BlockId,
-        finalization: Finalization,
-    },
-    #[non_exhaustive]
-    BlockDiscarded { block: BlockId },
-    #[non_exhaustive]
-    ResponseMetadataUpdated { update: ResponseMetadataUpdate },
-    #[non_exhaustive]
-    ResponseCompleted { ending: ResponseEnding },
-    #[non_exhaustive]
-    ResponseInterrupted { reason: InterruptionReason },
+    #[derive(Clone, PartialEq)]
+    pub enum DeltaOp, DeltaOpWire, remote = "DeltaOp", [tag = "type", rename_all = "snake_case", deny_unknown_fields] {
+        #[non_exhaustive]
+        ResponseStarted { metadata: ResponseMetadata },
+        #[non_exhaustive]
+        BlockStarted { block: BlockId, start: BlockStart },
+        #[non_exhaustive]
+        TextAppended { block: BlockId, text: String },
+        #[non_exhaustive]
+        ThinkingAppended { block: BlockId, text: String },
+        #[non_exhaustive]
+        JsonAppended { block: BlockId, fragment: String },
+        #[non_exhaustive]
+        ReplayFragmentAppended {
+            block: BlockId,
+            format: ReplayFormat,
+            fragment: String,
+        },
+        #[non_exhaustive]
+        ReplayMaterialSet {
+            block: BlockId,
+            material: ReplayMaterial,
+        },
+        #[non_exhaustive]
+        BlockMetadataUpdated {
+            block: BlockId,
+            update: BlockMetadataUpdate,
+        },
+        #[non_exhaustive]
+        BlockInserted {
+            #[serde(rename = "content")]
+            block: ContentBlock,
+        },
+        #[non_exhaustive]
+        BlockFinalized {
+            block: BlockId,
+            finalization: Finalization,
+        },
+        #[non_exhaustive]
+        ResponseMetadataUpdated { update: ResponseMetadataUpdate },
+        #[non_exhaustive]
+        ResponseCompleted { ending: ResponseEnding },
+        #[non_exhaustive]
+        ResponseInterrupted { reason: InterruptionReason },
+    }
 }
 
 impl DeltaOp {
@@ -65,12 +61,8 @@ impl DeltaOp {
         DeltaOp::ResponseStarted { metadata }
     }
 
-    pub fn block_started(block: BlockId, position: u32, start: BlockStart) -> Self {
-        DeltaOp::BlockStarted {
-            block,
-            position,
-            start,
-        }
+    pub fn block_started(block: BlockId, start: BlockStart) -> Self {
+        DeltaOp::BlockStarted { block, start }
     }
 
     pub fn text_appended(block: BlockId, text: impl Into<String>) -> Self {
@@ -114,9 +106,8 @@ impl DeltaOp {
         DeltaOp::BlockMetadataUpdated { block, update }
     }
 
-    pub fn block_inserted(position: u32, block: impl Into<ContentBlock>) -> Self {
+    pub fn block_inserted(block: impl Into<ContentBlock>) -> Self {
         DeltaOp::BlockInserted {
-            position,
             block: block.into(),
         }
     }
@@ -126,10 +117,6 @@ impl DeltaOp {
             block,
             finalization,
         }
-    }
-
-    pub fn block_discarded(block: BlockId) -> Self {
-        DeltaOp::BlockDiscarded { block }
     }
 
     pub fn response_metadata_updated(update: ResponseMetadataUpdate) -> Self {
@@ -156,15 +143,10 @@ impl DeltaOp {
             DeltaOp::BlockMetadataUpdated { .. } => ResponseDeltaKind::BlockMetadataUpdated,
             DeltaOp::BlockInserted { .. } => ResponseDeltaKind::BlockInserted,
             DeltaOp::BlockFinalized { .. } => ResponseDeltaKind::BlockFinalized,
-            DeltaOp::BlockDiscarded { .. } => ResponseDeltaKind::BlockDiscarded,
             DeltaOp::ResponseMetadataUpdated { .. } => ResponseDeltaKind::ResponseMetadataUpdated,
             DeltaOp::ResponseCompleted { .. } => ResponseDeltaKind::ResponseCompleted,
             DeltaOp::ResponseInterrupted { .. } => ResponseDeltaKind::ResponseInterrupted,
         }
-    }
-
-    pub fn target(&self) -> DeltaTarget {
-        self.kind().target()
     }
 
     pub fn block_id(&self) -> Option<BlockId> {
@@ -176,8 +158,7 @@ impl DeltaOp {
             | DeltaOp::ReplayFragmentAppended { block, .. }
             | DeltaOp::ReplayMaterialSet { block, .. }
             | DeltaOp::BlockMetadataUpdated { block, .. }
-            | DeltaOp::BlockFinalized { block, .. }
-            | DeltaOp::BlockDiscarded { block } => Some(*block),
+            | DeltaOp::BlockFinalized { block, .. } => Some(*block),
             DeltaOp::BlockInserted { block, .. } => Some(block.id()),
             _ => None,
         }
@@ -211,9 +192,5 @@ impl ResponseDelta {
 
     pub fn kind(&self) -> ResponseDeltaKind {
         self.op.kind()
-    }
-
-    pub fn target(&self) -> DeltaTarget {
-        self.op.target()
     }
 }

@@ -40,7 +40,7 @@ impl std::str::FromStr for MediaType {
         ]
         .into_iter()
         .find(|media| media.as_str() == value)
-        .ok_or_else(|| Error::new(ErrorCode::VariantMismatch))
+        .ok_or_else(|| Error::new(ErrorCode::InvalidContent).at("media_type"))
     }
 }
 
@@ -52,15 +52,16 @@ impl TryFrom<String> for MediaType {
     }
 }
 
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
-pub enum ImageSource {
+tagged_enum! {
     #[non_exhaustive]
-    Inline {
-        media_type: MediaType,
-        data: Base64Data,
-    },
+    #[derive(Debug, Clone, PartialEq)]
+    pub enum ImageSource, ImageSourceWire, remote = "ImageSource", [tag = "type", rename_all = "snake_case", deny_unknown_fields] {
+        #[non_exhaustive]
+        Inline {
+            media_type: MediaType,
+            data: Base64Data,
+        },
+    }
 }
 
 impl ImageSource {

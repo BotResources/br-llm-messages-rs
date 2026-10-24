@@ -23,7 +23,7 @@ pub use results::RuntimeToolResults;
 pub use task::{TaskCompleted, TaskFailed, TaskStarted};
 
 use serde::de::IgnoredAny;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer};
 
 use crate::opaque_json::OpaqueJson;
 
@@ -72,21 +72,22 @@ pub(crate) fn check_content(entry: EntryId, content: &[PlainBlock]) -> Result<()
     collect_content(entry, content, &mut IdSink::default())
 }
 
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum TurnEntry {
-    HumanMessage(HumanMessage),
-    AgentRequest(AgentRequest),
-    AgentMail(AgentMail),
-    RequestAccepted(RequestAccepted),
-    QueuePosition(QueuePosition),
-    TaskStarted(TaskStarted),
-    TaskCompleted(TaskCompleted),
-    TaskFailed(TaskFailed),
-    ModelResponse(ModelResponse),
-    RuntimeToolResults(RuntimeToolResults),
-    TurnClosure(TurnClosure),
+tagged_enum! {
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub enum TurnEntry, TurnEntryWire, remote = "TurnEntry", [tag = "type", rename_all = "snake_case"] {
+        HumanMessage(HumanMessage),
+        AgentRequest(AgentRequest),
+        AgentMail(AgentMail),
+        RequestAccepted(RequestAccepted),
+        QueuePosition(QueuePosition),
+        TaskStarted(TaskStarted),
+        TaskCompleted(TaskCompleted),
+        TaskFailed(TaskFailed),
+        ModelResponse(ModelResponse),
+        RuntimeToolResults(RuntimeToolResults),
+        TurnClosure(TurnClosure),
+    }
 }
 
 macro_rules! entry_variants {
@@ -107,12 +108,6 @@ macro_rules! entry_variants {
             pub fn observed_at(&self) -> Option<&ObservedAt> {
                 match self {
                     $(TurnEntry::$variant(entry) => entry.observed_at(),)+
-                }
-            }
-
-            pub(crate) fn collect_ids(&self, sink: &mut IdSink) -> Result<(), Error> {
-                match self {
-                    $(TurnEntry::$variant(entry) => entry.collect_ids(sink),)+
                 }
             }
         }
@@ -144,10 +139,6 @@ entry_variants!(
 impl TurnEntry {
     pub fn is_incoming(&self) -> bool {
         self.kind().is_incoming()
-    }
-
-    pub fn ensure_distinct_ids(&self) -> Result<(), Error> {
-        self.collect_ids(&mut IdSink::default())
     }
 
     pub fn to_json(&self) -> Result<String, Error> {

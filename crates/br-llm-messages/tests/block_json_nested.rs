@@ -42,13 +42,16 @@ fn given_non_plain_blocks_inside_plain_content_when_loaded_then_disallowed_kind(
 }
 
 #[test]
-fn given_unknown_type_or_replay_on_plain_content_when_loaded_then_variant_mismatch_or_invalid_content()
+fn given_unknown_type_or_replay_on_plain_content_when_loaded_then_variant_mismatch_or_disallowed_kind()
  {
     assert_eq!(
         plain_code(&json!({"type": "audio", "id": id(1)})),
         ErrorCode::VariantMismatch
     );
-    assert_eq!(plain_code(&json!({"id": id(1)})), ErrorCode::InvalidContent);
+    assert_eq!(
+        plain_code(&json!({"id": id(1)})),
+        ErrorCode::VariantMismatch
+    );
     let replayed = json!({"type": "text", "id": id(1), "text": "x", "replay": {"format": "a.b", "payload": {"type": "text", "value": "s"}}});
     assert_eq!(plain_code(&replayed), ErrorCode::DisallowedKind);
     assert_eq!(

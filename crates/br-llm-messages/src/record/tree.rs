@@ -1,7 +1,4 @@
-use std::collections::HashMap;
-
-use serde_json::Value;
-use uuid::Uuid;
+use std::collections::{HashMap, HashSet};
 
 use super::block::BlockRecord;
 use super::kinds::RepresentationState;
@@ -9,28 +6,7 @@ use super::payload::block_value;
 use crate::block::ContentBlockKind;
 use crate::error::{Error, ErrorCode};
 use crate::id::{BlockId, EntryId};
-
-pub(crate) fn order<T>(
-    mut rows: Vec<T>,
-    position: impl Fn(&T) -> u32,
-    id: impl Fn(&T) -> Uuid,
-    contiguous: bool,
-) -> Result<Vec<T>, Error> {
-    rows.sort_by_key(|row| position(row));
-    let mut previous = None;
-    for (index, row) in rows.iter().enumerate() {
-        let invalid = || Error::new(ErrorCode::InvalidRecordStructure).with_id(id(row));
-        let at = position(row);
-        if previous == Some(at) {
-            return Err(invalid());
-        }
-        if contiguous && usize::try_from(at) != Ok(index) {
-            return Err(invalid());
-        }
-        previous = Some(at);
-    }
-    Ok(rows)
-}
+use serde_json::Value;
 
 fn is_container(kind: ContentBlockKind) -> bool {
     matches!(
@@ -55,6 +31,7 @@ impl<'a> BlockTree<'a> {
             }
         }
         check_references(blocks, &rows)?;
+        check_acyclic(blocks, &rows)?;
         check_containment(blocks, &rows)?;
         let mut roots: HashMap<EntryId, Vec<&BlockRecord>> = HashMap::new();
         let mut children: HashMap<BlockId, Vec<&BlockRecord>> = HashMap::new();
@@ -64,16 +41,6 @@ impl<'a> BlockTree<'a> {
                 Some(parent) => children.entry(parent).or_default().push(row),
             }
         }
-        let by = |row: &&BlockRecord| row.position();
-        let identity = |row: &&BlockRecord| row.id().as_uuid();
-        let roots = roots
-            .into_iter()
-            .map(|(entry, group)| Ok((entry, order(group, by, identity, false)?)))
-            .collect::<Result<_, Error>>()?;
-        let children = children
-            .into_iter()
-            .map(|(parent, group)| Ok((parent, order(group, by, identity, true)?)))
-            .collect::<Result<_, Error>>()?;
         Ok(BlockTree { roots, children })
     }
 
@@ -103,11 +70,37 @@ fn check_references(
         match rows.get(&parent) {
             Some(found) if found.entry() == row.entry() => {}
             _ => {
-                return Err(Error::new(ErrorCode::UnknownReference)
-                    .with_id(row.id().as_uuid())
-                    .at("parent"));
+                return Err(structure(row));
             }
         }
+    }
+    Ok(())
+}
+
+fn structure(row: &BlockRecord) -> Error {
+    Error::new(ErrorCode::InvalidRecordStructure)
+        .with_id(row.id().as_uuid())
+        .at("parent")
+}
+
+fn check_acyclic(
+    blocks: &[BlockRecord],
+    rows: &HashMap<BlockId, &BlockRecord>,
+) -> Result<(), Error> {
+    let mut settled: HashSet<BlockId> = HashSet::new();
+    for row in blocks {
+        let mut path: HashSet<BlockId> = HashSet::new();
+        let mut cursor = Some(row.id());
+        while let Some(current) = cursor {
+            if settled.contains(&current) {
+                break;
+            }
+            if !path.insert(current) {
+                return Err(structure(row));
+            }
+            cursor = rows.get(&current).and_then(|found| found.parent());
+        }
+        settled.extend(path);
     }
     Ok(())
 }
@@ -118,21 +111,9 @@ pub(super) fn check_containment(
 ) -> Result<(), Error> {
     for row in blocks {
         let Some(parent) = row.parent() else { continue };
-        let unknown = || {
-            Error::new(ErrorCode::UnknownReference)
-                .with_id(row.id().as_uuid())
-                .at("parent")
-        };
-        let parent = rows.get(&parent).ok_or_else(unknown)?;
-        if !is_container(parent.kind()) {
-            return Err(Error::new(ErrorCode::DisallowedKind)
-                .with_id(row.id().as_uuid())
-                .at("parent"));
-        }
-        if parent.state() != RepresentationState::Complete {
-            return Err(Error::new(ErrorCode::InvalidRecordStructure)
-                .with_id(row.id().as_uuid())
-                .at("parent"));
+        let parent = rows.get(&parent).ok_or_else(|| structure(row))?;
+        if !is_container(parent.kind()) || parent.state() != RepresentationState::Complete {
+            return Err(structure(row));
         }
     }
     Ok(())

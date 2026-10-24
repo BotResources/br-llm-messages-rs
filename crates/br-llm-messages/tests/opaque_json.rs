@@ -89,11 +89,11 @@ fn given_a_stored_value_when_debug_printed_then_the_json_is_not_shown() {
 }
 
 #[test]
-fn given_text_nested_beyond_the_parser_recursion_limit_when_parsed_then_malformed_json() {
+fn given_text_nested_beyond_the_parser_recursion_limit_when_parsed_then_invalid_content() {
     let text = format!("{}1{}", "[".repeat(300), "]".repeat(300));
 
     assert_eq!(
         refused(OpaqueJson::parse(&text)).code(),
-        ErrorCode::MalformedJson
+        ErrorCode::InvalidContent
     );
 }

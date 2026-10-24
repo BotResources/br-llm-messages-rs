@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 
 use uuid::Uuid;
 
@@ -10,7 +10,7 @@ use crate::entry::TurnEntryKind;
 use crate::error::{Error, ErrorCode};
 use crate::id::BlockId;
 use crate::record::{BlockRecord, BlockTree, RepresentationState};
-use crate::stream::draft::slot::{Slot, block_ids};
+use crate::stream::draft::slot::Slot;
 use crate::stream::draft::{DraftPhase, ResponseDraft};
 
 fn invalid(row: &BlockRecord, location: &str) -> Error {
@@ -45,18 +45,6 @@ fn slot_of(
             )?;
             Ok(Slot::Final(block))
         }
-        _ => Ok(Slot::Discarded {
-            id: row.id(),
-            kind: row.kind(),
-        }),
-    }
-}
-
-fn slot_ids(slot: &Slot) -> Vec<Uuid> {
-    match slot {
-        Slot::Open(open) => open.ids(),
-        Slot::Final(block) => block_ids(block),
-        Slot::Discarded { id, .. } => vec![id.as_uuid()],
     }
 }
 
@@ -78,7 +66,7 @@ pub(super) fn restore(snapshot: &DraftSnapshot) -> Result<ResponseDraft, Error> 
     }
     let phase = match (entry_state, interruption) {
         (RepresentationState::Producing, None) => DraftPhase::Producing {},
-        (RepresentationState::Interrupted, Some(reason)) => DraftPhase::Interrupted(reason),
+        (RepresentationState::Interrupted, Some(reason)) => DraftPhase::Interrupted { reason },
         _ => {
             return Err(Error::new(ErrorCode::InvalidContent)
                 .with_id(entry.id().as_uuid())
@@ -88,24 +76,24 @@ pub(super) fn restore(snapshot: &DraftSnapshot) -> Result<ResponseDraft, Error> 
     for row in snapshot.blocks() {
         row.check_local()?;
         if row.entry() != entry.id() {
-            return Err(Error::new(ErrorCode::UnknownReference)
+            return Err(Error::new(ErrorCode::InvalidRecordStructure)
                 .with_id(row.id().as_uuid())
                 .at("entry"));
         }
     }
     let tree = BlockTree::build(snapshot.blocks())?;
-    let mut slots = BTreeMap::new();
-    let mut positions: HashMap<BlockId, u32> = HashMap::new();
+    let mut slots = Vec::new();
+    let mut index: HashMap<BlockId, usize> = HashMap::new();
     let mut ids: HashSet<Uuid> = HashSet::from([entry.id().as_uuid()]);
     for row in tree.roots_of(entry.id()) {
         let slot = slot_of(row, &tree, entry_state)?;
-        for id in slot_ids(&slot) {
+        for id in slot.ids() {
             if !ids.insert(id) {
                 return Err(Error::new(ErrorCode::ReusedIdentity).with_id(id));
             }
         }
-        positions.insert(row.id(), row.position());
-        slots.insert(row.position(), slot);
+        index.insert(row.id(), slots.len());
+        slots.push(slot);
     }
     Ok(ResponseDraft {
         turn: entry.turn(),
@@ -113,7 +101,7 @@ pub(super) fn restore(snapshot: &DraftSnapshot) -> Result<ResponseDraft, Error> 
         phase,
         metadata,
         slots,
-        positions,
+        index,
         ids,
         response: None,
     })

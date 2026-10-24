@@ -34,9 +34,9 @@ struct AiWire {
 
 pub(crate) fn kind_of(value: &Value) -> Result<TurnKind, Error> {
     match value.get("type") {
-        None => Err(Error::new(ErrorCode::InvalidContent).at("type")),
+        None => Err(Error::new(ErrorCode::VariantMismatch).at("type")),
         Some(Value::String(name)) => name.parse().map_err(|error: Error| error.at("type")),
-        Some(_) => Err(Error::new(ErrorCode::InvalidContent).at("type")),
+        Some(_) => Err(Error::new(ErrorCode::VariantMismatch).at("type")),
     }
 }
 

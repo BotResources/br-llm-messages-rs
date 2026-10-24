@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use super::{check_content, collect_content, refuse_author};
-use crate::block::{IdSink, PlainBlock};
+use super::{check_content, refuse_author};
+use crate::block::PlainBlock;
 use crate::error::Error;
 use crate::id::{EntryId, HumanId};
 use crate::value::ObservedAt;
@@ -58,10 +58,6 @@ impl HumanMessage {
 
     pub fn observed_at(&self) -> Option<&ObservedAt> {
         self.observed_at.as_ref()
-    }
-
-    pub(crate) fn collect_ids(&self, sink: &mut IdSink) -> Result<(), Error> {
-        collect_content(self.id, &self.content, sink)
     }
 }
 

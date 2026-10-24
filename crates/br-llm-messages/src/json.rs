@@ -26,11 +26,11 @@ pub(crate) fn decode<T: DeserializeOwned>(text: &str) -> Result<T, Error> {
 }
 
 pub(crate) fn decode_value<T: DeserializeOwned>(value: Value) -> Result<T, Error> {
-    T::deserialize(value).map_err(|error| Error::from_json_error(&error))
+    T::deserialize(value).map_err(|error| Error::from_data_error(&error))
 }
 
 pub(crate) fn decode_ref<T: DeserializeOwned>(value: &Value) -> Result<T, Error> {
-    T::deserialize(value).map_err(|error| Error::from_json_error(&error))
+    T::deserialize(value).map_err(|error| Error::from_data_error(&error))
 }
 
 struct UniqueValue(Value);

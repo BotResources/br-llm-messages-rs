@@ -151,12 +151,11 @@ fn given_a_time_inside_a_payload_when_loaded_then_it_is_refused_as_a_second_copy
 
 #[test]
 fn given_rows_built_in_code_when_given_times_then_the_getters_and_local_checks_accept_them() {
-    let turn = TurnRecord::new(tid(1), TurnKind::InputTurn, 0).with_observed_at(at(1));
+    let turn = TurnRecord::new(tid(1), TurnKind::InputTurn).with_observed_at(at(1));
     let entry = EntryRecord::new(
         eid(2),
         tid(1),
         TurnEntryKind::TaskCompleted,
-        0,
         RepresentationState::Complete,
         oj(json!({"task": common::kid(1).to_string()})),
     )
@@ -165,7 +164,6 @@ fn given_rows_built_in_code_when_given_times_then_the_getters_and_local_checks_a
         bid(3),
         eid(2),
         ContentBlockKind::Image,
-        0,
         RepresentationState::Complete,
         oj(json!({"source": {"type": "inline", "media_type": "image/png", "data": "QUJD"}})),
     )
@@ -177,21 +175,4 @@ fn given_rows_built_in_code_when_given_times_then_the_getters_and_local_checks_a
     assert!(turn.check_local().is_ok());
     assert!(entry.check_local().is_ok());
     assert!(block.check_local().is_ok(), "{:?}", block.check_local());
-}
-
-#[test]
-fn given_a_discarded_row_with_a_time_when_checked_then_it_is_disallowed() {
-    let discarded = BlockRecord::new(
-        bid(3),
-        eid(2),
-        ContentBlockKind::Text,
-        0,
-        RepresentationState::Discarded,
-        oj(json!({})),
-    );
-
-    assert!(discarded.check_local().is_ok());
-    let error = discarded.with_observed_at(at(3)).check_local().unwrap_err();
-    assert_eq!(error.code(), ErrorCode::DisallowedKind);
-    assert_eq!(error.location(), Some("observed_at"));
 }

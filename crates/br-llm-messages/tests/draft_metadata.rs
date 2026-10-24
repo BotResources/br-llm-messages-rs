@@ -77,7 +77,7 @@ fn given_updated_metadata_when_completed_then_the_response_carries_it() {
 
 #[test]
 fn given_a_text_block_when_citations_are_added_then_they_are_kept_in_order() {
-    let mut draft = run(vec![start_text(10, 0), text(10, "alpha beta")]);
+    let mut draft = run(vec![start_text(10), text(10, "alpha beta")]);
 
     feed(
         &mut draft,
@@ -101,8 +101,8 @@ fn given_a_text_block_when_citations_are_added_then_they_are_kept_in_order() {
 #[test]
 fn given_a_known_citation_id_when_added_again_then_reused_identity() {
     let mut draft = run(vec![
-        start_text(10, 0),
-        start_text(11, 1),
+        start_text(10),
+        start_text(11),
         DeltaOp::block_metadata_updated(
             bid(10),
             BlockMetadataUpdate::citation_added(citation(50, 0, 1)),
@@ -123,7 +123,7 @@ fn given_a_known_citation_id_when_added_again_then_reused_identity() {
 
 #[test]
 fn given_a_citation_id_equal_to_a_block_id_when_added_then_reused_identity() {
-    let mut draft = run(vec![start_text(10, 0), start_text(11, 1)]);
+    let mut draft = run(vec![start_text(10), start_text(11)]);
     let clash = BlockMetadataUpdate::citation_added(citation(11, 0, 1));
 
     let error = refuse(&mut draft, DeltaOp::block_metadata_updated(bid(10), clash));
@@ -133,7 +133,7 @@ fn given_a_citation_id_equal_to_a_block_id_when_added_then_reused_identity() {
 
 #[test]
 fn given_a_citation_update_on_a_non_text_block_when_applied_then_stream_target() {
-    let mut draft = run(vec![start_thinking(10, 0), start_call(11, 1, None, None)]);
+    let mut draft = run(vec![start_thinking(10), start_call(11, None, None)]);
 
     for block in [10, 11] {
         let error = refuse(
@@ -149,21 +149,26 @@ fn given_a_citation_update_on_a_non_text_block_when_applied_then_stream_target()
 
 #[test]
 fn given_a_provisional_call_when_identified_later_then_name_and_external_id_are_replaced() {
-    let mut draft = run(vec![start_call(10, 0, None, None)]);
+    let mut draft = run(vec![start_call(10, None, None)]);
 
     feed(
         &mut draft,
         vec![
             DeltaOp::block_metadata_updated(
                 bid(10),
-                BlockMetadataUpdate::runtime_tool_call_identified(Some(tool("draft_name")), None),
+                BlockMetadataUpdate::tool_name_set(tool("draft_name")),
             ),
             DeltaOp::block_metadata_updated(
                 bid(10),
-                BlockMetadataUpdate::runtime_tool_call_identified(
-                    Some(tool("real_name")),
-                    Some(ExternalId::new("toolu_9").unwrap()),
-                ),
+                BlockMetadataUpdate::tool_name_set(tool("real_name")),
+            ),
+            DeltaOp::block_metadata_updated(
+                bid(10),
+                BlockMetadataUpdate::external_id_set(ExternalId::new("toolu_8").unwrap()),
+            ),
+            DeltaOp::block_metadata_updated(
+                bid(10),
+                BlockMetadataUpdate::external_id_set(ExternalId::new("toolu_9").unwrap()),
             ),
         ],
     );
@@ -174,59 +179,31 @@ fn given_a_provisional_call_when_identified_later_then_name_and_external_id_are_
 }
 
 #[test]
-fn given_updates_for_the_wrong_block_kind_when_applied_then_stream_target() {
-    let mut draft = run(vec![
-        start_text(10, 0),
-        start_provider_call(11, 1),
-        start_call(12, 2, None, None),
-    ]);
-    let identify = BlockMetadataUpdate::runtime_tool_call_identified(Some(tool("t")), None);
-    let references = BlockMetadataUpdate::provider_references_updated(Some(operation("x")), None);
-    let status = BlockMetadataUpdate::execution_status_observed(ExecutionStatus::Running);
-
-    let cases = [
-        (10, identify.clone()),
-        (11, identify),
-        (10, references.clone()),
-        (12, references),
-        (10, status.clone()),
-        (11, status),
-    ];
-    for (block, update) in cases {
-        let error = refuse(
-            &mut draft,
-            DeltaOp::block_metadata_updated(bid(block), update),
-        );
-        assert_eq!(error.code(), ErrorCode::StreamTargetError);
-        assert_eq!(error.object_id(), Some(bid(block).as_uuid()));
-    }
-}
-
-#[test]
 fn given_provider_activity_when_references_and_status_update_while_open_then_all_are_observed() {
-    let mut draft = run(vec![start_provider_call(10, 0), start_record(11, 1)]);
+    let mut draft = run(vec![start_provider_call(10), start_record(11)]);
 
     feed(
         &mut draft,
         vec![
             DeltaOp::block_metadata_updated(
                 bid(10),
-                BlockMetadataUpdate::provider_references_updated(
-                    Some(operation("code_run")),
-                    Some(ExternalId::new("srv_1").unwrap()),
-                ),
+                BlockMetadataUpdate::operation_set(operation("code_run")),
+            ),
+            DeltaOp::block_metadata_updated(
+                bid(10),
+                BlockMetadataUpdate::external_id_set(ExternalId::new("srv_1").unwrap()),
             ),
             DeltaOp::block_metadata_updated(
                 bid(11),
-                BlockMetadataUpdate::provider_references_updated(Some(operation("code_run")), None),
+                BlockMetadataUpdate::operation_set(operation("code_run")),
             ),
             DeltaOp::block_metadata_updated(
                 bid(11),
-                BlockMetadataUpdate::execution_status_observed(ExecutionStatus::Pending),
+                BlockMetadataUpdate::execution_status_set(ExecutionStatus::Pending),
             ),
             DeltaOp::block_metadata_updated(
                 bid(11),
-                BlockMetadataUpdate::execution_status_observed(ExecutionStatus::Running),
+                BlockMetadataUpdate::execution_status_set(ExecutionStatus::Running),
             ),
         ],
     );
@@ -243,17 +220,14 @@ fn given_provider_activity_when_references_and_status_update_while_open_then_all
 #[test]
 fn given_a_finalized_block_when_metadata_arrives_then_stream_phase() {
     let mut draft = run(vec![
-        start_call(10, 0, Some("t"), None),
+        start_call(10, Some("t"), None),
         json(10, "{}"),
         finalize(10),
     ]);
 
     let error = refuse(
         &mut draft,
-        DeltaOp::block_metadata_updated(
-            bid(10),
-            BlockMetadataUpdate::runtime_tool_call_identified(Some(tool("other")), None),
-        ),
+        DeltaOp::block_metadata_updated(bid(10), BlockMetadataUpdate::tool_name_set(tool("other"))),
     );
 
     assert_eq!(error.code(), ErrorCode::StreamPhaseError);

@@ -25,8 +25,6 @@ pub use structured::StructuredBlock;
 pub use text::TextBlock;
 pub use thinking::{RedactedThinkingBlock, ThinkingBlock};
 
-use serde::{Deserialize, Serialize};
-
 use crate::opaque_json::OpaqueJson;
 
 use crate::error::Error;
@@ -34,20 +32,21 @@ use crate::id::BlockId;
 use crate::value::ObservedAt;
 pub(crate) use ids::IdSink;
 
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum ContentBlock {
-    Text(TextBlock),
-    Image(ImageBlock),
-    StructuredContent(StructuredBlock),
-    Thinking(ThinkingBlock),
-    RedactedThinking(RedactedThinkingBlock),
-    RuntimeToolCall(RuntimeToolCall),
-    RuntimeToolResult(RuntimeToolResult),
-    ProviderToolCall(ProviderToolCall),
-    ProviderToolResult(ProviderToolResult),
-    ProviderToolExecutionRecord(ProviderToolExecutionRecord),
+tagged_enum! {
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub enum ContentBlock, ContentBlockWire, remote = "ContentBlock", [tag = "type", rename_all = "snake_case"] {
+        Text(TextBlock),
+        Image(ImageBlock),
+        StructuredContent(StructuredBlock),
+        Thinking(ThinkingBlock),
+        RedactedThinking(RedactedThinkingBlock),
+        RuntimeToolCall(RuntimeToolCall),
+        RuntimeToolResult(RuntimeToolResult),
+        ProviderToolCall(ProviderToolCall),
+        ProviderToolResult(ProviderToolResult),
+        ProviderToolExecutionRecord(ProviderToolExecutionRecord),
+    }
 }
 
 macro_rules! per_variant {
@@ -121,16 +120,6 @@ impl ContentBlock {
             ContentBlock::ProviderToolExecutionRecord(block) => block.content(),
             _ => &[],
         }
-    }
-
-    pub fn ensure_distinct_ids(blocks: &[ContentBlock]) -> Result<(), Error> {
-        let mut sink = IdSink::default();
-        for (index, block) in blocks.iter().enumerate() {
-            block
-                .collect_ids(&mut sink)
-                .map_err(|error| error.at(format!("[{index}]")))?;
-        }
-        Ok(())
     }
 
     pub fn to_json(&self) -> Result<String, Error> {

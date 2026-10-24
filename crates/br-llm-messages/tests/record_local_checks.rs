@@ -13,7 +13,6 @@ fn text_row(payload: Value) -> BlockRecord {
         bid(3),
         eid(2),
         ContentBlockKind::Text,
-        0,
         RepresentationState::Complete,
         common::oj(payload),
     )
@@ -24,7 +23,6 @@ fn completed(payload: Value) -> EntryRecord {
         eid(2),
         tid(1),
         TurnEntryKind::TaskCompleted,
-        0,
         RepresentationState::Complete,
         common::oj(payload),
     )
@@ -79,7 +77,6 @@ fn opaque_row(kind: ContentBlockKind, payload: Value) -> BlockRecord {
         bid(3),
         eid(2),
         kind,
-        0,
         RepresentationState::Complete,
         common::oj(payload),
     )
@@ -157,7 +154,6 @@ fn given_a_thinking_row_with_empty_text_when_checked_locally_then_replay_decides
             bid(3),
             eid(2),
             ContentBlockKind::Thinking,
-            0,
             state,
             common::oj(payload),
         )
@@ -182,7 +178,6 @@ fn row_of(kind: TurnEntryKind, payload: Value) -> EntryRecord {
         eid(2),
         tid(1),
         kind,
-        0,
         RepresentationState::Complete,
         common::oj(payload),
     )

@@ -1,3 +1,6 @@
+#[macro_use]
+mod tagged;
+
 mod block;
 mod conversation;
 mod entry;
@@ -28,22 +31,20 @@ pub use id::{
     AgentId, BlockId, CitationId, ConversationId, EntryId, HumanId, RequestId, TaskId, TurnId,
 };
 pub use opaque_json::OpaqueJson;
-pub use projection::{
-    OtherItem, OtherTurn, Perspective, ProjectedTurn, Projection, PublicResponse,
-};
+pub use projection::{OtherItem, OtherTurn, OwnTurn, Perspective, ProjectedTurn, Projection};
 pub use record::{
     ActorRef, BlockRecord, EntryRecord, RECORD_SCHEMA, RecordSet, RepresentationState, TurnRecord,
 };
 pub use stream::{
     BlockMetadataUpdate, BlockStart, DELTA_SCHEMA, DRAFT_SCHEMA, DeltaOp, DeltaOutcome,
-    DeltaTarget, DraftPhase, DraftSnapshot, DraftView, Finalization, InterruptionReason,
-    ResponseDelta, ResponseDeltaKind, ResponseDraft, ResponseMetadataUpdate, SlotLifecycle,
-    SlotView,
+    DeltaStream, DraftPhase, DraftSnapshot, DraftView, Finalization, InterruptionKind,
+    InterruptionReason, ResponseDelta, ResponseDeltaKind, ResponseDraft, ResponseMetadataUpdate,
+    SlotLifecycle, SlotView,
 };
 pub use turn::{AITurn, InputTurn, Turn, TurnKind, TurnState};
 pub use uuid::Uuid;
 pub use value::{
-    Author, Base64Data, Citation, CitationSource, ExecutionStatus, ExternalId, FailureDetail,
-    ImageSource, ItemRef, MediaType, ModelName, ObservedAt, PlainText, ProviderOperation,
-    ReplayFormat, ReplayMaterial, ReplayPayload, ResponseEnding, TextRange, ToolName, Usage,
+    Author, Base64Data, Citation, CitationSource, ExecutionStatus, ExternalId, ImageSource,
+    ItemRef, MediaType, ModelName, ObservedAt, PlainText, ProviderOperation, ReplayFormat,
+    ReplayMaterial, ReplayPayload, ResponseEnding, TextRange, ToolName, Usage,
 };

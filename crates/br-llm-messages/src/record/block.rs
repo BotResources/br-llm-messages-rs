@@ -18,7 +18,6 @@ pub struct BlockRecord {
     #[serde(skip_serializing_if = "Option::is_none")]
     parent: Option<BlockId>,
     kind: ContentBlockKind,
-    position: u32,
     state: RepresentationState,
     #[serde(skip_serializing_if = "Option::is_none")]
     call: Option<BlockId>,
@@ -34,7 +33,6 @@ struct BlockRecordWire {
     entry: EntryId,
     parent: Option<BlockId>,
     kind: ContentBlockKind,
-    position: u32,
     state: RepresentationState,
     call: Option<BlockId>,
     observed_at: Option<ObservedAt>,
@@ -46,7 +44,6 @@ impl BlockRecord {
         id: BlockId,
         entry: EntryId,
         kind: ContentBlockKind,
-        position: u32,
         state: RepresentationState,
         payload: OpaqueJson,
     ) -> Self {
@@ -55,7 +52,6 @@ impl BlockRecord {
             entry,
             parent: None,
             kind,
-            position,
             state,
             call: None,
             observed_at: None,
@@ -94,10 +90,6 @@ impl BlockRecord {
         self.kind
     }
 
-    pub fn position(&self) -> u32 {
-        self.position
-    }
-
     pub fn state(&self) -> RepresentationState {
         self.state
     }
@@ -134,20 +126,6 @@ impl BlockRecord {
             RepresentationState::Producing | RepresentationState::Interrupted => {
                 partial::check(self.kind, &self.payload)
             }
-            RepresentationState::Discarded => {
-                if self.observed_at.is_some() {
-                    return Err(Error::new(ErrorCode::DisallowedKind).at("observed_at"));
-                }
-                let empty = self
-                    .payload
-                    .inner()
-                    .as_object()
-                    .is_some_and(|o| o.is_empty());
-                if self.kind != ContentBlockKind::Text || !empty {
-                    return Err(Error::new(ErrorCode::InvalidRecordStructure).at("payload"));
-                }
-                Ok(())
-            }
         }
     }
 
@@ -171,7 +149,7 @@ impl BlockRecord {
             return Err(Error::new(ErrorCode::InvalidRecordStructure).at("parent"));
         }
         if !self.kind.is_plain() {
-            return Err(Error::new(ErrorCode::DisallowedKind).at("parent"));
+            return Err(Error::new(ErrorCode::InvalidRecordStructure).at("parent"));
         }
         if self.state != RepresentationState::Complete {
             return Err(Error::new(ErrorCode::InvalidRecordStructure).at("state"));
@@ -203,7 +181,6 @@ impl TryFrom<BlockRecordWire> for BlockRecord {
             entry: wire.entry,
             parent: wire.parent,
             kind: wire.kind,
-            position: wire.position,
             state: wire.state,
             call: wire.call,
             observed_at: wire.observed_at,

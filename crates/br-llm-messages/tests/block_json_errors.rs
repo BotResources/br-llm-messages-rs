@@ -97,14 +97,14 @@ fn given_a_missing_required_field_on_any_kind_when_loaded_then_invalid_content()
 }
 
 #[test]
-fn given_a_bad_or_missing_type_when_loaded_then_variant_mismatch_or_invalid_content() {
+fn given_a_bad_or_missing_type_when_loaded_then_variant_mismatch() {
     assert_eq!(
         code(&json!({"type": "tool_use", "id": id(1)})),
         ErrorCode::VariantMismatch
     );
     assert_eq!(
         code(&json!({"id": id(1), "text": "x"})),
-        ErrorCode::InvalidContent
+        ErrorCode::VariantMismatch
     );
     assert_eq!(
         code_of::<ContentBlock>("{\"type\":"),
@@ -149,7 +149,7 @@ fn given_image_data_or_media_type_invalid_when_loaded_then_refused() {
         code(&image(
             json!({"type": "inline", "media_type": "image/bmp", "data": "QUJD"})
         )),
-        ErrorCode::VariantMismatch
+        ErrorCode::InvalidContent
     );
     assert_eq!(
         code(&image(

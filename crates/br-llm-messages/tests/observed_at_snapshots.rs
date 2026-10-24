@@ -8,10 +8,10 @@ use br_llm_messages::{
 };
 use common::{at, bid, oj};
 use serde_json::json;
-use stream_support::{delta, feed, ok, text};
+use stream_support::{feed, ok, started, text};
 
-fn stamped_start(block: u64, position: u32, start: BlockStart, time: u32) -> DeltaOp {
-    DeltaOp::block_started(bid(block), position, start.with_observed_at(at(time)))
+fn stamped_start(block: u64, start: BlockStart, time: u32) -> DeltaOp {
+    DeltaOp::block_started(bid(block), start.with_observed_at(at(time)))
 }
 
 fn mid_stream(time: Option<ObservedAt>) -> (ResponseDraft, Vec<DeltaOp>) {
@@ -19,21 +19,18 @@ fn mid_stream(time: Option<ObservedAt>) -> (ResponseDraft, Vec<DeltaOp>) {
         Some(time) => ResponseMetadata::new().with_observed_at(time),
         None => ResponseMetadata::new(),
     };
-    let mut draft = ResponseDraft::begin(&delta(DeltaOp::response_started(metadata))).unwrap();
+    let mut draft = started(metadata);
     feed(
         &mut draft,
         vec![
-            stamped_start(10, 0, BlockStart::text(), 2),
-            stamped_start(11, 1, BlockStart::runtime_tool_call(None, None), 3),
-            DeltaOp::block_inserted(2, common::png(12).with_observed_at(at(4))),
+            stamped_start(10, BlockStart::text(), 2),
+            stamped_start(11, BlockStart::runtime_tool_call(None, None), 3),
+            DeltaOp::block_inserted(common::png(12).with_observed_at(at(4))),
             text(10, "he"),
             stream_support::json(11, "{\"a\":"),
             DeltaOp::block_metadata_updated(
                 bid(11),
-                BlockMetadataUpdate::runtime_tool_call_identified(
-                    Some(common::tool("lookup")),
-                    None,
-                ),
+                BlockMetadataUpdate::tool_name_set(common::tool("lookup")),
             ),
         ],
     );
@@ -116,11 +113,10 @@ fn given_an_interrupted_draft_with_times_when_snapshotted_and_restored_then_the_
 
 #[test]
 fn given_a_draft_without_times_when_snapshotted_then_no_time_appears_anywhere() {
-    let mut draft =
-        ResponseDraft::begin(&delta(DeltaOp::response_started(ResponseMetadata::new()))).unwrap();
+    let mut draft = started(ResponseMetadata::new());
     feed(
         &mut draft,
-        vec![stream_support::start_text(10, 0), text(10, "x")],
+        vec![stream_support::start_text(10), text(10, "x")],
     );
 
     let wire = draft.to_snapshot().unwrap().to_json().unwrap();

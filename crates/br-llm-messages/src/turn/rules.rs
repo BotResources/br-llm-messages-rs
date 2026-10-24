@@ -15,6 +15,10 @@ pub(crate) fn check(tracker: &Tracker, entry: &TurnEntry, index: usize) -> Resul
     if tracker.closure.is_some() {
         return Err(Error::new(ErrorCode::ClosedTurn).with_id(id.as_uuid()));
     }
+    if let TurnEntry::TurnClosure(closure) = entry {
+        check_closure(tracker, closure.id(), closure.reason())?;
+    }
+    super::order::check(tracker, entry)?;
     let declared = places_of_turn_entry(entry, index);
     check_fresh(tracker, &declared)?;
     match entry {
@@ -22,7 +26,6 @@ pub(crate) fn check(tracker: &Tracker, entry: &TurnEntry, index: usize) -> Resul
         TurnEntry::RuntimeToolResults(delivery) => {
             super::results::check(tracker, delivery.results())?
         }
-        TurnEntry::TurnClosure(closure) => check_closure(tracker, closure.id(), closure.reason())?,
         _ => {}
     }
     Ok(declared)
@@ -43,9 +46,7 @@ fn check_response(
     response: &ModelResponse,
     declared: &Declared,
 ) -> Result<(), Error> {
-    if let Some(call) = tracker.outstanding.first() {
-        return Err(Error::new(ErrorCode::UnresolvedExecution).with_id(call.as_uuid()));
-    }
+    let mut answered_here = HashSet::new();
     for (index, block) in response.blocks().iter().enumerate() {
         let ContentBlock::ProviderToolResult(result) = block else {
             continue;
@@ -61,7 +62,9 @@ fn check_response(
             Some(Class::Block(ContentBlockKind::ProviderToolCall)) => {}
             Some(_) => return Err(located(ErrorCode::UnknownReference)),
         }
-        if tracker.answered_provider.contains(&result.call()) {
+        if tracker.answered_provider.contains(&result.call())
+            || !answered_here.insert(result.call())
+        {
             return Err(located(ErrorCode::DuplicateResult));
         }
     }

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, ErrorCode};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "String")]
 pub struct PlainText(String);
 

@@ -1,7 +1,8 @@
 mod common;
 
 use br_llm_messages::{
-    Author, ErrorCode, ExternalId, FailureDetail, ModelName, PlainText, ProviderOperation, ToolName,
+    Author, ErrorCode, ExternalId, InterruptionKind, InterruptionReason, ModelName, PlainText,
+    ProviderOperation, ToolName,
 };
 use common::{code_of, refused};
 
@@ -133,28 +134,33 @@ fn given_provider_operation_names_when_built_then_any_non_empty_value_is_kept_as
 }
 
 #[test]
-fn given_a_failure_detail_when_built_then_code_is_required_and_message_kept() {
-    let detail = FailureDetail::new("rate_limited")
-        .unwrap()
-        .with_message("  later ");
+fn given_an_interruption_detail_when_built_then_it_is_optional_non_blank_and_kept_as_given() {
+    let bare = InterruptionReason::failed();
+    let detailed = InterruptionReason::failed()
+        .with_detail("  overloaded ")
+        .unwrap();
 
-    assert_eq!(detail.code(), "rate_limited");
-    assert_eq!(detail.message(), Some("  later "));
-    assert_eq!(FailureDetail::new("x").unwrap().message(), None);
-    assert!(FailureDetail::new("").is_err());
-    let long = "x".repeat(4096);
-    assert_eq!(FailureDetail::new(long.clone()).unwrap().code(), long);
+    assert_eq!(bare.kind(), InterruptionKind::Failed);
+    assert_eq!(bare.detail(), None);
+    assert_eq!(detailed.detail(), Some("  overloaded "));
     assert_eq!(
-        code_of::<FailureDetail>("{\"code\":\"\"}"),
+        refused(InterruptionReason::cancelled().with_detail(" \n")).code(),
         ErrorCode::InvalidContent
     );
     assert_eq!(
-        code_of::<FailureDetail>("{\"code\":\"a\",\"extra\":1}"),
+        serde_json::to_string(&bare).unwrap(),
+        "{\"kind\":\"failed\"}"
+    );
+    assert_eq!(
+        code_of::<InterruptionReason>("{\"kind\":\"failed\",\"detail\":\"\"}"),
         ErrorCode::InvalidContent
     );
-    assert_eq!(code_of::<FailureDetail>("{}"), ErrorCode::InvalidContent);
     assert_eq!(
-        serde_json::to_string(&FailureDetail::new("x").unwrap()).unwrap(),
-        "{\"code\":\"x\"}"
+        code_of::<InterruptionReason>("{\"kind\":\"failed\",\"extra\":1}"),
+        ErrorCode::InvalidContent
+    );
+    assert_eq!(
+        code_of::<InterruptionReason>("{\"kind\":\"stalled\"}"),
+        ErrorCode::VariantMismatch
     );
 }

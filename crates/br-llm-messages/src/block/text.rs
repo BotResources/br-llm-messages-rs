@@ -102,14 +102,14 @@ impl TextBlock {
         Ok(())
     }
 
-    pub(crate) fn without_model_fields(&self) -> TextBlock {
+    pub(crate) fn text_only(&self) -> TextBlock {
         TextBlock {
             id: self.id,
             text: self.text.clone(),
-            citations: self.citations.clone(),
+            citations: Vec::new(),
             item_ref: None,
             replay: None,
-            observed_at: self.observed_at.clone(),
+            observed_at: None,
         }
     }
 

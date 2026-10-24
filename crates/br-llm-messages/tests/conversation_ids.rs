@@ -25,6 +25,9 @@ fn given_ids_of_every_object_kind_when_reused_for_another_kind_then_reused_ident
             ),
         )
         .unwrap();
+    conversation
+        .push_entry(&tid(10), delivery(20, &[(21, 14, "t")]))
+        .unwrap();
     let taken: [Uuid; 5] = [
         cvid(1).as_uuid(),
         tid(10).as_uuid(),

@@ -19,7 +19,8 @@ pub struct InputTurn {
 
 impl Serialize for InputTurn {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut turn = serializer.serialize_struct("InputTurn", 4)?;
+        let mut turn = serializer
+            .serialize_struct("InputTurn", 3 + usize::from(self.observed_at.is_some()))?;
         turn.serialize_field("type", TurnKind::InputTurn.as_str())?;
         turn.serialize_field("id", &self.id)?;
         turn.serialize_field("entry", &self.entry)?;

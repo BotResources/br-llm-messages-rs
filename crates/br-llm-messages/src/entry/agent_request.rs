@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use super::{RequestOrigin, check_content, collect_content};
-use crate::block::{IdSink, PlainBlock};
+use super::{RequestOrigin, check_content};
+use crate::block::PlainBlock;
 use crate::error::Error;
 use crate::id::{AgentId, ConversationId, EntryId};
 use crate::value::{Author, ObservedAt};
@@ -84,10 +84,6 @@ impl AgentRequest {
 
     pub fn observed_at(&self) -> Option<&ObservedAt> {
         self.observed_at.as_ref()
-    }
-
-    pub(crate) fn collect_ids(&self, sink: &mut IdSink) -> Result<(), Error> {
-        collect_content(self.id, &self.content, sink)
     }
 }
 

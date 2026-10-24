@@ -10,7 +10,7 @@ use stream_support::{
 
 #[test]
 fn given_text_fragments_when_appended_then_the_text_is_exactly_their_concatenation() {
-    let mut draft = run(vec![start_text(10, 0)]);
+    let mut draft = run(vec![start_text(10)]);
     let fragments = ["  lead", " space é ", "\n\n", "trail  "];
 
     for fragment in fragments {
@@ -27,7 +27,7 @@ fn given_text_fragments_when_appended_then_the_text_is_exactly_their_concatenati
 
 #[test]
 fn given_thinking_fragments_when_appended_then_text_accumulates_and_may_stay_empty_under_replay() {
-    let mut draft = run(vec![start_thinking(10, 0), start_thinking(11, 1)]);
+    let mut draft = run(vec![start_thinking(10), start_thinking(11)]);
     ok(
         &mut draft,
         DeltaOp::replay_material_set(bid(11), common::signature("only-replay")),
@@ -55,9 +55,10 @@ fn given_thinking_fragments_when_appended_then_text_accumulates_and_may_stay_emp
 #[test]
 fn given_a_wrong_kind_target_when_appending_then_stream_target_with_the_block_id() {
     let mut draft = run(vec![
-        start_text(10, 0),
-        start_thinking(11, 1),
-        start_record(12, 2),
+        start_text(10),
+        start_thinking(11),
+        start_record(12),
+        start_json(13),
     ]);
     let format = ReplayFormat::new("x.y").unwrap();
 
@@ -69,7 +70,7 @@ fn given_a_wrong_kind_target_when_appending_then_stream_target_with_the_block_id
         json(10, "{}"),
         json(11, "{}"),
         json(12, "{}"),
-        DeltaOp::replay_fragment_appended(bid(12), format, "frag"),
+        DeltaOp::replay_fragment_appended(bid(13), format, "frag"),
     ];
     for op in cases {
         let block = op.block_id().unwrap();
@@ -81,14 +82,13 @@ fn given_a_wrong_kind_target_when_appending_then_stream_target_with_the_block_id
 
 #[test]
 fn given_an_unknown_target_when_appending_then_stream_target() {
-    let mut draft = run(vec![start_text(10, 0)]);
+    let mut draft = run(vec![start_text(10)]);
 
     let ops = [
         text(99, "a"),
         DeltaOp::thinking_appended(bid(99), "a"),
         json(99, "{}"),
         finalize(99),
-        DeltaOp::block_discarded(bid(99)),
     ];
     for op in ops {
         let error = refuse(&mut draft, op);
@@ -99,7 +99,7 @@ fn given_an_unknown_target_when_appending_then_stream_target() {
 
 #[test]
 fn given_a_thinking_block_with_no_text_and_no_replay_when_finalized_then_it_is_refused() {
-    let mut draft = run(vec![start_thinking(10, 0)]);
+    let mut draft = run(vec![start_thinking(10)]);
 
     let error = refuse(&mut draft, finalize(10));
 
@@ -112,13 +112,13 @@ fn given_a_thinking_block_with_no_text_and_no_replay_when_finalized_then_it_is_r
 #[test]
 fn given_a_finalized_block_when_any_fragment_arrives_then_stream_phase() {
     let mut draft = run(vec![
-        start_text(10, 0),
+        start_text(10),
         text(10, "done"),
         finalize(10),
-        start_thinking(11, 1),
+        start_thinking(11),
         DeltaOp::thinking_appended(bid(11), "t"),
         finalize(11),
-        start_json(12, 2),
+        start_json(12),
         json(12, "1"),
         finalize(12),
     ]);
@@ -138,7 +138,7 @@ fn given_a_finalized_block_when_any_fragment_arrives_then_stream_phase() {
 
 #[test]
 fn given_json_fragments_when_appended_then_raw_text_accumulates_even_when_invalid_so_far() {
-    let mut draft = run(vec![start_json(10, 0)]);
+    let mut draft = run(vec![start_json(10)]);
 
     ok(&mut draft, json(10, "{\"a\": [1, "));
     ok(&mut draft, json(10, "tru"));
@@ -152,9 +152,9 @@ fn given_json_fragments_when_appended_then_raw_text_accumulates_even_when_invali
 fn given_structured_runtime_and_provider_targets_when_json_is_appended_then_each_keeps_raw_text_only()
  {
     let mut draft = run(vec![
-        start_json(10, 0),
-        start_call(11, 1, Some("lookup"), None),
-        start_provider_call(12, 2),
+        start_json(10),
+        start_call(11, Some("lookup"), None),
+        start_provider_call(12),
     ]);
 
     for block in [10, 11, 12] {
@@ -172,7 +172,7 @@ fn given_structured_runtime_and_provider_targets_when_json_is_appended_then_each
 
 #[test]
 fn given_fragments_that_never_become_json_when_finalized_then_malformed_json_and_still_open() {
-    let mut draft = run(vec![start_json(10, 0), json(10, "{\"a\":")]);
+    let mut draft = run(vec![start_json(10), json(10, "{\"a\":")]);
 
     let error = refuse(&mut draft, finalize(10));
 

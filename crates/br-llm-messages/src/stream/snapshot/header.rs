@@ -22,7 +22,7 @@ struct Header {
 
 pub(super) fn write(metadata: &ResponseMetadata, phase: &DraftPhase) -> Result<OpaqueJson, Error> {
     let interruption = match phase {
-        DraftPhase::Interrupted(reason) => Some(reason.clone()),
+        DraftPhase::Interrupted { reason } => Some(reason.clone()),
         _ => None,
     };
     let header = Header {

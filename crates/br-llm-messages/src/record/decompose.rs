@@ -6,25 +6,19 @@ use super::set::RecordSet;
 use super::turn::TurnRecord;
 use crate::block::ContentBlock;
 use crate::entry::TurnEntry;
-use crate::error::{Error, ErrorCode};
+use crate::error::Error;
 use crate::id::{EntryId, TurnId};
 use crate::turn::{Turn, TurnKind};
-
-pub(crate) fn position(index: usize) -> Result<u32, Error> {
-    u32::try_from(index).map_err(|_| Error::new(ErrorCode::InvalidRecordStructure))
-}
 
 pub(crate) fn block_rows(
     entry: EntryId,
     block: &ContentBlock,
-    at: u32,
     out: &mut Vec<BlockRecord>,
 ) -> Result<(), Error> {
     let mut row = BlockRecord::new(
         block.id(),
         entry,
         block.kind(),
-        at,
         RepresentationState::Complete,
         block_payload(block)?,
     );
@@ -35,13 +29,12 @@ pub(crate) fn block_rows(
         row = row.with_observed_at(observed_at.clone());
     }
     out.push(row);
-    for (index, child) in block.children().iter().enumerate() {
+    for child in block.children() {
         let nested = ContentBlock::from(child.clone());
         let mut row = BlockRecord::new(
             nested.id(),
             entry,
             nested.kind(),
-            position(index)?,
             RepresentationState::Complete,
             block_payload(&nested)?,
         )
@@ -54,13 +47,12 @@ pub(crate) fn block_rows(
     Ok(())
 }
 
-fn entry_rows(turn: TurnId, entry: &TurnEntry, at: u32, set: &mut RecordSet) -> Result<(), Error> {
+fn entry_rows(turn: TurnId, entry: &TurnEntry, set: &mut RecordSet) -> Result<(), Error> {
     let parts = split_entry(entry)?;
     let mut row = EntryRecord::new(
         entry.id(),
         turn,
         entry.kind(),
-        at,
         RepresentationState::Complete,
         parts.payload,
     );
@@ -91,39 +83,35 @@ fn entry_rows(turn: TurnId, entry: &TurnEntry, at: u32, set: &mut RecordSet) -> 
             .collect(),
         _ => Vec::new(),
     };
-    for (index, block) in blocks.iter().enumerate() {
-        block_rows(entry.id(), block, position(index)?, &mut set.blocks)?;
+    for block in &blocks {
+        block_rows(entry.id(), block, &mut set.blocks)?;
     }
     Ok(())
 }
 
-pub(crate) fn turn_rows(turn: &Turn, at: u32, set: &mut RecordSet) -> Result<(), Error> {
+pub(crate) fn turn_rows(turn: &Turn, set: &mut RecordSet) -> Result<(), Error> {
     match turn {
         Turn::InputTurn(input) => {
-            let mut row = TurnRecord::new(input.id(), TurnKind::InputTurn, at);
+            let mut row = TurnRecord::new(input.id(), TurnKind::InputTurn);
             if let Some(observed_at) = input.observed_at() {
                 row = row.with_observed_at(observed_at.clone());
             }
             set.turns.push(row);
             let entry = TurnEntry::from(input.entry().clone());
-            entry_rows(input.id(), &entry, 0, set)
+            entry_rows(input.id(), &entry, set)
         }
         Turn::AITurn(ai) => {
-            let mut row = TurnRecord::new(ai.id(), TurnKind::AITurn, at)
+            let mut row = TurnRecord::new(ai.id(), TurnKind::AITurn)
                 .with_agent(ai.agent())
                 .with_author(ai.author().clone());
             if let Some(observed_at) = ai.observed_at() {
                 row = row.with_observed_at(observed_at.clone());
             }
             set.turns.push(row);
-            for (index, entry) in ai.entries().iter().enumerate() {
-                entry_rows(ai.id(), entry, position(index)?, set)?;
+            for entry in ai.entries() {
+                entry_rows(ai.id(), entry, set)?;
             }
             Ok(())
         }
     }
 }
-
-#[cfg(test)]
-#[path = "decompose_tests.rs"]
-mod tests;

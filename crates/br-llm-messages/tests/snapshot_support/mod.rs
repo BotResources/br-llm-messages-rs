@@ -4,15 +4,14 @@
 )]
 
 use br_llm_messages::{
-    BlockMetadataUpdate, BlockStart, DeltaOp, ExecutionStatus, ExternalId, Finalization, ModelName,
-    ProviderToolExecutionRecord, ProviderToolResult, RedactedThinkingBlock, ResponseDelta,
-    ResponseDraft, ResponseEnding, ResponseMetadata, ResponseMetadataUpdate, Usage,
+    BlockMetadataUpdate, BlockStart, DeltaOp, ExecutionStatus, ExternalId, Finalization, ItemRef,
+    ModelName, ProviderToolExecutionRecord, ProviderToolResult, RedactedThinkingBlock,
+    ResponseDelta, ResponseDraft, ResponseEnding, ResponseMetadata, ResponseMetadataUpdate, Usage,
 };
 
 use crate::common::{at, bid, plain_text, png, signature, tool};
 use crate::stream_support::{
-    citation, delta, finalize, json, operation, start_json, start_provider_call, start_record,
-    start_text, text,
+    citation, delta, finalize, json, operation, start_json, start_provider_call, start_record, text,
 };
 
 fn format() -> br_llm_messages::ReplayFormat {
@@ -35,17 +34,16 @@ pub fn script() -> Vec<DeltaOp> {
                 .with_model(ModelName::new("m").unwrap())
                 .with_observed_at(at(1)),
         ),
-        DeltaOp::block_started(bid(10), 3, BlockStart::text().with_observed_at(at(2))),
-        DeltaOp::block_started(bid(11), 0, BlockStart::thinking().with_observed_at(at(4))),
+        DeltaOp::block_started(bid(11), BlockStart::thinking().with_observed_at(at(4))),
+        DeltaOp::block_inserted(png(17).with_observed_at(at(5))),
         DeltaOp::block_started(
             bid(12),
-            2,
             BlockStart::runtime_tool_call(None, None).with_observed_at(at(3)),
         ),
-        start_json(13, 5),
-        start_text(14, 4),
-        start_provider_call(15, 6),
-        start_record(16, 7),
+        DeltaOp::block_started(bid(10), BlockStart::text().with_observed_at(at(2))),
+        start_json(13),
+        start_provider_call(15),
+        start_record(16),
         text(10, "Hello "),
         DeltaOp::thinking_appended(bid(11), "plan"),
         DeltaOp::replay_fragment_appended(bid(11), format(), "Sig"),
@@ -54,26 +52,29 @@ pub fn script() -> Vec<DeltaOp> {
             BlockMetadataUpdate::citation_added(citation(50, 0, 5)),
         ),
         json(12, "{\"query\":"),
-        text(14, "  "),
         DeltaOp::response_metadata_updated(
             ResponseMetadataUpdate::new().with_usage(Usage::new().with_input_tokens(3)),
         ),
         text(10, "w\u{f6}rld"),
         DeltaOp::block_metadata_updated(
             bid(12),
-            BlockMetadataUpdate::runtime_tool_call_identified(
-                Some(tool("lookup")),
-                Some(ExternalId::new("toolu_1").unwrap()),
-            ),
+            BlockMetadataUpdate::tool_name_set(tool("lookup")),
+        ),
+        DeltaOp::block_metadata_updated(
+            bid(12),
+            BlockMetadataUpdate::external_id_set(ExternalId::new("toolu_1").unwrap()),
+        ),
+        DeltaOp::block_metadata_updated(
+            bid(10),
+            BlockMetadataUpdate::item_ref_set(ItemRef::new("msg_1").unwrap()),
         ),
         json(12, "\"rust\"}"),
         json(13, "{\"a\":[1,"),
-        DeltaOp::block_inserted(1, png(17).with_observed_at(at(5))),
         json(15, "{\"q\""),
         json(13, "2]}"),
         DeltaOp::block_metadata_updated(
             bid(16),
-            BlockMetadataUpdate::execution_status_observed(ExecutionStatus::Running),
+            BlockMetadataUpdate::execution_status_set(ExecutionStatus::Running),
         ),
         json(15, ":\"x\"}"),
         DeltaOp::replay_fragment_appended(bid(10), format(), "Ab"),
@@ -82,11 +83,10 @@ pub fn script() -> Vec<DeltaOp> {
         finalize(11),
         finalize(12),
         finalize(13),
-        DeltaOp::block_discarded(bid(14)),
         finalize(15),
         DeltaOp::block_finalized(bid(16), Finalization::authoritative(record.into())),
-        DeltaOp::block_inserted(8, hosted_result),
-        DeltaOp::block_inserted(9, RedactedThinkingBlock::new(bid(19), signature("opaque"))),
+        DeltaOp::block_inserted(hosted_result),
+        DeltaOp::block_inserted(RedactedThinkingBlock::new(bid(19), signature("opaque"))),
         DeltaOp::response_metadata_updated(
             ResponseMetadataUpdate::new()
                 .with_usage(Usage::new().with_input_tokens(3).with_output_tokens(9)),
@@ -100,8 +100,8 @@ pub fn deltas(ops: &[DeltaOp]) -> Vec<ResponseDelta> {
 }
 
 pub fn draft_after(script: &[ResponseDelta], count: usize) -> ResponseDraft {
-    let mut draft = ResponseDraft::begin(&script[0]).unwrap();
-    for step in &script[1..count] {
+    let mut draft = ResponseDraft::new(script[0].turn(), script[0].entry());
+    for step in &script[..count] {
         draft.apply(step).unwrap();
     }
     draft

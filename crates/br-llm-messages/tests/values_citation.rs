@@ -1,8 +1,14 @@
 mod common;
 
-use br_llm_messages::{Citation, CitationId, CitationSource, ErrorCode, PlainText, TextRange};
-use common::{code_of, refused, v7};
+use br_llm_messages::{
+    Citation, CitationId, CitationSource, ErrorCode, PlainText, TextBlock, TextRange,
+};
+use common::{bid, code_of, refused, v7};
 use serde_json::json;
+
+fn cited(text: &PlainText, citations: Vec<Citation>) -> Result<TextBlock, br_llm_messages::Error> {
+    TextBlock::new(bid(99), text.as_str())?.with_citations(citations)
+}
 
 fn citation(n: u64, start: u64, end: u64) -> Citation {
     Citation::new(
@@ -33,8 +39,8 @@ fn given_empty_or_reversed_ranges_when_built_then_invalid_content() {
 fn given_a_range_ending_at_the_text_end_when_validated_then_accepted_and_one_past_refused() {
     let text = PlainText::new("0123456789").unwrap();
 
-    assert!(citation(1, 0, 10).validate_against(&text).is_ok());
-    let error = refused(citation(2, 0, 11).validate_against(&text));
+    assert!(cited(&text, vec![citation(1, 0, 10)]).is_ok());
+    let error = refused(cited(&text, vec![citation(2, 0, 11)]));
     assert_eq!(error.code(), ErrorCode::InvalidContent);
     assert_eq!(error.object_id(), Some(v7(2)));
 }
@@ -44,8 +50,8 @@ fn given_multibyte_text_when_ranges_are_validated_then_offsets_count_scalars_not
     let text = PlainText::new("é😀é").unwrap();
 
     assert_eq!(text.scalar_count(), 3);
-    assert!(citation(1, 0, 3).validate_against(&text).is_ok());
-    assert!(citation(2, 0, 4).validate_against(&text).is_err());
+    assert!(cited(&text, vec![citation(1, 0, 3)]).is_ok());
+    assert!(cited(&text, vec![citation(2, 0, 4)]).is_err());
 }
 
 #[test]
@@ -55,11 +61,7 @@ fn given_a_citation_without_range_when_validated_then_accepted() {
         CitationSource::new("doc").unwrap(),
     );
 
-    assert!(
-        whole
-            .validate_against(&PlainText::new("x").unwrap())
-            .is_ok()
-    );
+    assert!(cited(&PlainText::new("x").unwrap(), vec![whole.clone()]).is_ok());
     assert_eq!(whole.range(), None);
 }
 
@@ -68,12 +70,12 @@ fn given_a_citation_list_with_a_repeated_id_when_checked_then_reused_identity_na
     let text = PlainText::new("0123456789").unwrap();
     let list = [citation(1, 0, 2), citation(2, 2, 4), citation(1, 5, 6)];
 
-    let error = refused(Citation::check_all(&text, &list));
+    let error = refused(cited(&text, list.to_vec()));
 
     assert_eq!(error.code(), ErrorCode::ReusedIdentity);
     assert_eq!(error.object_id(), Some(v7(1)));
     assert_eq!(error.location(), Some("citations[2]"));
-    assert!(Citation::check_all(&text, &list[..2]).is_ok());
+    assert!(cited(&text, list[..2].to_vec()).is_ok());
 }
 
 #[test]
@@ -81,7 +83,7 @@ fn given_a_citation_list_with_a_bad_range_when_checked_then_the_error_locates_it
     let text = PlainText::new("abc").unwrap();
     let list = [citation(1, 0, 3), citation(2, 1, 9)];
 
-    let error = refused(Citation::check_all(&text, &list));
+    let error = refused(cited(&text, list.to_vec()));
 
     assert_eq!(error.code(), ErrorCode::InvalidContent);
     assert_eq!(error.location(), Some("citations[1].range"));

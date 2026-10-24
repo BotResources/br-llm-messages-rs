@@ -27,10 +27,33 @@ pub(crate) fn check_value(value: &Value) -> Result<(), Error> {
     Ok(())
 }
 
-pub(crate) fn deserialize<'de, D: Deserializer<'de>>(
+fn deserialize_at<'de, D: Deserializer<'de>>(
     deserializer: D,
+    field: &'static str,
 ) -> Result<OpaqueJson, D::Error> {
     let value = OpaqueJson::deserialize(deserializer)?;
-    check(&value).map_err(D::Error::custom)?;
+    check(&value).map_err(|error| D::Error::custom(error.at(field)))?;
     Ok(value)
+}
+
+pub(crate) fn value<'de, D: Deserializer<'de>>(deserializer: D) -> Result<OpaqueJson, D::Error> {
+    deserialize_at(deserializer, "value")
+}
+
+pub(crate) fn arguments<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<OpaqueJson, D::Error> {
+    deserialize_at(deserializer, "arguments")
+}
+
+pub(crate) fn optional_arguments<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<OpaqueJson>, D::Error> {
+    deserialize_at(deserializer, "arguments").map(Some)
+}
+
+pub(crate) fn optional_provisional_arguments<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<OpaqueJson>, D::Error> {
+    deserialize_at(deserializer, "provisional_arguments").map(Some)
 }

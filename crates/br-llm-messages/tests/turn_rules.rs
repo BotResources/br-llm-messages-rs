@@ -1,20 +1,20 @@
 mod common;
 
-use br_llm_messages::{ClosureReason, ErrorCode, ResponseEnding, TurnEntry, TurnEntryKind};
+use br_llm_messages::{ClosureReason, ErrorCode, ResponseEnding};
 use common::turns::{
-    calling, close, delivery, finished, hosted_call, hosted_result, human, incoming_batch,
-    open_turn, pushed, response,
+    calling, close, delivery, finished, hosted_call, hosted_result, open_turn, pushed, response,
 };
-use common::{bid, call, refused, text_block};
+use common::{bid, call, eid, refused, text_block};
 
 #[test]
-fn given_outstanding_calls_when_a_response_is_pushed_then_unresolved_execution() {
+fn given_outstanding_calls_when_a_response_is_pushed_then_entry_out_of_order() {
     let mut turn = open_turn(1);
     pushed(&mut turn, vec![calling(10, &[(11, "a"), (12, "b")])]);
 
     let error = refused(turn.push_entry(finished(13)));
 
-    assert_eq!(error.code(), ErrorCode::UnresolvedExecution);
+    assert_eq!(error.code(), ErrorCode::EntryOutOfOrder);
+    assert_eq!(error.object_id(), Some(eid(13).as_uuid()));
     assert_eq!(turn.entries().len(), 1);
 }
 
@@ -29,7 +29,7 @@ fn given_results_over_several_deliveries_when_all_collected_then_the_next_respon
     pushed(&mut turn, vec![delivery(20, &[(21, 11, "a")])]);
     assert_eq!(
         refused(turn.push_entry(finished(30))).code(),
-        ErrorCode::UnresolvedExecution
+        ErrorCode::EntryOutOfOrder
     );
     pushed(
         &mut turn,
@@ -165,7 +165,6 @@ fn given_provider_calls_and_results_when_the_turn_runs_then_no_runtime_result_is
                 vec![hosted_call(11), hosted_result(12, 11)],
                 ResponseEnding::finished(),
             ),
-            finished(13),
             close(14, ClosureReason::completed()),
         ],
     );
@@ -174,92 +173,46 @@ fn given_provider_calls_and_results_when_the_turn_runs_then_no_runtime_result_is
 }
 
 #[test]
-fn given_incoming_entries_at_any_point_when_pushed_then_accepted_with_kinds_preserved() {
+fn given_an_earlier_response_with_a_provider_call_when_a_later_response_answers_it_twice_then_duplicate_result()
+ {
     let mut turn = open_turn(1);
-    let batch = incoming_batch(100);
-    assert!(batch.iter().all(TurnEntry::is_incoming));
-
-    pushed(&mut turn, batch[..3].to_vec());
-    pushed(&mut turn, vec![calling(300, &[(301, "a")])]);
-    pushed(&mut turn, batch[3..].to_vec());
     pushed(
         &mut turn,
-        vec![delivery(310, &[(311, 301, "a")]), human(320)],
+        vec![response(
+            10,
+            vec![hosted_call(11)],
+            ResponseEnding::provider_continuation(),
+        )],
     );
-    pushed(&mut turn, vec![finished(330)]);
-    pushed(&mut turn, incoming_batch(400));
 
-    let kinds: Vec<_> = turn.entries().iter().map(TurnEntry::kind).collect();
-    let mut expected: Vec<_> = batch.iter().map(TurnEntry::kind).collect();
-    expected.insert(3, TurnEntryKind::ModelResponse);
-    expected.extend([
-        TurnEntryKind::RuntimeToolResults,
-        TurnEntryKind::HumanMessage,
-        TurnEntryKind::ModelResponse,
-    ]);
-    expected.extend(incoming_batch(400).iter().map(TurnEntry::kind));
-    assert_eq!(kinds, expected);
-    assert!(!turn.is_closed());
-}
-
-fn call_ending(entry: u64, call_id: u64, ending: ResponseEnding) -> TurnEntry {
-    response(entry, vec![call(call_id, "a").into()], ending)
-}
-
-#[test]
-fn given_a_call_under_a_non_requesting_ending_when_more_is_pushed_then_no_result_is_required() {
-    for ending in [
+    let error = refused(turn.push_entry(response(
+        20,
+        vec![hosted_result(21, 11), hosted_result(22, 11)],
         ResponseEnding::finished(),
-        ResponseEnding::provider_continuation(),
-        ResponseEnding::output_exhaustion(),
-        ResponseEnding::stop_sequence(),
-    ] {
-        let mut turn = open_turn(1);
-        pushed(&mut turn, vec![call_ending(10, 11, ending)]);
+    )));
 
-        assert!(turn.state().outstanding_runtime_calls().is_empty());
-        turn.push_entry(finished(12)).unwrap();
-        turn.push_entry(close(13, ClosureReason::completed()))
-            .unwrap();
-        assert!(turn.is_closed());
-    }
+    assert_eq!(error.code(), ErrorCode::DuplicateResult);
+    assert_eq!(error.object_id(), Some(bid(11).as_uuid()));
+    assert_eq!(error.location(), Some("content[1].call"));
+    assert_eq!(turn.entries().len(), 1);
 }
 
 #[test]
-fn given_a_call_under_a_requesting_ending_when_more_is_pushed_then_both_are_blocked() {
-    let mut turn = open_turn(1);
-    pushed(
-        &mut turn,
-        vec![call_ending(10, 11, ResponseEnding::tool_use())],
+fn given_a_document_answering_a_provider_call_twice_in_one_response_when_loaded_then_duplicate_result()
+ {
+    let call = "ab000000-0000-7000-8000-00000000000b";
+    let result = |id: &str, inner: &str| {
+        format!(
+            r#"{{"type":"provider_tool_result","id":"ab000000-0000-7000-8000-{id}","call":"{call}","content":[{{"type":"text","id":"ab000000-0000-7000-8000-{inner}","text":"found"}}]}}"#
+        )
+    };
+    let document = format!(
+        r#"{{"type":"ai_turn","id":"ab000000-0000-7000-8000-000000000001","agent":"ab000000-0000-7000-8000-000000000001","author":"Codex GPT-6.1-Sol high","entries":[{{"type":"model_response","id":"ab000000-0000-7000-8000-00000000000a","ending":{{"type":"provider_continuation"}},"content":[{{"type":"provider_tool_call","id":"{call}"}}]}},{{"type":"model_response","id":"ab000000-0000-7000-8000-000000000014","ending":{{"type":"finished"}},"content":[{},{}]}}]}}"#,
+        result("000000000015", "000000000bc1"),
+        result("000000000016", "000000000bc2"),
     );
 
-    assert_eq!(turn.state().outstanding_runtime_calls(), &[bid(11)]);
-    assert_eq!(
-        refused(turn.push_entry(finished(12))).code(),
-        ErrorCode::UnresolvedExecution
-    );
-    assert_eq!(
-        refused(turn.push_entry(close(13, ClosureReason::completed()))).code(),
-        ErrorCode::UnresolvedExecution
-    );
-}
+    let error = refused(br_llm_messages::AITurn::from_json(&document));
 
-#[test]
-fn given_a_call_under_a_non_requesting_ending_when_a_result_arrives_then_it_is_checked_by_identity()
-{
-    let mut turn = open_turn(1);
-    pushed(
-        &mut turn,
-        vec![call_ending(10, 11, ResponseEnding::finished())],
-    );
-
-    assert_eq!(
-        refused(turn.push_entry(delivery(20, &[(21, 11, "wrong")]))).code(),
-        ErrorCode::MismatchedResult
-    );
-    turn.push_entry(delivery(22, &[(23, 11, "a")])).unwrap();
-    assert_eq!(
-        refused(turn.push_entry(delivery(24, &[(25, 11, "a")]))).code(),
-        ErrorCode::DuplicateResult
-    );
+    assert_eq!(error.code(), ErrorCode::DuplicateResult);
 }

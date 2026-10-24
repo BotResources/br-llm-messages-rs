@@ -190,7 +190,7 @@ fn given_malformed_endings_when_loaded_then_refused_with_the_precise_code() {
     );
     assert_eq!(
         code_of::<ResponseEnding>(r#"{}"#),
-        ErrorCode::InvalidContent
+        ErrorCode::VariantMismatch
     );
 }
 

@@ -6,8 +6,8 @@ use br_llm_messages::{
 };
 use common::{bid, envelope, signature};
 use stream_support::{
-    finalize, finish, json, ok, refuse, run, start_call, start_json, start_record, start_text,
-    start_thinking, text,
+    finalize, finish, json, ok, refuse, run, start_call, start_json, start_text, start_thinking,
+    text,
 };
 
 fn format(name: &str) -> ReplayFormat {
@@ -20,7 +20,7 @@ fn fragment(block: u64, name: &str, value: &str) -> DeltaOp {
 
 #[test]
 fn given_signature_fragments_when_appended_then_one_text_material_is_built_exactly() {
-    let mut draft = run(vec![start_thinking(10, 0)]);
+    let mut draft = run(vec![start_thinking(10)]);
 
     ok(&mut draft, fragment(10, "anthropic.signature", "Ab+/"));
     ok(&mut draft, fragment(10, "anthropic.signature", "cd=="));
@@ -36,9 +36,9 @@ fn given_signature_fragments_when_appended_then_one_text_material_is_built_exact
 }
 
 #[test]
-fn given_material_with_another_format_when_a_fragment_arrives_then_replay_mismatch() {
+fn given_material_with_another_format_when_a_fragment_arrives_then_stream_target_error() {
     let mut draft = run(vec![
-        start_thinking(10, 0),
+        start_thinking(10),
         fragment(10, "anthropic.signature", "a"),
     ]);
 
@@ -49,9 +49,10 @@ fn given_material_with_another_format_when_a_fragment_arrives_then_replay_mismat
 }
 
 #[test]
-fn given_json_material_when_a_fragment_arrives_then_replay_mismatch_and_objects_are_never_joined() {
+fn given_json_material_when_a_fragment_arrives_then_stream_target_error_and_objects_are_never_joined()
+ {
     let mut draft = run(vec![
-        start_thinking(10, 0),
+        start_thinking(10),
         DeltaOp::replay_material_set(bid(10), envelope(serde_json::json!({"enc": "A"}))),
     ]);
 
@@ -72,10 +73,10 @@ fn given_json_material_when_a_fragment_arrives_then_replay_mismatch_and_objects_
 }
 
 #[test]
-fn given_present_material_when_set_arrives_then_replay_mismatch() {
+fn given_present_material_when_set_arrives_then_stream_target_error() {
     let mut draft = run(vec![
-        start_thinking(10, 0),
-        start_text(11, 1),
+        start_thinking(10),
+        start_text(11),
         fragment(10, "anthropic.signature", "a"),
         DeltaOp::replay_material_set(bid(11), signature("first")),
     ]);
@@ -95,22 +96,24 @@ fn given_present_material_when_set_arrives_then_replay_mismatch() {
 
 #[test]
 fn given_a_target_without_a_replay_slot_when_replay_arrives_then_stream_target() {
-    let mut draft = run(vec![start_json(10, 0), start_record(11, 1)]);
+    let mut draft = run(vec![start_json(10)]);
 
-    for block in [10, 11] {
-        let set = refuse(
-            &mut draft,
-            DeltaOp::replay_material_set(bid(block), signature("s")),
-        );
-        let piece = refuse(&mut draft, fragment(block, "anthropic.signature", "s"));
-        assert_eq!(set.code(), ErrorCode::StreamTargetError);
-        assert_eq!(piece.code(), ErrorCode::StreamTargetError);
+    let set = refuse(
+        &mut draft,
+        DeltaOp::replay_material_set(bid(10), signature("s")),
+    );
+    let piece = refuse(&mut draft, fragment(10, "anthropic.signature", "s"));
+    let empty = refuse(&mut draft, fragment(10, "anthropic.signature", ""));
+
+    for error in [set, piece, empty] {
+        assert_eq!(error.code(), ErrorCode::StreamTargetError);
+        assert_eq!(error.object_id(), Some(bid(10).as_uuid()));
     }
 }
 
 #[test]
 fn given_replay_after_visible_text_when_finalized_then_text_and_replay_stay_independent() {
-    let mut draft = run(vec![start_text(10, 0), text(10, "visible")]);
+    let mut draft = run(vec![start_text(10), text(10, "visible")]);
 
     ok(&mut draft, fragment(10, "anthropic.signature", "late"));
     ok(&mut draft, text(10, " tail"));
@@ -129,7 +132,7 @@ fn given_replay_after_visible_text_when_finalized_then_text_and_replay_stay_inde
 #[test]
 fn given_a_tool_call_when_replay_is_set_then_it_survives_finalization() {
     let mut draft = run(vec![
-        start_call(10, 0, Some("lookup"), None),
+        start_call(10, Some("lookup"), None),
         json(10, "{}"),
         DeltaOp::replay_material_set(bid(10), envelope(serde_json::json!({"item": 1}))),
     ]);

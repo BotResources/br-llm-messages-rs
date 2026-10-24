@@ -1,68 +1,21 @@
-use crate::block::{ContentBlock, PlainBlock};
-use crate::entry::{IncomingEntry, ModelResponse, TurnEntry};
+use crate::block::{ContentBlock, TextBlock};
+use crate::entry::{ModelResponse, TurnEntry};
 use crate::id::{AgentId, EntryId, TurnId};
 use crate::turn::AITurn;
 use crate::value::Author;
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
-pub struct PublicResponse {
+pub struct OtherItem {
     entry: EntryId,
-    blocks: Vec<PlainBlock>,
-}
-
-impl PublicResponse {
-    pub fn entry(&self) -> EntryId {
-        self.entry
-    }
-
-    pub fn blocks(&self) -> &[PlainBlock] {
-        &self.blocks
-    }
-
-    pub(crate) fn of(response: &ModelResponse) -> Option<PublicResponse> {
-        let blocks: Vec<PlainBlock> = response
-            .blocks()
-            .iter()
-            .filter_map(|block| match block {
-                ContentBlock::Text(text) => Some(PlainBlock::Text(text.without_model_fields())),
-                ContentBlock::Image(image) => Some(PlainBlock::Image(image.clone())),
-                ContentBlock::StructuredContent(structured) => {
-                    Some(PlainBlock::StructuredContent(structured.clone()))
-                }
-                _ => None,
-            })
-            .collect();
-        if blocks.is_empty() {
-            None
-        } else {
-            Some(PublicResponse {
-                entry: response.id(),
-                blocks,
-            })
-        }
-    }
-}
-
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq)]
-pub enum OtherItem {
-    Incoming(IncomingEntry),
-    Public(PublicResponse),
-}
-
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq)]
-pub struct OtherTurn {
-    id: TurnId,
     agent: AgentId,
     author: Author,
-    items: Vec<OtherItem>,
+    texts: Vec<TextBlock>,
 }
 
-impl OtherTurn {
-    pub fn id(&self) -> TurnId {
-        self.id
+impl OtherItem {
+    pub fn entry(&self) -> EntryId {
+        self.entry
     }
 
     pub fn agent(&self) -> AgentId {
@@ -71,6 +24,43 @@ impl OtherTurn {
 
     pub fn author(&self) -> &Author {
         &self.author
+    }
+
+    pub fn texts(&self) -> &[TextBlock] {
+        &self.texts
+    }
+
+    fn of(turn: &AITurn, response: &ModelResponse) -> Option<OtherItem> {
+        let texts: Vec<TextBlock> = response
+            .blocks()
+            .iter()
+            .filter_map(|block| match block {
+                ContentBlock::Text(text) => Some(text.text_only()),
+                _ => None,
+            })
+            .collect();
+        if texts.is_empty() {
+            return None;
+        }
+        Some(OtherItem {
+            entry: response.id(),
+            agent: turn.agent(),
+            author: turn.author().clone(),
+            texts,
+        })
+    }
+}
+
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq)]
+pub struct OtherTurn {
+    id: TurnId,
+    items: Vec<OtherItem>,
+}
+
+impl OtherTurn {
+    pub fn id(&self) -> TurnId {
+        self.id
     }
 
     pub fn items(&self) -> &[OtherItem] {
@@ -82,16 +72,12 @@ impl OtherTurn {
             .entries()
             .iter()
             .filter_map(|entry| match entry {
-                TurnEntry::ModelResponse(response) => {
-                    PublicResponse::of(response).map(OtherItem::Public)
-                }
-                other => IncomingEntry::try_from(other).ok().map(OtherItem::Incoming),
+                TurnEntry::ModelResponse(response) => OtherItem::of(turn, response),
+                _ => None,
             })
             .collect();
         OtherTurn {
             id: turn.id(),
-            agent: turn.agent(),
-            author: turn.author().clone(),
             items,
         }
     }

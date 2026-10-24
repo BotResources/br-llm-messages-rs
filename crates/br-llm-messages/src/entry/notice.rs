@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 use super::refuse_author;
-use crate::block::IdSink;
 use crate::error::{Error, ErrorCode};
 use crate::id::{EntryId, RequestId};
 use crate::value::ObservedAt;
@@ -50,10 +49,6 @@ impl RequestAccepted {
 
     pub fn observed_at(&self) -> Option<&ObservedAt> {
         self.observed_at.as_ref()
-    }
-
-    pub(crate) fn collect_ids(&self, sink: &mut IdSink) -> Result<(), Error> {
-        sink.insert(self.id.as_uuid())
     }
 }
 
@@ -126,10 +121,6 @@ impl QueuePosition {
 
     pub fn observed_at(&self) -> Option<&ObservedAt> {
         self.observed_at.as_ref()
-    }
-
-    pub(crate) fn collect_ids(&self, sink: &mut IdSink) -> Result<(), Error> {
-        sink.insert(self.id.as_uuid())
     }
 }
 

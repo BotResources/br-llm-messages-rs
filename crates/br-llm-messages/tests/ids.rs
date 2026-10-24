@@ -161,11 +161,10 @@ fn given_externally_owned_ids_when_wrapped_then_the_library_only_checks_them() {
 }
 
 #[test]
-fn given_ids_when_ordered_and_hashed_then_they_follow_the_uuid_value() {
+fn given_ids_when_hashed_then_they_follow_the_uuid_value() {
     let low = TurnId::from_uuid(v7(1)).unwrap();
     let high = TurnId::from_uuid(v7(2)).unwrap();
 
-    assert!(low < high);
     let mut set = std::collections::HashSet::new();
     set.insert(low);
     assert!(set.contains(&TurnId::from_uuid(v7(1)).unwrap()));

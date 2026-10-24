@@ -3,8 +3,8 @@ mod snapshot_support;
 mod stream_support;
 
 use br_llm_messages::{
-    DeltaOp, DraftPhase, ErrorCode, FailureDetail, InterruptionReason, RepresentationState,
-    ResponseDraft, SlotLifecycle,
+    DeltaOp, DraftPhase, ErrorCode, InterruptionReason, RepresentationState, ResponseDraft,
+    SlotLifecycle,
 };
 use common::Raw as _;
 use common::bid;
@@ -15,12 +15,11 @@ use stream_support::delta;
 const SECRET: &str = "SECRET_VISIBLE_TEXT";
 
 fn mid_script() -> ResponseDraft {
-    draft_after(&deltas(&script()), 19)
+    draft_after(&deltas(&script()), 20)
 }
 
 #[test]
-fn given_a_producing_draft_with_a_position_gap_when_restored_then_ids_order_fragments_and_phase_are_equal()
- {
+fn given_a_producing_draft_when_restored_then_ids_order_fragments_and_phase_are_equal() {
     let draft = mid_script();
 
     let restored = ResponseDraft::from_snapshot(&draft.to_snapshot().unwrap()).unwrap();
@@ -28,31 +27,38 @@ fn given_a_producing_draft_with_a_position_gap_when_restored_then_ids_order_frag
     assert_eq!(restored, draft);
     assert!(matches!(restored.phase(), DraftPhase::Producing { .. }));
     let slots = restored.view().slots();
-    let positions: Vec<u32> = slots.iter().map(|slot| slot.position()).collect();
-    assert_eq!(positions, [0, 2, 3, 4, 5, 6, 7]);
-    assert_eq!(slots[1].raw_json(), Some("{\"query\":\"rust\"}"));
-    assert_eq!(slots[2].text(), Some("Hello w\u{f6}rld"));
+    let ids: Vec<_> = slots.iter().map(|slot| slot.block()).collect();
+    let declared: Vec<_> = [11, 17, 12, 10, 13, 15, 16].into_iter().map(bid).collect();
+    assert_eq!(ids, declared);
+    assert_eq!(slots[2].raw_json(), Some("{\"query\":\"rust\"}"));
+    assert_eq!(slots[3].text(), Some("Hello w\u{f6}rld"));
     assert_eq!(slots[4].raw_json(), Some("{\"a\":[1,"));
 }
 
 #[test]
-fn given_a_discarded_position_when_restored_then_it_stays_occupied_and_unreused() {
+fn given_finalized_and_open_blocks_when_restored_then_lifecycles_are_kept_and_identities_stay_used()
+{
     let steps = deltas(&script());
     let draft = draft_after(&steps, 31);
 
     let mut restored = ResponseDraft::from_snapshot(&draft.to_snapshot().unwrap()).unwrap();
 
     assert_eq!(restored, draft);
-    let lifecycle = restored.view().slots()[4].lifecycle();
-    assert_eq!(lifecycle, SlotLifecycle::Discarded);
+    let lifecycles: Vec<_> = restored
+        .view()
+        .slots()
+        .iter()
+        .map(|slot| slot.lifecycle())
+        .collect();
+    assert_eq!(lifecycles[..6], [SlotLifecycle::Final; 6]);
+    assert_eq!(lifecycles[6], SlotLifecycle::Open);
     let reuse = delta(DeltaOp::block_started(
-        bid(77),
-        4,
+        bid(10),
         br_llm_messages::BlockStart::text(),
     ));
     assert_eq!(
         restored.apply(&reuse).unwrap_err().code(),
-        ErrorCode::InvalidRecordStructure
+        ErrorCode::ReusedIdentity
     );
 }
 
@@ -77,7 +83,9 @@ fn given_late_replay_and_metadata_when_restored_then_they_are_exact() {
 #[test]
 fn given_an_interrupted_draft_when_restored_then_phase_and_partial_content_are_equal() {
     let mut draft = mid_script();
-    let reason = InterruptionReason::failed(FailureDetail::new("upstream_closed").unwrap());
+    let reason = InterruptionReason::failed()
+        .with_detail("upstream_closed")
+        .unwrap();
     draft
         .apply(&delta(DeltaOp::response_interrupted(reason.clone())))
         .unwrap();
@@ -86,7 +94,10 @@ fn given_an_interrupted_draft_when_restored_then_phase_and_partial_content_are_e
     let mut restored = ResponseDraft::from_snapshot(&snapshot).unwrap();
 
     assert_eq!(restored, draft);
-    assert_eq!(restored.phase(), &DraftPhase::Interrupted(reason));
+    assert!(matches!(
+        restored.phase(),
+        DraftPhase::Interrupted { reason: found, .. } if *found == reason
+    ));
     assert!(restored.response().is_none());
     assert_eq!(snapshot.entry().state(), RepresentationState::Interrupted);
     let later = delta(DeltaOp::text_appended(bid(10), "more"));
@@ -149,10 +160,10 @@ fn given_an_interrupted_snapshot_when_built_then_raw_json_and_late_replay_stay_v
     );
     assert_eq!(row(13).payload().raw()["raw_json"], "{\"a\":[1,2]}");
     assert_eq!(row(10).payload().raw()["replay"]["payload"]["value"], "Ab");
-    assert_eq!(row(14).payload().raw()["text"], "  ");
+    assert_eq!(row(15).payload().raw()["raw_arguments"], "{\"q\":\"x\"}");
     assert_eq!(
         snapshot.entry().payload().raw()["interruption"],
-        json!({"type": "truncated"})
+        json!({"kind": "truncated"})
     );
 }
 

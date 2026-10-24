@@ -7,7 +7,7 @@ use br_llm_messages::{
     RequestOrigin, ResponseEnding, ResponseMetadata, RuntimeToolCall, StructuredBlock,
     TaskCompleted, TaskFailed, TaskStarted, TextBlock, Turn, TurnEntry,
 };
-use common::records::shuffled;
+use common::records::interleaved;
 use common::turns::{close, finished, hosted_record, tid};
 use common::{aid, author, bid, cvid, eid, envelope, kid, plain_text, png, rid, signature, tool};
 use serde_json::{Value, json};
@@ -187,11 +187,12 @@ fn given_every_remaining_entry_and_block_kind_when_decomposed_then_reconstructio
 }
 
 #[test]
-fn given_every_remaining_kind_when_shuffled_then_reconstruction_is_equal() {
+fn given_rows_of_several_parents_interleaved_in_the_slice_when_rebuilt_then_each_parent_keeps_its_row_order()
+ {
     let original = conversation();
     let set = RecordSet::from_conversation(&original).unwrap();
 
-    let rebuilt = shuffled(&set).into_conversation(original.id()).unwrap();
+    let rebuilt = interleaved(&set).into_conversation(original.id()).unwrap();
 
     assert_eq!(rebuilt, original);
 }

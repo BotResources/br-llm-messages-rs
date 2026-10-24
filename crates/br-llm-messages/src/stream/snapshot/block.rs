@@ -1,16 +1,16 @@
+use super::super::draft::raw_json::RawJson;
 use super::super::draft::slot::{OpenBlock, OpenBody};
 use crate::block::ContentBlockKind;
 use crate::error::{Error, ErrorCode};
 use crate::id::EntryId;
 use crate::record::{
-    BlockRecord, ProviderCallPartial, RecordPartial, RepresentationState, RuntimeCallPartial,
-    StructuredPartial, TextPartial, ThinkingPartial, decode_partial, encode_partial,
+    BlockRecord, ProviderCallPartial, ProviderResultPartial, RecordPartial, RedactedPartial,
+    RepresentationState, RuntimeCallPartial, StructuredPartial, TextPartial, ThinkingPartial,
+    decode_partial, encode_partial,
 };
-use crate::value::ReplayPayload;
 
 pub(super) fn open_row(
     entry: EntryId,
-    position: u32,
     state: RepresentationState,
     open: &OpenBlock,
 ) -> Result<BlockRecord, Error> {
@@ -18,56 +18,78 @@ pub(super) fn open_row(
         OpenBody::Text {
             text,
             citations,
+            item_ref,
             replay,
         } => encode_partial(&TextPartial {
             text: text.clone(),
             citations: citations.clone(),
+            item_ref: item_ref.clone(),
             replay: replay.clone(),
-            replay_fragments: open.replay_fragments,
         }),
         OpenBody::Thinking { text, replay } => encode_partial(&ThinkingPartial {
             text: text.clone(),
             replay: replay.clone(),
-            replay_fragments: open.replay_fragments,
+        }),
+        OpenBody::RedactedThinking { replay } => encode_partial(&RedactedPartial {
+            replay: replay.clone(),
         }),
         OpenBody::Structured { raw } => encode_partial(&StructuredPartial {
-            raw_json: raw.clone(),
+            raw_json: raw.as_str().to_owned(),
         }),
         OpenBody::RuntimeCall {
             name,
             external_id,
+            item_ref,
+            provisional,
             raw,
             replay,
         } => encode_partial(&RuntimeCallPartial {
             name: name.clone(),
             external_id: external_id.clone(),
-            raw_arguments: raw.clone(),
+            item_ref: item_ref.clone(),
+            provisional_arguments: provisional.clone(),
+            raw_arguments: raw.as_str().to_owned(),
             replay: replay.clone(),
-            replay_fragments: open.replay_fragments,
         }),
         OpenBody::ProviderCall {
             operation,
             external_id,
+            item_ref,
+            provisional,
             raw,
             replay,
         } => encode_partial(&ProviderCallPartial {
             operation: operation.clone(),
             external_id: external_id.clone(),
-            raw_arguments: raw.clone(),
+            item_ref: item_ref.clone(),
+            provisional_arguments: provisional.clone(),
+            raw_arguments: raw.as_str().to_owned(),
             replay: replay.clone(),
-            replay_fragments: open.replay_fragments,
+        }),
+        OpenBody::ProviderResult {
+            external_id,
+            replay,
+            ..
+        } => encode_partial(&ProviderResultPartial {
+            external_id: external_id.clone(),
+            replay: replay.clone(),
         }),
         OpenBody::Record {
             operation,
             external_id,
             status,
+            replay,
         } => encode_partial(&RecordPartial {
             operation: operation.clone(),
             external_id: external_id.clone(),
             status: status.clone(),
+            replay: replay.clone(),
         }),
     }?;
-    let row = BlockRecord::new(open.id, entry, open.body.kind(), position, state, payload);
+    let mut row = BlockRecord::new(open.id, entry, open.body.kind(), state, payload);
+    if let OpenBody::ProviderResult { call, .. } = &open.body {
+        row = row.with_call(*call);
+    }
     Ok(match &open.observed_at {
         Some(observed_at) => row.with_observed_at(observed_at.clone()),
         None => row,
@@ -76,48 +98,67 @@ pub(super) fn open_row(
 
 pub(super) fn open_from_row(row: &BlockRecord) -> Result<OpenBlock, Error> {
     let payload = row.payload();
-    let mut replay_fragments = false;
     let body = match row.kind() {
         ContentBlockKind::Text => {
             let partial: TextPartial = decode_partial(payload)?;
-            replay_fragments = partial.replay_fragments;
             OpenBody::Text {
                 text: partial.text,
                 citations: partial.citations,
+                item_ref: partial.item_ref,
                 replay: partial.replay,
             }
         }
         ContentBlockKind::Thinking => {
             let partial: ThinkingPartial = decode_partial(payload)?;
-            replay_fragments = partial.replay_fragments;
             OpenBody::Thinking {
                 text: partial.text,
+                replay: partial.replay,
+            }
+        }
+        ContentBlockKind::RedactedThinking => {
+            let partial: RedactedPartial = decode_partial(payload)?;
+            OpenBody::RedactedThinking {
                 replay: partial.replay,
             }
         }
         ContentBlockKind::StructuredContent => {
             let partial: StructuredPartial = decode_partial(payload)?;
             OpenBody::Structured {
-                raw: partial.raw_json,
+                raw: RawJson::from(partial.raw_json),
             }
         }
         ContentBlockKind::RuntimeToolCall => {
             let partial: RuntimeCallPartial = decode_partial(payload)?;
-            replay_fragments = partial.replay_fragments;
             OpenBody::RuntimeCall {
                 name: partial.name,
                 external_id: partial.external_id,
-                raw: partial.raw_arguments,
+                item_ref: partial.item_ref,
+                provisional: partial.provisional_arguments,
+                raw: RawJson::from(partial.raw_arguments),
                 replay: partial.replay,
             }
         }
         ContentBlockKind::ProviderToolCall => {
             let partial: ProviderCallPartial = decode_partial(payload)?;
-            replay_fragments = partial.replay_fragments;
             OpenBody::ProviderCall {
                 operation: partial.operation,
                 external_id: partial.external_id,
-                raw: partial.raw_arguments,
+                item_ref: partial.item_ref,
+                provisional: partial.provisional_arguments,
+                raw: RawJson::from(partial.raw_arguments),
+                replay: partial.replay,
+            }
+        }
+        ContentBlockKind::ProviderToolResult => {
+            let partial: ProviderResultPartial = decode_partial(payload)?;
+            let call = row.call().ok_or_else(|| {
+                Error::new(ErrorCode::InvalidContent)
+                    .with_id(row.id().as_uuid())
+                    .at("call")
+            })?;
+            OpenBody::ProviderResult {
+                call,
+                external_id: partial.external_id,
                 replay: partial.replay,
             }
         }
@@ -127,6 +168,7 @@ pub(super) fn open_from_row(row: &BlockRecord) -> Result<OpenBlock, Error> {
                 operation: partial.operation,
                 external_id: partial.external_id,
                 status: partial.status,
+                replay: partial.replay,
             }
         }
         _ => {
@@ -135,29 +177,9 @@ pub(super) fn open_from_row(row: &BlockRecord) -> Result<OpenBlock, Error> {
                 .at("kind"));
         }
     };
-    let block = OpenBlock {
+    Ok(OpenBlock {
         id: row.id(),
         body,
-        replay_fragments,
         observed_at: row.observed_at().cloned(),
-    };
-    check_fragments(&block)?;
-    Ok(block)
-}
-
-fn check_fragments(block: &OpenBlock) -> Result<(), Error> {
-    if !block.replay_fragments {
-        return Ok(());
-    }
-    let assembled = block
-        .body
-        .replay()
-        .is_some_and(|material| matches!(material.payload(), ReplayPayload::Text { .. }));
-    if assembled {
-        Ok(())
-    } else {
-        Err(Error::new(ErrorCode::InvalidRecordStructure)
-            .with_id(block.id.as_uuid())
-            .at("payload.replay_fragments"))
-    }
+    })
 }

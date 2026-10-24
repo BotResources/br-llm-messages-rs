@@ -15,7 +15,6 @@ pub struct EntryRecord {
     id: EntryId,
     turn: TurnId,
     kind: TurnEntryKind,
-    position: u32,
     state: RepresentationState,
     #[serde(skip_serializing_if = "Option::is_none")]
     sender: Option<ActorRef>,
@@ -32,7 +31,6 @@ struct EntryRecordWire {
     id: EntryId,
     turn: TurnId,
     kind: TurnEntryKind,
-    position: u32,
     state: RepresentationState,
     sender: Option<ActorRef>,
     author: Option<Author>,
@@ -45,7 +43,6 @@ impl EntryRecord {
         id: EntryId,
         turn: TurnId,
         kind: TurnEntryKind,
-        position: u32,
         state: RepresentationState,
         payload: OpaqueJson,
     ) -> Self {
@@ -53,7 +50,6 @@ impl EntryRecord {
             id,
             turn,
             kind,
-            position,
             state,
             sender: None,
             author: None,
@@ -77,11 +73,6 @@ impl EntryRecord {
         self
     }
 
-    pub fn with_position(mut self, position: u32) -> Self {
-        self.position = position;
-        self
-    }
-
     pub fn id(&self) -> EntryId {
         self.id
     }
@@ -92,10 +83,6 @@ impl EntryRecord {
 
     pub fn kind(&self) -> TurnEntryKind {
         self.kind
-    }
-
-    pub fn position(&self) -> u32 {
-        self.position
     }
 
     pub fn state(&self) -> RepresentationState {
@@ -180,7 +167,6 @@ impl TryFrom<EntryRecordWire> for EntryRecord {
             id: wire.id,
             turn: wire.turn,
             kind: wire.kind,
-            position: wire.position,
             state: wire.state,
             sender: wire.sender,
             author: wire.author,

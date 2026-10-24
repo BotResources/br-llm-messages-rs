@@ -19,8 +19,20 @@ pub fn delta(op: DeltaOp) -> ResponseDelta {
     ResponseDelta::new(tid(1), eid(2), op)
 }
 
+pub fn fresh() -> ResponseDraft {
+    ResponseDraft::new(tid(1), eid(2))
+}
+
 pub fn draft() -> ResponseDraft {
-    ResponseDraft::begin(&delta(DeltaOp::response_started(ResponseMetadata::new()))).unwrap()
+    started(ResponseMetadata::new())
+}
+
+pub fn started(metadata: ResponseMetadata) -> ResponseDraft {
+    let mut draft = fresh();
+    draft
+        .apply(&delta(DeltaOp::response_started(metadata)))
+        .unwrap();
+    draft
 }
 
 pub fn feed(draft: &mut ResponseDraft, ops: Vec<DeltaOp>) {
@@ -50,27 +62,21 @@ pub fn id_of(error: &Error) -> Option<Uuid> {
     error.object_id()
 }
 
-pub fn start_text(block: u64, position: u32) -> DeltaOp {
-    DeltaOp::block_started(bid(block), position, BlockStart::text())
+pub fn start_text(block: u64) -> DeltaOp {
+    DeltaOp::block_started(bid(block), BlockStart::text())
 }
 
-pub fn start_thinking(block: u64, position: u32) -> DeltaOp {
-    DeltaOp::block_started(bid(block), position, BlockStart::thinking())
+pub fn start_thinking(block: u64) -> DeltaOp {
+    DeltaOp::block_started(bid(block), BlockStart::thinking())
 }
 
-pub fn start_json(block: u64, position: u32) -> DeltaOp {
-    DeltaOp::block_started(bid(block), position, BlockStart::structured_content())
+pub fn start_json(block: u64) -> DeltaOp {
+    DeltaOp::block_started(bid(block), BlockStart::structured_content())
 }
 
-pub fn start_call(
-    block: u64,
-    position: u32,
-    name: Option<&str>,
-    external: Option<&str>,
-) -> DeltaOp {
+pub fn start_call(block: u64, name: Option<&str>, external: Option<&str>) -> DeltaOp {
     DeltaOp::block_started(
         bid(block),
-        position,
         BlockStart::runtime_tool_call(
             name.map(tool),
             external.map(|value| ExternalId::new(value).unwrap()),
@@ -78,18 +84,16 @@ pub fn start_call(
     )
 }
 
-pub fn start_provider_call(block: u64, position: u32) -> DeltaOp {
+pub fn start_provider_call(block: u64) -> DeltaOp {
     DeltaOp::block_started(
         bid(block),
-        position,
         BlockStart::provider_tool_call(Some(operation("web_search")), None),
     )
 }
 
-pub fn start_record(block: u64, position: u32) -> DeltaOp {
+pub fn start_record(block: u64) -> DeltaOp {
     DeltaOp::block_started(
         bid(block),
-        position,
         BlockStart::provider_tool_execution_record(None, None, None),
     )
 }

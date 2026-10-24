@@ -90,7 +90,6 @@ fn given_replay_material_in_a_draft_when_debug_printed_then_no_payload_leaks() {
     let mut open = draft();
     open.apply(&delta(DeltaOp::block_started(
         bid(5),
-        0,
         br_llm_messages::BlockStart::thinking(),
     )))
     .unwrap();
@@ -110,4 +109,38 @@ fn given_an_error_when_displayed_or_debug_printed_then_it_carries_no_payload() {
     let error = ReplayFormat::new(SENTINEL.repeat(20)).unwrap_err();
 
     assert!(!format!("{error} {error:?}").contains(SENTINEL));
+}
+
+#[test]
+fn given_raw_json_fragments_and_provisional_arguments_when_debug_printed_then_no_content_leaks() {
+    let provisional = br_llm_messages::BlockStart::runtime_tool_call(Some(tool("t")), None)
+        .with_arguments(common::oj(json!({"k": SENTINEL})))
+        .unwrap();
+    let fragment = format!("{{\"k\":\"{SENTINEL}\"}}");
+    let ops = vec![
+        DeltaOp::block_started(bid(5), provisional),
+        DeltaOp::json_appended(bid(5), fragment.clone()),
+        DeltaOp::block_started(bid(6), br_llm_messages::BlockStart::structured_content()),
+        DeltaOp::json_appended(bid(6), fragment),
+        DeltaOp::replay_fragment_appended(
+            bid(5),
+            ReplayFormat::new("openai.reasoning").unwrap(),
+            SENTINEL,
+        ),
+    ];
+    let mut open = draft();
+    let mut printed = String::new();
+    for op in ops {
+        let wire = delta(op);
+        printed.push_str(&format!("{wire:?} {:?}", wire.op()));
+        open.apply(&wire).unwrap();
+    }
+    printed.push_str(&format!(
+        "{open:?} {:?} {:?}",
+        open.view(),
+        open.view().slots()
+    ));
+
+    assert!(!printed.contains(SENTINEL), "{printed}");
+    assert!(printed.contains("<redacted>"));
 }

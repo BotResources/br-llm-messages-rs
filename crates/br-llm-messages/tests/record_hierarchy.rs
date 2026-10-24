@@ -23,61 +23,52 @@ fn text(id: u64) -> String {
 }
 
 #[test]
-fn given_a_conversation_when_decomposed_then_sibling_positions_are_explicit() {
+fn given_a_conversation_when_decomposed_then_rows_follow_the_history_order_without_positions() {
     let set = rich_set();
-    let turns: Vec<u32> = set.turns().iter().map(|turn| turn.position()).collect();
-    assert_eq!(turns, [0, 1, 2, 3, 4]);
-    let entries: Vec<u32> = set
+    let document = set.to_value().unwrap().raw();
+
+    for collection in ["turns", "entries", "blocks"] {
+        for row in document[collection].as_array().unwrap() {
+            assert!(row.get("position").is_none(), "{collection}: {row}");
+        }
+    }
+    let entries: Vec<_> = set
         .entries()
         .iter()
         .filter(|entry| entry.turn() == tid(10))
-        .map(|entry| entry.position())
+        .map(|entry| entry.id())
         .collect();
-    assert_eq!(entries, [0, 1, 2, 3, 4]);
+    let original = rich();
+    let expected: Vec<_> = original
+        .turns()
+        .iter()
+        .find(|turn| turn.id() == tid(10))
+        .map(|turn| match turn {
+            br_llm_messages::Turn::AITurn(ai) => ai.entries().iter().map(|e| e.id()).collect(),
+            _ => Vec::new(),
+        })
+        .unwrap();
+    assert_eq!(entries, expected);
     let response_blocks: Vec<_> = set
         .blocks()
         .iter()
         .filter(|block| block.entry() == eid(12) && block.parent().is_none())
-        .map(|block| (block.id(), block.position()))
+        .map(|block| block.id())
         .collect();
-    let expected: Vec<_> = [13, 14, 15, 16, 17, 19]
-        .into_iter()
-        .zip(0..)
-        .map(|(id, position)| (bid(id), position))
-        .collect();
-    assert_eq!(response_blocks, expected);
+    let ids: Vec<_> = [13, 14, 15, 16, 17, 19].into_iter().map(bid).collect();
+    assert_eq!(response_blocks, ids);
 }
 
 #[test]
-fn given_a_duplicate_sibling_position_when_reconstructed_then_it_is_invalid_position() {
-    let entry = failure(|d| row(d, "entries", uuid(21))["position"] = json!(0));
-    let block = failure(|d| row(d, "blocks", uuid(14))["position"] = json!(0));
-    let child = failure(|d| row(d, "blocks", uuid(24))["position"] = json!(0));
-    let turn = failure(|d| row(d, "turns", uuid(10))["position"] = json!(0));
+fn given_a_position_key_on_a_row_when_loaded_then_it_is_refused_as_an_unknown_field() {
+    for collection in ["turns", "entries", "blocks"] {
+        let error = try_edit(&rich_set(), |d| {
+            d[collection][0]["position"] = json!(0);
+        })
+        .unwrap_err();
 
-    for error in [entry, block, child, turn] {
-        assert_eq!(error.code(), ErrorCode::InvalidRecordStructure);
+        assert_eq!(error.code(), ErrorCode::InvalidContent, "{collection}");
     }
-}
-
-#[test]
-fn given_a_gap_in_sibling_positions_when_reconstructed_then_it_is_invalid_position() {
-    let entry = failure(|d| row(d, "entries", uuid(30))["position"] = json!(9));
-    let child = failure(|d| row(d, "blocks", uuid(25))["position"] = json!(7));
-    let turn = failure(|d| row(d, "turns", uuid(60))["position"] = json!(8));
-
-    for error in [entry, child, turn] {
-        assert_eq!(error.code(), ErrorCode::InvalidRecordStructure);
-    }
-}
-
-#[test]
-fn given_turn_rows_with_a_gap_when_rebuilt_as_turns_then_only_uniqueness_is_required() {
-    let set = edited(&rich_set(), |d| {
-        row(d, "turns", uuid(60))["position"] = json!(8)
-    });
-
-    assert_eq!(set.into_turns().unwrap().len(), 5);
 }
 
 #[test]
@@ -110,30 +101,31 @@ fn given_container_rows_when_decomposed_then_payloads_do_not_embed_their_childre
 }
 
 #[test]
-fn given_a_parent_that_does_not_resolve_in_the_entry_when_reconstructed_then_it_is_unknown_reference()
+fn given_a_parent_that_does_not_resolve_in_the_entry_when_reconstructed_then_it_is_an_invalid_record_structure()
  {
     let missing = failure(|d| row(d, "blocks", uuid(23))["parent"] = json!(text(999)));
     let other_entry = failure(|d| row(d, "blocks", uuid(23))["parent"] = json!(text(17)));
 
-    assert_eq!(missing.code(), ErrorCode::UnknownReference);
-    assert_eq!(other_entry.code(), ErrorCode::UnknownReference);
+    assert_eq!(missing.code(), ErrorCode::InvalidRecordStructure);
+    assert_eq!(other_entry.code(), ErrorCode::InvalidRecordStructure);
 }
 
 #[test]
-fn given_a_parent_that_is_not_a_container_when_reconstructed_then_it_is_disallowed() {
+fn given_a_parent_that_is_not_a_container_when_reconstructed_then_it_is_an_invalid_record_structure()
+ {
     let error = failure(|d| row(d, "blocks", uuid(18))["parent"] = json!(text(14)));
 
-    assert_eq!(error.code(), ErrorCode::DisallowedKind);
+    assert_eq!(error.code(), ErrorCode::InvalidRecordStructure);
 }
 
 #[test]
-fn given_a_non_content_block_with_a_parent_when_loaded_then_it_is_disallowed() {
+fn given_a_non_content_block_with_a_parent_when_loaded_then_it_is_an_invalid_record_structure() {
     let error = try_edit(&rich_set(), |d| {
         row(d, "blocks", uuid(13))["parent"] = json!(text(22));
     })
     .unwrap_err();
 
-    assert_eq!(error.code(), ErrorCode::DisallowedKind);
+    assert_eq!(error.code(), ErrorCode::InvalidRecordStructure);
 }
 
 #[test]
@@ -147,7 +139,7 @@ fn given_rows_that_are_each_others_parents_when_reconstructed_then_the_cycle_is_
     })
     .unwrap_err();
 
-    assert_eq!(error.code(), ErrorCode::DisallowedKind);
+    assert_eq!(error.code(), ErrorCode::InvalidRecordStructure);
     assert_eq!(own_parent.code(), ErrorCode::InvalidRecordStructure);
 }
 
@@ -172,13 +164,11 @@ fn given_rows_that_are_not_complete_when_reconstructed_then_they_are_disallowed(
         let error = failure(|d| row(d, "blocks", uuid(29))["state"] = json!(state));
         assert_eq!(error.code(), ErrorCode::DisallowedKind);
     }
-    let discarded = failure(|d| {
-        let block = row(d, "blocks", uuid(29));
-        block["state"] = json!("discarded");
-        block["payload"] = json!({});
-        block.as_object_mut().unwrap().remove("observed_at");
-    });
-    assert_eq!(discarded.code(), ErrorCode::DisallowedKind);
+    let discarded = try_edit(&rich_set(), |d| {
+        row(d, "blocks", uuid(29))["state"] = json!("discarded");
+    })
+    .unwrap_err();
+    assert_eq!(discarded.code(), ErrorCode::VariantMismatch);
     assert_eq!(RepresentationState::Complete.as_str(), "complete");
 }
 
@@ -201,12 +191,12 @@ fn given_a_reused_citation_identity_across_turns_when_reconstructed_then_it_is_r
 }
 
 #[test]
-fn given_rows_pointing_at_nothing_when_reconstructed_then_they_are_unknown_reference() {
+fn given_rows_pointing_at_nothing_when_reconstructed_then_they_are_an_invalid_record_structure() {
     let block = failure(|d| row(d, "blocks", uuid(29))["entry"] = json!(text(999)));
     let entry = failure(|d| row(d, "entries", uuid(30))["turn"] = json!(text(999)));
 
-    assert_eq!(block.code(), ErrorCode::UnknownReference);
-    assert_eq!(entry.code(), ErrorCode::UnknownReference);
+    assert_eq!(block.code(), ErrorCode::InvalidRecordStructure);
+    assert_eq!(entry.code(), ErrorCode::InvalidRecordStructure);
 }
 
 #[test]
@@ -241,7 +231,6 @@ fn given_input_turn_rows_that_break_its_shape_when_reconstructed_then_they_are_r
     let two_entries = failure(|d| {
         let entry = row(d, "entries", uuid(26));
         entry["turn"] = json!(text(1));
-        entry["position"] = json!(1);
     });
     let not_incoming = failure(|d| {
         let entry = row(d, "entries", uuid(61));

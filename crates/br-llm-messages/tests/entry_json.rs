@@ -193,7 +193,7 @@ fn given_a_missing_required_field_on_any_entry_kind_when_loaded_then_invalid_con
 }
 
 #[test]
-fn given_a_missing_or_unknown_type_tag_when_loaded_then_invalid_content_or_variant_mismatch() {
+fn given_a_missing_or_unknown_type_tag_when_loaded_then_variant_mismatch() {
     let mut untagged = goldens().remove(3);
     untagged.as_object_mut().unwrap().remove("type");
     let mut unknown = goldens().remove(3);
@@ -201,7 +201,7 @@ fn given_a_missing_or_unknown_type_tag_when_loaded_then_invalid_content_or_varia
 
     assert_eq!(
         refused(TurnEntry::from_value(common::oj(untagged))).code(),
-        ErrorCode::InvalidContent
+        ErrorCode::VariantMismatch
     );
     assert_eq!(
         refused(TurnEntry::from_value(common::oj(unknown))).code(),

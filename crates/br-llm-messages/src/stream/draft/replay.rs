@@ -1,11 +1,7 @@
 use super::{ResponseDraft, target_error};
-use crate::error::{Error, ErrorCode};
+use crate::error::Error;
 use crate::id::BlockId;
 use crate::value::{ReplayFormat, ReplayMaterial, ReplayPayload};
-
-fn mismatch() -> Error {
-    Error::new(ErrorCode::StreamTargetError)
-}
 
 impl ResponseDraft {
     pub(super) fn append_replay(
@@ -14,22 +10,21 @@ impl ResponseDraft {
         format: &ReplayFormat,
         fragment: &str,
     ) -> Result<(), Error> {
-        let open = self.open_mut(block)?;
-        let slot = open.body.replay_mut().ok_or_else(target_error)?;
+        let slot = self
+            .open_mut(block)?
+            .body
+            .replay_mut()
+            .ok_or_else(target_error)?;
         match slot {
+            Some(material) => material.append(format, fragment),
             None => {
-                *slot = Some(ReplayMaterial::new(
-                    format.clone(),
-                    ReplayPayload::text(fragment),
-                ));
-                open.replay_fragments = true;
-                Ok(())
-            }
-            Some(material) => {
-                if !open.replay_fragments {
-                    return Err(mismatch().at("mode"));
+                if !fragment.is_empty() {
+                    *slot = Some(ReplayMaterial::new(
+                        format.clone(),
+                        ReplayPayload::text(fragment),
+                    ));
                 }
-                material.append(format, fragment)
+                Ok(())
             }
         }
     }
@@ -45,7 +40,7 @@ impl ResponseDraft {
             .replay_mut()
             .ok_or_else(target_error)?;
         if slot.is_some() {
-            return Err(mismatch().at("material"));
+            return Err(target_error().at("material"));
         }
         *slot = Some(material.clone());
         Ok(())

@@ -28,7 +28,7 @@ fn given_the_four_media_types_when_round_tripped_then_strings_are_stable() {
 }
 
 #[test]
-fn given_other_media_types_when_parsed_then_variant_mismatch() {
+fn given_other_media_types_when_parsed_then_invalid_content() {
     for other in [
         "image/bmp",
         "image/svg+xml",
@@ -39,12 +39,12 @@ fn given_other_media_types_when_parsed_then_variant_mismatch() {
     ] {
         assert_eq!(
             refused(other.parse::<MediaType>()).code(),
-            ErrorCode::VariantMismatch
+            ErrorCode::InvalidContent
         );
     }
     assert_eq!(
         code_of::<MediaType>("\"image/tiff\""),
-        ErrorCode::VariantMismatch
+        ErrorCode::InvalidContent
     );
 }
 
@@ -107,7 +107,7 @@ fn given_a_malformed_image_source_when_loaded_then_the_precise_code_surfaces() {
     );
     assert_eq!(
         code_of::<ImageSource>(r#"{"type":"inline","media_type":"image/bmp","data":"AAAA"}"#),
-        ErrorCode::VariantMismatch
+        ErrorCode::InvalidContent
     );
     assert_eq!(
         code_of::<ImageSource>(r#"{"type":"url","media_type":"image/png","data":"AAAA"}"#),

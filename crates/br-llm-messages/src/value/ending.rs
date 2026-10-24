@@ -30,7 +30,7 @@ pub enum ResponseEnding {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct EndingWire {
-    #[serde(rename = "type")]
+    #[serde(rename = "type", deserialize_with = "crate::tagged::tag")]
     kind: String,
     reason: Option<String>,
     sequence: Option<String>,

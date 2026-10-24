@@ -3,6 +3,7 @@ mod snapshot_support;
 mod stream_support;
 
 use br_llm_messages::{DraftSnapshot, ErrorCode, ResponseDraft};
+use common::bid;
 use snapshot_support::{deltas, draft_after, script};
 
 #[test]
@@ -33,7 +34,7 @@ fn given_every_prefix_of_a_script_when_restored_and_continued_then_the_result_eq
 }
 
 #[test]
-fn given_a_script_when_snapshotted_twice_then_rows_are_deterministic_and_position_ordered() {
+fn given_a_script_when_snapshotted_twice_then_rows_are_deterministic_and_in_declaration_order() {
     let steps = deltas(&script());
     let draft = draft_after(&steps, 20);
 
@@ -41,15 +42,21 @@ fn given_a_script_when_snapshotted_twice_then_rows_are_deterministic_and_positio
     let second = draft.to_snapshot().unwrap();
 
     assert_eq!(first.to_json().unwrap(), second.to_json().unwrap());
-    let roots: Vec<u32> = first
+    let roots: Vec<_> = first
         .blocks()
         .iter()
         .filter(|row| row.parent().is_none())
-        .map(|row| row.position())
+        .map(|row| row.id())
         .collect();
-    let mut sorted = roots.clone();
-    sorted.sort_unstable();
-    assert_eq!(roots, sorted);
+    let declared: Vec<_> = [11, 17, 12, 10, 13, 15, 16].into_iter().map(bid).collect();
+    assert_eq!(roots, declared);
+}
+
+#[test]
+fn given_a_draft_never_started_when_snapshotted_then_it_is_a_stream_phase_error() {
+    let error = stream_support::fresh().to_snapshot().unwrap_err();
+
+    assert_eq!(error.code(), ErrorCode::StreamPhaseError);
 }
 
 #[test]

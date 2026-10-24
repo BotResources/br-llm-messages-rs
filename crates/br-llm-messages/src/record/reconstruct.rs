@@ -1,17 +1,39 @@
 use std::collections::{HashMap, HashSet};
 
+use serde_json::Value;
 use uuid::Uuid;
 
+use super::block::BlockRecord;
 use super::entry::EntryRecord;
 use super::kinds::RepresentationState;
 use super::payload::entry_value;
 use super::set::RecordSet;
-use super::tree::{BlockTree, order};
+use super::tree::BlockTree;
 use super::turn::TurnRecord;
+use crate::block::ContentBlockKind;
 use crate::entry::{IncomingEntry, TurnEntry};
 use crate::error::{Error, ErrorCode};
-use crate::id::{EntryId, TurnId};
+use crate::id::{CitationId, EntryId, TurnId};
 use crate::turn::{AITurn, InputTurn, Turn, TurnKind};
+
+fn citation_ids(row: &BlockRecord) -> Vec<Uuid> {
+    if row.kind() != ContentBlockKind::Text {
+        return Vec::new();
+    }
+    row.payload()
+        .inner()
+        .get("citations")
+        .and_then(Value::as_array)
+        .map(|citations| {
+            citations
+                .iter()
+                .filter_map(|citation| citation.get("id"))
+                .filter_map(|id| serde_json::from_value::<CitationId>(id.clone()).ok())
+                .map(|id| id.as_uuid())
+                .collect()
+        })
+        .unwrap_or_default()
+}
 
 fn ensure_unique(set: &RecordSet) -> Result<(), Error> {
     let mut seen: HashSet<Uuid> = HashSet::new();
@@ -20,7 +42,8 @@ fn ensure_unique(set: &RecordSet) -> Result<(), Error> {
         .iter()
         .map(|row| row.id().as_uuid())
         .chain(set.entries().iter().map(|row| row.id().as_uuid()))
-        .chain(set.blocks().iter().map(|row| row.id().as_uuid()));
+        .chain(set.blocks().iter().map(|row| row.id().as_uuid()))
+        .chain(set.blocks().iter().flat_map(citation_ids));
     for id in ids {
         if !seen.insert(id) {
             return Err(Error::new(ErrorCode::ReusedIdentity).with_id(id));
@@ -53,14 +76,14 @@ fn ensure_parents(set: &RecordSet) -> Result<(), Error> {
     let entries: HashSet<EntryId> = set.entries().iter().map(EntryRecord::id).collect();
     for row in set.entries() {
         if !turns.contains(&row.turn()) {
-            return Err(Error::new(ErrorCode::UnknownReference)
+            return Err(Error::new(ErrorCode::InvalidRecordStructure)
                 .with_id(row.id().as_uuid())
                 .at("turn"));
         }
     }
     for row in set.blocks() {
         if !entries.contains(&row.entry()) {
-            return Err(Error::new(ErrorCode::UnknownReference)
+            return Err(Error::new(ErrorCode::InvalidRecordStructure)
                 .with_id(row.id().as_uuid())
                 .at("entry"));
         }
@@ -82,12 +105,6 @@ fn build_turn(
     entries: Vec<&EntryRecord>,
     tree: &BlockTree<'_>,
 ) -> Result<Turn, Error> {
-    let entries = order(
-        entries,
-        |entry| entry.position(),
-        |entry| entry.id().as_uuid(),
-        true,
-    )?;
     let mut built = Vec::with_capacity(entries.len());
     for (index, entry) in entries.into_iter().enumerate() {
         built
@@ -126,7 +143,7 @@ fn build_turn(
     }
 }
 
-pub(super) fn rebuild(set: &RecordSet, contiguous: bool) -> Result<Vec<Turn>, Error> {
+pub(super) fn rebuild(set: &RecordSet) -> Result<Vec<Turn>, Error> {
     set.check_local()?;
     ensure_unique(set)?;
     ensure_parents(set)?;
@@ -136,14 +153,8 @@ pub(super) fn rebuild(set: &RecordSet, contiguous: bool) -> Result<Vec<Turn>, Er
     for row in set.entries() {
         by_turn.entry(row.turn()).or_default().push(row);
     }
-    let turns = order(
-        set.turns().iter().collect(),
-        |turn| turn.position(),
-        |turn| turn.id().as_uuid(),
-        contiguous,
-    )?;
-    let mut rebuilt = Vec::with_capacity(turns.len());
-    for (index, row) in turns.into_iter().enumerate() {
+    let mut rebuilt = Vec::with_capacity(set.turns().len());
+    for (index, row) in set.turns().iter().enumerate() {
         let entries = by_turn.remove(&row.id()).unwrap_or_default();
         rebuilt.push(
             build_turn(row, entries, &tree).map_err(|error| error.at(format!("turns[{index}]")))?,

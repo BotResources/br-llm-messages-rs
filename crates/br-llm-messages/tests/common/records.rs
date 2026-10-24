@@ -1,4 +1,6 @@
 use super::Raw as _;
+use std::collections::VecDeque;
+
 use br_llm_messages::{Error, RecordSet, Uuid};
 use serde_json::Value;
 
@@ -28,19 +30,30 @@ pub fn edited(set: &RecordSet, change: impl FnOnce(&mut Value)) -> RecordSet {
     try_edit(set, change).expect("the edited document stays locally valid")
 }
 
-pub fn shuffled(set: &RecordSet) -> RecordSet {
-    let mut turns = set.turns().to_vec();
-    let mut entries = set.entries().to_vec();
-    let mut blocks = set.blocks().to_vec();
-    turns.reverse();
-    entries.reverse();
-    blocks.reverse();
-    let third = blocks.len() / 3;
-    let half = entries.len() / 2;
-    blocks.rotate_left(third);
-    entries.rotate_left(half);
+pub fn interleaved(set: &RecordSet) -> RecordSet {
     RecordSet::new()
-        .with_turns(turns)
-        .with_entries(entries)
-        .with_blocks(blocks)
+        .with_turns(set.turns().to_vec())
+        .with_entries(round_robin(set.entries().to_vec(), |row| row.turn()))
+        .with_blocks(round_robin(set.blocks().to_vec(), |row| row.entry()))
+}
+
+fn round_robin<T, K: PartialEq + Copy>(rows: Vec<T>, key: impl Fn(&T) -> K) -> Vec<T> {
+    let mut groups: Vec<(K, VecDeque<T>)> = Vec::new();
+    for row in rows {
+        let group = key(&row);
+        match groups.iter_mut().find(|(known, _)| *known == group) {
+            Some((_, queue)) => queue.push_back(row),
+            None => groups.push((group, VecDeque::from([row]))),
+        }
+    }
+    let mut out = Vec::new();
+    loop {
+        let before = out.len();
+        for (_, queue) in &mut groups {
+            out.extend(queue.pop_front());
+        }
+        if out.len() == before {
+            return out;
+        }
+    }
 }

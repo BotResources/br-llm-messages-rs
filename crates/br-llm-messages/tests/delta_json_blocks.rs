@@ -48,7 +48,7 @@ fn every_block() -> Vec<ContentBlock> {
 #[test]
 fn given_every_block_kind_when_inserted_or_authoritatively_finalized_then_json_round_trips() {
     for block in every_block() {
-        let inserted = delta(DeltaOp::block_inserted(0, block.clone()));
+        let inserted = delta(DeltaOp::block_inserted(block.clone()));
         let finalized = delta(DeltaOp::block_finalized(
             block.id(),
             Finalization::authoritative(block.clone()),
@@ -63,11 +63,12 @@ fn given_every_block_kind_when_inserted_or_authoritatively_finalized_then_json_r
 
 #[test]
 fn given_an_inserted_blank_text_block_when_loaded_then_invalid_content_survives_buffering() {
-    let mut value = delta(DeltaOp::block_inserted(0, png(10)))
+    let mut value = delta(DeltaOp::block_inserted(png(10)))
         .to_value()
         .unwrap()
         .raw();
-    value["op"]["block"] = json!({"type": "text", "id": bid(11).to_string(), "text": "  "});
+    value["block"] = json!(bid(11).to_string());
+    value["content"] = json!({"type": "text", "id": bid(11).to_string(), "text": "  "});
 
     let error = ResponseDelta::from_value(common::oj(value)).unwrap_err();
 
@@ -76,11 +77,12 @@ fn given_an_inserted_blank_text_block_when_loaded_then_invalid_content_survives_
 
 #[test]
 fn given_an_inserted_block_with_a_disallowed_nested_kind_when_loaded_then_disallowed_kind() {
-    let mut value = delta(DeltaOp::block_inserted(0, png(10)))
+    let mut value = delta(DeltaOp::block_inserted(png(10)))
         .to_value()
         .unwrap()
         .raw();
-    value["op"]["block"] = json!({
+    value["block"] = json!(bid(11).to_string());
+    value["content"] = json!({
         "type": "provider_tool_result",
         "id": bid(11).to_string(),
         "call": bid(12).to_string(),

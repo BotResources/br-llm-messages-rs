@@ -10,11 +10,11 @@ use common::{aid, author, bid, eid, hid};
 use serde_json::{Value, json};
 
 fn entry(kind: TurnEntryKind, state: RepresentationState, payload: Value) -> EntryRecord {
-    EntryRecord::new(eid(2), tid(1), kind, 0, state, common::oj(payload))
+    EntryRecord::new(eid(2), tid(1), kind, state, common::oj(payload))
 }
 
 fn block(kind: ContentBlockKind, state: RepresentationState, payload: Value) -> BlockRecord {
-    BlockRecord::new(bid(3), eid(2), kind, 0, state, common::oj(payload))
+    BlockRecord::new(bid(3), eid(2), kind, state, common::oj(payload))
 }
 
 fn code<T>(result: Result<T, br_llm_messages::Error>) -> ErrorCode {
@@ -49,7 +49,7 @@ fn given_an_author_on_kinds_that_forbid_it_when_checked_then_it_is_author_forbid
         json!({"request": common::rid(1).to_string()}),
     )
     .with_author(author("A"));
-    let input = TurnRecord::new(tid(1), TurnKind::InputTurn, 0).with_author(author("A"));
+    let input = TurnRecord::new(tid(1), TurnKind::InputTurn).with_author(author("A"));
 
     assert_eq!(code(human.check_local()), ErrorCode::AuthorForbidden);
     assert_eq!(code(notice.check_local()), ErrorCode::AuthorForbidden);
@@ -58,8 +58,8 @@ fn given_an_author_on_kinds_that_forbid_it_when_checked_then_it_is_author_forbid
 
 #[test]
 fn given_an_ai_turn_row_without_agent_or_author_when_checked_then_it_is_invalid_content() {
-    let no_author = TurnRecord::new(tid(1), TurnKind::AITurn, 0).with_agent(aid(1));
-    let no_agent = TurnRecord::new(tid(1), TurnKind::AITurn, 0).with_author(author("A"));
+    let no_author = TurnRecord::new(tid(1), TurnKind::AITurn).with_agent(aid(1));
+    let no_agent = TurnRecord::new(tid(1), TurnKind::AITurn).with_author(author("A"));
 
     assert_eq!(code(no_author.check_local()), ErrorCode::InvalidContent);
     assert_eq!(code(no_agent.check_local()), ErrorCode::InvalidContent);

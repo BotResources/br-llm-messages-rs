@@ -175,7 +175,7 @@ pub(super) fn block_fields(kind: ContentBlockKind) -> Vec<Field> {
 pub(super) fn check_object(object: &Map<String, Value>, fields: &[Field]) -> Result<(), Error> {
     for key in object.keys() {
         if !fields.iter().any(|field| field.key == key) {
-            return Err(Error::new(ErrorCode::InvalidContent).at(key.as_str()));
+            return Err(Error::new(ErrorCode::InvalidContent));
         }
     }
     for field in fields {

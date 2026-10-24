@@ -69,7 +69,7 @@ impl Conversation {
             Some(slot) if slot.place.class == Class::Turn => slot.turn,
             Some(_) => return Err(reference(ErrorCode::UnknownReference)),
         };
-        let Turn::AITurn(target) = &mut self.turns[position] else {
+        let Some(Turn::AITurn(target)) = self.turns.get_mut(position) else {
             return Err(reference(ErrorCode::UnknownReference));
         };
         let declared = target.check_push(&entry)?;

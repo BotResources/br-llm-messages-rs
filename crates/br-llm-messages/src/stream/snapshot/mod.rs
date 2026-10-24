@@ -3,8 +3,6 @@ mod checkpoint;
 mod header;
 mod restore;
 
-use std::collections::BTreeMap;
-
 use crate::opaque_json::OpaqueJson;
 
 use super::draft::slot::Slot;
@@ -46,11 +44,6 @@ impl DraftSnapshot {
         &self.blocks
     }
 
-    pub fn with_entry_position(mut self, position: u32) -> Self {
-        self.entry = self.entry.with_position(position);
-        self
-    }
-
     pub fn to_json(&self) -> Result<String, Error> {
         crate::json::encode(self)
     }
@@ -73,8 +66,8 @@ impl ResponseDraft {
     pub fn to_snapshot(&self) -> Result<DraftSnapshot, Error> {
         let state = match &self.phase {
             DraftPhase::Producing { .. } => RepresentationState::Producing,
-            DraftPhase::Interrupted(_) => RepresentationState::Interrupted,
-            DraftPhase::Completed { .. } => {
+            DraftPhase::Interrupted { .. } => RepresentationState::Interrupted,
+            DraftPhase::Unstarted { .. } | DraftPhase::Completed { .. } => {
                 return Err(Error::new(ErrorCode::StreamPhaseError).with_id(self.entry.as_uuid()));
             }
         };
@@ -82,7 +75,6 @@ impl ResponseDraft {
             self.entry,
             self.turn,
             TurnEntryKind::ModelResponse,
-            0,
             state,
             header::write(&self.metadata, &self.phase)?,
         );
@@ -98,20 +90,11 @@ impl ResponseDraft {
     }
 
     fn block_rows(&self, state: RepresentationState) -> Result<Vec<BlockRecord>, Error> {
-        let ordered: &BTreeMap<u32, Slot> = &self.slots;
-        let mut rows = Vec::with_capacity(ordered.len());
-        for (position, slot) in ordered {
+        let mut rows = Vec::with_capacity(self.slots.len());
+        for slot in &self.slots {
             match slot {
-                Slot::Open(open) => rows.push(block::open_row(self.entry, *position, state, open)?),
-                Slot::Final(done) => block_rows(self.entry, done, *position, &mut rows)?,
-                Slot::Discarded { id, kind } => rows.push(BlockRecord::new(
-                    *id,
-                    self.entry,
-                    *kind,
-                    *position,
-                    RepresentationState::Discarded,
-                    OpaqueJson::empty_object(),
-                )),
+                Slot::Open(open) => rows.push(block::open_row(self.entry, state, open)?),
+                Slot::Final(done) => block_rows(self.entry, done, &mut rows)?,
             }
         }
         Ok(rows)

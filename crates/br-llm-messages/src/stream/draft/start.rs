@@ -7,33 +7,24 @@ use crate::stream::block_start::BlockStart;
 use crate::stream::ops::BlockMetadataUpdate;
 
 impl ResponseDraft {
-    pub(super) fn start_block(
-        &mut self,
-        block: BlockId,
-        position: u32,
-        start: &BlockStart,
-    ) -> Result<(), Error> {
-        self.ensure_free(&[block.as_uuid()], position)?;
+    pub(super) fn start_block(&mut self, block: BlockId, start: &BlockStart) -> Result<(), Error> {
+        self.ensure_free(&[block.as_uuid()])?;
         self.ids.insert(block.as_uuid());
-        self.positions.insert(block, position);
+        self.index.insert(block, self.slots.len());
         self.slots
-            .insert(position, Slot::Open(OpenBlock::started(block, start)));
+            .push(Slot::Open(OpenBlock::started(block, start)));
         Ok(())
     }
 
-    pub(super) fn insert_block(
-        &mut self,
-        position: u32,
-        block: &ContentBlock,
-    ) -> Result<(), Error> {
+    pub(super) fn insert_block(&mut self, block: &ContentBlock) -> Result<(), Error> {
         if block.kind() == ContentBlockKind::RuntimeToolResult {
             return Err(Error::new(ErrorCode::DisallowedKind));
         }
         let ids = block_ids(block);
-        self.ensure_free(&ids, position)?;
+        self.ensure_free(&ids)?;
         self.ids.extend(ids);
-        self.positions.insert(block.id(), position);
-        self.slots.insert(position, Slot::Final(block.clone()));
+        self.index.insert(block.id(), self.slots.len());
+        self.slots.push(Slot::Final(block.clone()));
         Ok(())
     }
 
@@ -42,82 +33,65 @@ impl ResponseDraft {
         block: BlockId,
         update: &BlockMetadataUpdate,
     ) -> Result<(), Error> {
-        match update {
+        let duplicate = match update {
             BlockMetadataUpdate::CitationAdded { citation } => {
-                let duplicate = self.ids.contains(&citation.id().as_uuid());
-                match &mut self.open_mut(block)?.body {
-                    OpenBody::Text { citations, .. } => {
-                        if duplicate {
-                            return Err(Error::new(ErrorCode::ReusedIdentity).at("citation"));
-                        }
-                        citations.push(citation.clone());
-                    }
-                    _ => return Err(target_error()),
+                self.ids.contains(&citation.id().as_uuid())
+            }
+            _ => false,
+        };
+        let body = &mut self.open_mut(block)?.body;
+        match (update, body) {
+            (BlockMetadataUpdate::CitationAdded { citation }, OpenBody::Text { citations, .. }) => {
+                if duplicate {
+                    return Err(Error::new(ErrorCode::ReusedIdentity).at("citation"));
                 }
+                citations.push(citation.clone());
                 self.ids.insert(citation.id().as_uuid());
-                Ok(())
             }
-            BlockMetadataUpdate::RuntimeToolCallIdentified { name, external_id } => {
-                match &mut self.open_mut(block)?.body {
-                    OpenBody::RuntimeCall {
-                        name: current_name,
-                        external_id: current_id,
-                        ..
-                    } => {
-                        replace(current_name, name);
-                        replace(current_id, external_id);
-                        Ok(())
-                    }
-                    _ => Err(target_error()),
-                }
+            (
+                BlockMetadataUpdate::ToolNameSet { name: value },
+                OpenBody::RuntimeCall { name, .. },
+            ) => {
+                *name = Some(value.clone());
             }
-            BlockMetadataUpdate::ProviderReferencesUpdated {
-                operation,
-                external_id,
-            } => match &mut self.open_mut(block)?.body {
-                OpenBody::ProviderCall {
-                    operation: current_operation,
-                    external_id: current_id,
-                    ..
-                }
-                | OpenBody::Record {
-                    operation: current_operation,
-                    external_id: current_id,
-                    ..
-                } => {
-                    replace(current_operation, operation);
-                    replace(current_id, external_id);
-                    Ok(())
-                }
-                _ => Err(target_error()),
-            },
-            BlockMetadataUpdate::ExecutionStatusObserved { status } => {
-                match &mut self.open_mut(block)?.body {
-                    OpenBody::Record {
-                        status: current, ..
-                    } => {
-                        *current = Some(status.clone());
-                        Ok(())
-                    }
-                    _ => Err(target_error()),
-                }
+            (
+                BlockMetadataUpdate::ExternalIdSet { external_id: value },
+                OpenBody::RuntimeCall { external_id, .. }
+                | OpenBody::ProviderCall { external_id, .. }
+                | OpenBody::ProviderResult { external_id, .. }
+                | OpenBody::Record { external_id, .. },
+            ) => {
+                *external_id = Some(value.clone());
             }
-        }
-    }
-
-    fn ensure_free(&self, ids: &[uuid::Uuid], position: u32) -> Result<(), Error> {
-        if ids.iter().any(|id| self.ids.contains(id)) {
-            return Err(Error::new(ErrorCode::ReusedIdentity));
-        }
-        if self.slots.contains_key(&position) {
-            return Err(Error::new(ErrorCode::InvalidRecordStructure).at("position"));
+            (
+                BlockMetadataUpdate::ItemRefSet { item_ref: value },
+                OpenBody::Text { item_ref, .. }
+                | OpenBody::RuntimeCall { item_ref, .. }
+                | OpenBody::ProviderCall { item_ref, .. },
+            ) => {
+                *item_ref = Some(value.clone());
+            }
+            (
+                BlockMetadataUpdate::OperationSet { operation: value },
+                OpenBody::ProviderCall { operation, .. } | OpenBody::Record { operation, .. },
+            ) => {
+                *operation = Some(value.clone());
+            }
+            (
+                BlockMetadataUpdate::ExecutionStatusSet { status: value },
+                OpenBody::Record { status, .. },
+            ) => {
+                *status = Some(value.clone());
+            }
+            _ => return Err(target_error()),
         }
         Ok(())
     }
-}
 
-fn replace<T: Clone>(current: &mut Option<T>, update: &Option<T>) {
-    if let Some(value) = update {
-        *current = Some(value.clone());
+    fn ensure_free(&self, ids: &[uuid::Uuid]) -> Result<(), Error> {
+        if ids.iter().any(|id| self.ids.contains(id)) {
+            return Err(Error::new(ErrorCode::ReusedIdentity));
+        }
+        Ok(())
     }
 }

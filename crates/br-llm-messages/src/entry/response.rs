@@ -9,7 +9,7 @@ use crate::id::{BlockId, EntryId};
 use crate::value::{ExternalId, ModelName, ObservedAt, ResponseEnding, Usage};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ResponseMetadata {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -23,8 +23,14 @@ pub struct ResponseMetadata {
 }
 
 impl ResponseMetadata {
+    #[allow(clippy::new_without_default)] // a Default derive would freeze the field set
     pub fn new() -> Self {
-        ResponseMetadata::default()
+        ResponseMetadata {
+            usage: None,
+            model: None,
+            provider_response_id: None,
+            observed_at: None,
+        }
     }
 
     pub fn with_usage(mut self, usage: Usage) -> Self {

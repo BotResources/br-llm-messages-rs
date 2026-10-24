@@ -2,7 +2,7 @@ mod common;
 
 use br_llm_messages::{AITurn, ErrorCode, ResponseEnding, TurnEntry};
 use common::turns::{calling, delivery, finished, hosted_call, open_turn, pushed, response};
-use common::{bid, eid, refused, text_block};
+use common::{bid, call, eid, refused, text_block};
 
 fn turn_with_calls() -> AITurn {
     let mut turn = open_turn(1);
@@ -30,8 +30,8 @@ fn given_a_result_to_a_provider_call_when_pushed_then_unknown_reference() {
         &mut turn,
         vec![response(
             10,
-            vec![hosted_call(11)],
-            ResponseEnding::finished(),
+            vec![hosted_call(11), call(12, "alpha").into()],
+            ResponseEnding::tool_use(),
         )],
     );
 
@@ -47,8 +47,8 @@ fn given_a_result_to_a_non_call_id_when_pushed_then_unknown_reference() {
         &mut turn,
         vec![response(
             10,
-            vec![text_block(11, "plain").into()],
-            ResponseEnding::finished(),
+            vec![text_block(11, "plain").into(), call(12, "alpha").into()],
+            ResponseEnding::tool_use(),
         )],
     );
 
@@ -137,4 +137,21 @@ fn given_two_deliveries_when_the_turn_is_reloaded_then_they_stay_two_entries_in_
     assert_eq!(reloaded, turn);
     let ids: Vec<_> = reloaded.entries().iter().map(TurnEntry::id).collect();
     assert_eq!(ids, [eid(10), eid(20), eid(30), eid(40)]);
+}
+
+#[test]
+fn given_no_outstanding_call_when_a_result_is_pushed_then_entry_out_of_order() {
+    let mut turn = open_turn(1);
+    pushed(&mut turn, vec![calling(10, &[(11, "alpha")])]);
+    pushed(&mut turn, vec![delivery(20, &[(21, 11, "alpha")])]);
+    let before = turn.clone();
+
+    for result in [
+        delivery(30, &[(31, 11, "alpha")]),
+        delivery(32, &[(33, 99, "alpha")]),
+    ] {
+        let error = refused(turn.push_entry(result));
+        assert_eq!(error.code(), ErrorCode::EntryOutOfOrder);
+    }
+    assert_eq!(turn, before);
 }

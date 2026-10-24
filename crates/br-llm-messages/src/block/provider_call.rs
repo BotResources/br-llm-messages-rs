@@ -1,4 +1,4 @@
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 
 use super::ids::IdSink;
 use crate::error::Error;
@@ -19,7 +19,7 @@ pub struct ProviderToolCall {
     operation: Option<ProviderOperation>,
     #[serde(
         default,
-        deserialize_with = "present_value",
+        deserialize_with = "opaque::optional_arguments",
         skip_serializing_if = "Option::is_none"
     )]
     arguments: Option<OpaqueJson>,
@@ -27,12 +27,6 @@ pub struct ProviderToolCall {
     replay: Option<ReplayMaterial>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     observed_at: Option<ObservedAt>,
-}
-
-fn present_value<'de, D: Deserializer<'de>>(
-    deserializer: D,
-) -> Result<Option<OpaqueJson>, D::Error> {
-    opaque::deserialize(deserializer).map(Some)
 }
 
 impl ProviderToolCall {

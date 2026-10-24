@@ -66,21 +66,19 @@ fn direct() -> ModelResponse {
 
 fn declarations() -> Vec<DeltaOp> {
     vec![
-        DeltaOp::block_started(bid(10), 0, BlockStart::text()),
-        start_thinking(11, 1),
+        DeltaOp::block_started(bid(10), BlockStart::text()),
+        start_thinking(11),
         DeltaOp::block_started(
             bid(12),
-            2,
             BlockStart::runtime_tool_call(
                 Some(tool("lookup")),
                 Some(ExternalId::new("toolu_1").unwrap()),
             ),
         ),
-        DeltaOp::block_inserted(3, png(13)),
-        start_json(14, 4),
+        DeltaOp::block_inserted(png(13)),
+        start_json(14),
         DeltaOp::block_started(
             bid(15),
-            5,
             BlockStart::provider_tool_call(Some(operation("web_search")), None),
         ),
     ]

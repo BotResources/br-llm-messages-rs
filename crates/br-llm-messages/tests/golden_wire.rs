@@ -2,9 +2,9 @@ mod common;
 use common::Raw as _;
 
 use br_llm_messages::{
-    ContentBlockKind, Conversation, DELTA_SCHEMA, DRAFT_SCHEMA, DraftSnapshot, ErrorCode,
-    RECORD_SCHEMA, RecordSet, RepresentationState, ResponseDelta, ResponseDeltaKind, ResponseDraft,
-    TurnEntryKind, TurnKind,
+    ContentBlockKind, Conversation, DELTA_SCHEMA, DRAFT_SCHEMA, DeltaStream, DraftSnapshot,
+    ErrorCode, RECORD_SCHEMA, RecordSet, RepresentationState, ResponseDelta, ResponseDeltaKind,
+    ResponseDraft, TurnEntryKind, TurnKind,
 };
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, HashSet};
@@ -13,13 +13,15 @@ const DELTA_STREAM: &str = include_str!("golden/delta_stream.json");
 const DRAFT_OPEN: &str = include_str!("golden/draft_open.json");
 const DRAFT_INTERRUPTED: &str = include_str!("golden/draft_interrupted.json");
 const RECORD_SET: &str = include_str!("golden/record_set.json");
+const RECORD_SET_RICH: &str = include_str!("golden/record_set_rich.json");
 const RICH_CONVERSATION: &str = include_str!("golden/rich_conversation.json");
 
-const FROZEN_FILES: [&str; 5] = [
+const FROZEN_FILES: [&str; 6] = [
     "delta_stream.json",
     "draft_interrupted.json",
     "draft_open.json",
     "record_set.json",
+    "record_set_rich.json",
     "rich_conversation.json",
 ];
 
@@ -32,20 +34,11 @@ fn document(text: &str) -> Value {
 }
 
 fn stream() -> Vec<ResponseDelta> {
-    document(DELTA_STREAM)
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|item| ResponseDelta::from_value(common::oj(item.clone())).unwrap())
-        .collect()
+    DeltaStream::from_json(DELTA_STREAM).unwrap().into_deltas()
 }
 
-fn reserialized_stream(deltas: &[ResponseDelta]) -> String {
-    let items: Vec<Value> = deltas
-        .iter()
-        .map(|delta| delta.to_value().unwrap().raw())
-        .collect();
-    pretty(&Value::Array(items))
+fn reserialized_stream(deltas: Vec<ResponseDelta>) -> String {
+    pretty(&DeltaStream::new(deltas).to_value().unwrap().raw())
 }
 
 fn per_entry(deltas: Vec<ResponseDelta>) -> BTreeMap<String, Vec<ResponseDelta>> {
@@ -68,8 +61,10 @@ fn given_the_schema_ids_when_read_then_they_are_the_frozen_wire_names() {
 
 #[test]
 fn given_the_frozen_documents_when_read_then_each_names_its_schema_constant() {
-    for item in document(DELTA_STREAM).as_array().unwrap() {
-        assert_eq!(item["schema"], DELTA_SCHEMA);
+    let stream = document(DELTA_STREAM);
+    assert_eq!(stream["schema"], DELTA_SCHEMA);
+    for item in stream["deltas"].as_array().unwrap() {
+        assert!(item.get("schema").is_none());
     }
     for text in [DRAFT_OPEN, DRAFT_INTERRUPTED] {
         assert_eq!(document(text)["schema"], DRAFT_SCHEMA);
@@ -81,7 +76,7 @@ fn given_the_frozen_documents_when_read_then_each_names_its_schema_constant() {
 fn given_the_frozen_delta_stream_when_loaded_then_it_reserializes_byte_identical() {
     let deltas = stream();
 
-    assert_eq!(reserialized_stream(&deltas), DELTA_STREAM);
+    assert_eq!(reserialized_stream(deltas.clone()), DELTA_STREAM);
     for delta in &deltas {
         assert_eq!(
             ResponseDelta::from_json(&delta.to_json().unwrap()).unwrap(),
@@ -108,8 +103,8 @@ fn given_the_frozen_delta_stream_when_replayed_then_the_draft_accepts_every_delt
     assert_eq!(entries.len(), 2);
     let mut interrupted = 0;
     for deltas in entries.values() {
-        let mut draft = ResponseDraft::begin(&deltas[0]).unwrap();
-        for delta in &deltas[1..] {
+        let mut draft = ResponseDraft::new(deltas[0].turn(), deltas[0].entry());
+        for delta in deltas {
             draft.apply(delta).unwrap();
         }
         if let Ok(snapshot) = draft.to_snapshot() {
@@ -136,7 +131,6 @@ fn given_the_frozen_open_checkpoint_when_loaded_then_it_reserializes_byte_identi
         HashSet::from([
             RepresentationState::Producing,
             RepresentationState::Complete,
-            RepresentationState::Discarded,
         ])
     );
     assert!(ResponseDraft::from_snapshot(&snapshot).is_ok());
@@ -164,6 +158,19 @@ fn given_the_frozen_record_set_when_loaded_then_it_reserializes_byte_identical()
     assert_eq!(pretty(&set.to_value().unwrap().raw()), RECORD_SET);
     assert_eq!(RecordSet::from_json(&set.to_json().unwrap()).unwrap(), set);
     assert!(set.check_local().is_ok());
+}
+
+#[test]
+fn given_the_frozen_rich_record_set_when_rebuilt_then_it_is_byte_identical_and_equals_the_rich_conversation()
+ {
+    let conversation = Conversation::from_json(RICH_CONVERSATION).unwrap();
+    let set = RecordSet::from_json(RECORD_SET_RICH).unwrap();
+
+    assert_eq!(pretty(&set.to_value().unwrap().raw()), RECORD_SET_RICH);
+    assert_eq!(
+        set.into_conversation(conversation.id()).unwrap(),
+        conversation
+    );
 }
 
 #[test]
@@ -215,7 +222,7 @@ fn given_the_frozen_documents_when_inspected_then_observed_at_reaches_every_wire
         deltas
             .iter()
             .filter_map(|delta| delta.to_value().ok().map(|value| value.raw()))
-            .filter(|value| value["op"]["type"] == wanted)
+            .filter(|value| value["type"] == wanted)
             .any(|value| value.to_string().contains("observed_at"))
     };
     assert!(started("response_started"));
@@ -252,8 +259,10 @@ fn given_the_golden_directory_when_listed_then_every_file_is_frozen_by_a_loader_
 
 #[test]
 fn given_a_frozen_document_edited_beyond_the_loader_when_loaded_then_it_is_refused() {
-    let mut delta = document(DELTA_STREAM)[0].clone();
+    let mut delta = document(DELTA_STREAM)["deltas"][0].clone();
     delta["extra"] = json!(1);
+    let mut documented = document(DELTA_STREAM);
+    documented["cursor"] = json!(1);
     let mut draft = document(DRAFT_OPEN);
     draft["schema"] = json!("br-llm-messages-draft/2");
     let mut records = document(RECORD_SET);
@@ -261,6 +270,9 @@ fn given_a_frozen_document_edited_beyond_the_loader_when_loaded_then_it_is_refus
 
     let refused = [
         ResponseDelta::from_value(common::oj(delta))
+            .err()
+            .map(|e| e.code()),
+        DeltaStream::from_value(common::oj(documented))
             .err()
             .map(|e| e.code()),
         DraftSnapshot::from_value(common::oj(draft))
@@ -274,6 +286,7 @@ fn given_a_frozen_document_edited_beyond_the_loader_when_loaded_then_it_is_refus
     assert_eq!(
         refused,
         [
+            Some(ErrorCode::InvalidContent),
             Some(ErrorCode::InvalidContent),
             Some(ErrorCode::SchemaMismatch),
             Some(ErrorCode::InvalidContent),

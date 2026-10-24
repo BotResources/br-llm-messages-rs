@@ -8,7 +8,7 @@ use crate::error::Error;
 
 macro_rules! typed_id {
     ($name:ident) => {
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
         pub struct $name(Uuid);
 
         impl $name {

@@ -3,8 +3,8 @@ mod snapshot_support;
 mod stream_support;
 
 use br_llm_messages::{
-    AITurn, ContentBlock, Conversation, DraftSnapshot, ErrorCode, IncomingEntry, InputTurn,
-    PlainBlock, RecordSet, ResponseDelta, StructuredBlock, TextBlock, Turn,
+    AITurn, ContentBlock, Conversation, DeltaStream, DraftSnapshot, ErrorCode, IncomingEntry,
+    InputTurn, PlainBlock, RecordSet, ResponseDelta, StructuredBlock, TextBlock, Turn,
 };
 use common::conversations::rich;
 use common::records::rich_set;
@@ -29,6 +29,10 @@ fn assert_duplicates_refused<T: DeserializeOwned>(text: &str) {
     assert_eq!(
         code_of::<T>(&duplicated),
         ErrorCode::MalformedJson,
+        "{duplicated}"
+    );
+    assert!(
+        serde_json::from_str::<T>(&duplicated).is_err(),
         "{duplicated}"
     );
 }
@@ -72,8 +76,16 @@ fn given_a_repeated_key_when_a_stream_document_is_read_through_serde_then_malfor
         .to_json()
         .unwrap();
 
+    let stream = DeltaStream::new(vec![delta(br_llm_messages::DeltaOp::text_appended(
+        bid(11),
+        "x",
+    ))])
+    .to_json()
+    .unwrap();
+
     assert_duplicates_refused::<DraftSnapshot>(&snapshot);
     assert_duplicates_refused::<ResponseDelta>(&step);
+    assert_duplicates_refused::<DeltaStream>(&stream);
 }
 
 #[test]

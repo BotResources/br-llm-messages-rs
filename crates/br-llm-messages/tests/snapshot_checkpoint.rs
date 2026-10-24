@@ -62,26 +62,14 @@ fn given_a_producing_text_row_when_finalized_then_the_same_row_becomes_complete_
     assert_eq!(open.state(), RepresentationState::Producing);
     assert_eq!(done.state(), RepresentationState::Complete);
     assert_eq!(
-        (
-            open.id(),
-            open.entry(),
-            open.kind(),
-            open.position(),
-            open.parent()
-        ),
-        (
-            done.id(),
-            done.entry(),
-            done.kind(),
-            done.position(),
-            done.parent()
-        )
+        (open.id(), open.entry(), open.kind(), open.parent()),
+        (done.id(), done.entry(), done.kind(), done.parent())
     );
 }
 
 #[test]
-fn given_a_restored_complete_row_when_finalized_or_discarded_again_then_it_is_a_stream_phase_error()
-{
+fn given_a_restored_complete_row_when_finalized_again_or_appended_to_then_it_is_a_stream_phase_error()
+ {
     let snapshot = snapshot_at(28);
     let mut restored = ResponseDraft::from_snapshot(&snapshot).unwrap();
 
@@ -91,14 +79,11 @@ fn given_a_restored_complete_row_when_finalized_or_discarded_again_then_it_is_a_
             Finalization::accumulated(),
         )))
         .unwrap_err();
-    let discard = restored
-        .apply(&delta(DeltaOp::block_discarded(bid(10))))
-        .unwrap_err();
     let append = restored
         .apply(&delta(DeltaOp::text_appended(bid(10), "late")))
         .unwrap_err();
 
-    for error in [refinalize, discard, append] {
+    for error in [refinalize, append] {
         assert_eq!(error.code(), ErrorCode::StreamPhaseError);
         assert_eq!(error.object_id(), Some(bid(10).as_uuid()));
     }
@@ -167,7 +152,7 @@ fn given_rows_that_break_snapshot_structure_when_loaded_then_the_rule_code_is_re
         24,
     )
     .unwrap_err();
-    let duplicate_position = load(
+    let legacy_position = load(
         |document| block_row(document, common::v7(10))["position"] = json!(0),
         24,
     )
@@ -179,8 +164,8 @@ fn given_rows_that_break_snapshot_structure_when_loaded_then_the_rule_code_is_re
     .unwrap_err();
     let unknown_field = load(|document| document["cursor"] = json!(7), 24).unwrap_err();
 
-    assert_eq!(foreign_entry.code(), ErrorCode::UnknownReference);
-    assert_eq!(duplicate_position.code(), ErrorCode::InvalidRecordStructure);
+    assert_eq!(foreign_entry.code(), ErrorCode::InvalidRecordStructure);
+    assert_eq!(legacy_position.code(), ErrorCode::InvalidContent);
     assert_eq!(reused_id.code(), ErrorCode::ReusedIdentity);
     assert_eq!(unknown_field.code(), ErrorCode::InvalidContent);
 }
@@ -222,10 +207,18 @@ fn given_a_runtime_result_row_when_loaded_as_a_draft_then_it_is_disallowed() {
 }
 
 #[test]
-fn given_the_entry_position_when_chosen_then_it_is_carried_by_the_header_row() {
-    let snapshot = snapshot_at(24).with_entry_position(6);
+fn given_a_snapshot_when_built_then_no_row_carries_a_position_and_the_turn_is_on_the_header() {
+    let snapshot = snapshot_at(24);
+    let document = snapshot.to_value().unwrap().raw();
 
-    assert_eq!(snapshot.entry().position(), 6);
+    assert!(document["entry"].get("position").is_none());
+    assert!(
+        document["blocks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|row| row.get("position").is_none())
+    );
     assert_eq!(snapshot.turn(), snapshot.entry().turn());
     assert!(ResponseDraft::from_snapshot(&snapshot).is_ok());
 }

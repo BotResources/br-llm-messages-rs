@@ -7,7 +7,7 @@ use crate::error::{Error, ErrorCode};
 use crate::id::CitationId;
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "TextRangeWire")]
 pub struct TextRange {
     start: u64,
@@ -144,7 +144,7 @@ impl Citation {
         self.range.clone()
     }
 
-    pub fn validate_against(&self, text: &PlainText) -> Result<(), Error> {
+    pub(crate) fn validate_against(&self, text: &PlainText) -> Result<(), Error> {
         match &self.range {
             Some(range) if range.end > text.scalar_count() => {
                 Err(Error::new(ErrorCode::InvalidContent)
@@ -155,7 +155,7 @@ impl Citation {
         }
     }
 
-    pub fn check_all(text: &PlainText, citations: &[Citation]) -> Result<(), Error> {
+    pub(crate) fn check_all(text: &PlainText, citations: &[Citation]) -> Result<(), Error> {
         let mut seen = HashSet::with_capacity(citations.len());
         for (index, citation) in citations.iter().enumerate() {
             let located = |error: Error| error.at(format!("citations[{index}]"));

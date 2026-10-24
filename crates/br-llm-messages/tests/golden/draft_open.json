@@ -4,7 +4,7 @@
       "entry": "ab000000-0000-7000-8000-000000000002",
       "id": "ab000000-0000-7000-8000-00000000000b",
       "kind": "thinking",
-      "observed_at": "2026-10-23T08:00:03.75Z",
+      "observed_at": "2026-10-23T08:00:04.12345Z",
       "payload": {
         "replay": {
           "format": "anthropic.signature",
@@ -13,17 +13,15 @@
             "value": "Sig"
           }
         },
-        "replay_fragments": true,
         "text": "plan"
       },
-      "position": 0,
       "state": "producing"
     },
     {
       "entry": "ab000000-0000-7000-8000-000000000002",
       "id": "ab000000-0000-7000-8000-000000000011",
       "kind": "image",
-      "observed_at": "2026-10-23T08:00:05.75Z",
+      "observed_at": "2026-10-23T08:00:05.123456Z",
       "payload": {
         "source": {
           "data": "QUJD",
@@ -31,27 +29,28 @@
           "type": "inline"
         }
       },
-      "position": 1,
       "state": "complete"
     },
     {
       "entry": "ab000000-0000-7000-8000-000000000002",
       "id": "ab000000-0000-7000-8000-00000000000c",
       "kind": "runtime_tool_call",
-      "observed_at": "2026-10-23T08:00:04.75Z",
+      "observed_at": "2026-10-23T08:00:03.1234Z",
       "payload": {
         "external_id": "toolu_1",
         "name": "lookup",
+        "provisional_arguments": {
+          "query": "provisional"
+        },
         "raw_arguments": "{\"query\":\"rust\"}"
       },
-      "position": 2,
       "state": "producing"
     },
     {
       "entry": "ab000000-0000-7000-8000-000000000002",
       "id": "ab000000-0000-7000-8000-00000000000a",
       "kind": "text",
-      "observed_at": "2026-10-23T08:00:02.75Z",
+      "observed_at": "2026-10-23T08:00:02.123Z",
       "payload": {
         "citations": [
           {
@@ -65,18 +64,10 @@
             }
           }
         ],
+        "item_ref": "msg_1",
         "text": "Hello wörld"
       },
-      "position": 3,
       "state": "producing"
-    },
-    {
-      "entry": "ab000000-0000-7000-8000-000000000002",
-      "id": "ab000000-0000-7000-8000-00000000000e",
-      "kind": "text",
-      "payload": {},
-      "position": 4,
-      "state": "discarded"
     },
     {
       "entry": "ab000000-0000-7000-8000-000000000002",
@@ -85,7 +76,6 @@
       "payload": {
         "raw_json": "{\"a\":[1,2]}"
       },
-      "position": 5,
       "state": "producing"
     },
     {
@@ -96,7 +86,6 @@
         "operation": "web_search",
         "raw_arguments": "{\"q\":\"x\"}"
       },
-      "position": 6,
       "state": "producing"
     },
     {
@@ -106,23 +95,21 @@
       "payload": {
         "status": "running"
       },
-      "position": 7,
       "state": "producing"
     }
   ],
   "entry": {
     "id": "ab000000-0000-7000-8000-000000000002",
     "kind": "model_response",
-    "observed_at": "2026-10-23T08:00:01.5Z",
+    "observed_at": "2026-10-23T08:00:01.12Z",
     "payload": {
       "model": "m",
       "usage": {
         "input_tokens": 3
       }
     },
-    "position": 0,
     "state": "producing",
-    "turn": "ab000000-0000-7000-8000-00000000001e"
+    "turn": "ab000000-0000-7000-8000-000000000001"
   },
   "schema": "br-llm-messages-draft/1"
 }

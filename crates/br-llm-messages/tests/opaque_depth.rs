@@ -128,14 +128,21 @@ fn given_a_document_whose_opaque_value_is_beyond_the_limit_when_loaded_then_it_i
 
 #[test]
 fn given_raw_json_beyond_the_depth_limit_when_a_draft_block_is_finalized_then_it_is_refused() {
-    let mut accepted = run(vec![start_json(20, 0), raw_json(20, &raw_nested(LIMIT))]);
-    let mut refused_draft = run(vec![
-        start_json(21, 0),
-        raw_json(21, &raw_nested(LIMIT + 1)),
-    ]);
+    let mut accepted = run(vec![start_json(20), raw_json(20, &raw_nested(LIMIT))]);
+    let mut refused_draft = run(vec![start_json(21), raw_json(21, &raw_nested(LIMIT + 1))]);
 
     ok(&mut accepted, finalize(20));
     let error = refuse(&mut refused_draft, finalize(21));
+
+    assert_eq!(error.code(), ErrorCode::InvalidContent);
+}
+
+#[test]
+fn given_raw_json_nested_beyond_the_parser_recursion_limit_when_a_draft_block_is_finalized_then_invalid_content()
+ {
+    let mut draft = run(vec![start_json(22), raw_json(22, &"[".repeat(5000))]);
+
+    let error = refuse(&mut draft, finalize(22));
 
     assert_eq!(error.code(), ErrorCode::InvalidContent);
 }

@@ -23,12 +23,12 @@ pub enum PlainBlock {
     StructuredContent(StructuredBlock),
 }
 
-#[derive(Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-enum PlainBlockWire {
-    Text(TextBlock),
-    Image(ImageBlock),
-    StructuredContent(StructuredBlock),
+tagged_enum! {
+    enum PlainBlockWire, PlainBlockRaw, remote = "PlainBlockWire", [tag = "type", rename_all = "snake_case"] {
+        Text(TextBlock),
+        Image(ImageBlock),
+        StructuredContent(StructuredBlock),
+    }
 }
 
 impl PlainBlock {
@@ -54,10 +54,6 @@ impl PlainBlock {
             PlainBlock::Image(block) => block.observed_at(),
             PlainBlock::StructuredContent(block) => block.observed_at(),
         }
-    }
-
-    pub fn ensure_distinct_ids(blocks: &[PlainBlock]) -> Result<(), Error> {
-        PlainBlock::collect_all(blocks, &mut IdSink::default())
     }
 
     pub fn to_json(&self) -> Result<String, Error> {

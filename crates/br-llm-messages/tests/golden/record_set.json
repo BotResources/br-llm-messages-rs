@@ -4,11 +4,9 @@
       "entry": "ab000000-0000-7000-8000-000000000065",
       "id": "ab000000-0000-7000-8000-000000000066",
       "kind": "text",
-      "observed_at": "2026-10-23T08:00:10.4Z",
       "payload": {
         "text": "do it"
       },
-      "position": 0,
       "state": "complete"
     },
     {
@@ -18,7 +16,6 @@
       "payload": {
         "text": "fyi"
       },
-      "position": 0,
       "state": "complete"
     },
     {
@@ -28,41 +25,6 @@
       "payload": {
         "text": "re"
       },
-      "position": 0,
-      "state": "complete"
-    },
-    {
-      "entry": "ab000000-0000-7000-8000-000000000190",
-      "id": "ab000000-0000-7000-8000-000000001518",
-      "kind": "text",
-      "payload": {
-        "text": "hello"
-      },
-      "position": 0,
-      "state": "complete"
-    },
-    {
-      "entry": "ab000000-0000-7000-8000-00000000019a",
-      "id": "ab000000-0000-7000-8000-00000000019b",
-      "kind": "runtime_tool_call",
-      "payload": {
-        "arguments": {},
-        "name": "lookup"
-      },
-      "position": 0,
-      "state": "complete"
-    },
-    {
-      "call": "ab000000-0000-7000-8000-00000000019b",
-      "entry": "ab000000-0000-7000-8000-00000000019c",
-      "id": "ab000000-0000-7000-8000-00000000019d",
-      "kind": "runtime_tool_result",
-      "observed_at": "2026-10-23T08:00:11.4Z",
-      "payload": {
-        "is_error": false,
-        "tool_name": "lookup"
-      },
-      "position": 0,
       "state": "complete"
     },
     {
@@ -80,7 +42,6 @@
         },
         "text": "said"
       },
-      "position": 0,
       "state": "complete"
     },
     {
@@ -90,7 +51,6 @@
       "payload": {
         "value": null
       },
-      "position": 1,
       "state": "complete"
     },
     {
@@ -104,7 +64,6 @@
           "type": "inline"
         }
       },
-      "position": 2,
       "state": "complete"
     },
     {
@@ -123,7 +82,6 @@
           }
         }
       },
-      "position": 3,
       "state": "complete"
     },
     {
@@ -148,14 +106,12 @@
           }
         }
       },
-      "position": 4,
       "state": "complete"
     },
     {
       "entry": "ab000000-0000-7000-8000-0000000000e6",
       "id": "ab000000-0000-7000-8000-0000000000d3",
       "kind": "provider_tool_call",
-      "observed_at": "2026-10-23T08:00:16.4Z",
       "payload": {
         "arguments": null,
         "external_id": "srv_1",
@@ -174,7 +130,6 @@
           }
         }
       },
-      "position": 5,
       "state": "complete"
     },
     {
@@ -191,7 +146,6 @@
           }
         }
       },
-      "position": 6,
       "state": "complete"
     },
     {
@@ -210,7 +164,6 @@
         },
         "status": "incomplete"
       },
-      "position": 7,
       "state": "complete"
     },
     {
@@ -229,19 +182,16 @@
         },
         "status": "incomplete"
       },
-      "position": 8,
       "state": "complete"
     },
     {
       "entry": "ab000000-0000-7000-8000-0000000000e6",
       "id": "ab000000-0000-7000-8000-0000000000de",
       "kind": "text",
-      "observed_at": "2026-10-23T08:00:12.4Z",
       "parent": "ab000000-0000-7000-8000-0000000000dd",
       "payload": {
         "text": "partly"
       },
-      "position": 0,
       "state": "complete"
     },
     {
@@ -253,7 +203,27 @@
         "operation": "code",
         "status": "incomplete"
       },
-      "position": 9,
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-0000000000e6",
+      "id": "ab000000-0000-7000-8000-0000000000e1",
+      "kind": "provider_tool_execution_record",
+      "payload": {
+        "external_id": "rec",
+        "operation": "code",
+        "status": "incomplete"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-0000000000e6",
+      "id": "ab000000-0000-7000-8000-0000000000e2",
+      "kind": "text",
+      "parent": "ab000000-0000-7000-8000-0000000000e1",
+      "payload": {
+        "text": "visible"
+      },
       "state": "complete"
     },
     {
@@ -263,14 +233,226 @@
       "payload": {
         "status": "pending"
       },
-      "position": 10,
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-000000000003",
+      "kind": "text",
+      "observed_at": "2026-10-23T08:00:01.12Z",
+      "payload": {
+        "citations": [
+          {
+            "id": "ab000000-0000-7000-8000-000000000004",
+            "range": {
+              "end": 5,
+              "start": 0
+            },
+            "source": {
+              "reference": "doc-1",
+              "title": "A document"
+            }
+          }
+        ],
+        "text": "cited text"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000000c",
+      "id": "ab000000-0000-7000-8000-00000000000d",
+      "kind": "thinking",
+      "observed_at": "2026-10-23T08:00:04.12345Z",
+      "payload": {
+        "replay": {
+          "format": "anthropic.signature",
+          "payload": {
+            "type": "text",
+            "value": "sig"
+          }
+        },
+        "text": ""
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000000c",
+      "id": "ab000000-0000-7000-8000-00000000000e",
+      "kind": "text",
+      "observed_at": "2026-10-23T08:00:05.123456Z",
+      "payload": {
+        "item_ref": "msg_1",
+        "text": "calling"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000000c",
+      "id": "ab000000-0000-7000-8000-00000000000f",
+      "kind": "runtime_tool_call",
+      "observed_at": "2026-10-23T08:00:06.1234567Z",
+      "payload": {
+        "arguments": {
+          "q": "rust"
+        },
+        "external_id": "toolu_1",
+        "item_ref": "fc_1",
+        "name": "lookup"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000000c",
+      "id": "ab000000-0000-7000-8000-000000000010",
+      "kind": "provider_tool_call",
+      "observed_at": "2026-10-23T08:00:07.12345678Z",
+      "payload": {
+        "arguments": {
+          "query": "x"
+        },
+        "operation": "web_search"
+      },
+      "state": "complete"
+    },
+    {
+      "call": "ab000000-0000-7000-8000-000000000010",
+      "entry": "ab000000-0000-7000-8000-00000000000c",
+      "id": "ab000000-0000-7000-8000-000000000011",
+      "kind": "provider_tool_result",
+      "observed_at": "2026-10-23T08:00:08.123456789Z",
+      "payload": {},
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000000c",
+      "id": "ab000000-0000-7000-8000-000000000012",
+      "kind": "text",
+      "parent": "ab000000-0000-7000-8000-000000000011",
+      "payload": {
+        "text": "found"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000000c",
+      "id": "ab000000-0000-7000-8000-000000000013",
+      "kind": "provider_tool_execution_record",
+      "observed_at": "2026-10-23T08:00:09.1Z",
+      "payload": {
+        "status": "completed"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000000c",
+      "id": "ab000000-0000-7000-8000-000000000014",
+      "kind": "text",
+      "parent": "ab000000-0000-7000-8000-000000000013",
+      "payload": {
+        "text": "log"
+      },
+      "state": "complete"
+    },
+    {
+      "call": "ab000000-0000-7000-8000-00000000000f",
+      "entry": "ab000000-0000-7000-8000-000000000015",
+      "id": "ab000000-0000-7000-8000-000000000016",
+      "kind": "runtime_tool_result",
+      "observed_at": "2026-10-23T08:00:11.123Z",
+      "payload": {
+        "is_error": false,
+        "tool_name": "lookup"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000015",
+      "id": "ab000000-0000-7000-8000-000000000017",
+      "kind": "text",
+      "observed_at": "2026-10-23T08:00:01.12Z",
+      "parent": "ab000000-0000-7000-8000-000000000016",
+      "payload": {
+        "citations": [
+          {
+            "id": "ab000000-0000-7000-8000-00000000001f",
+            "range": {
+              "end": 5,
+              "start": 0
+            },
+            "source": {
+              "reference": "doc-1",
+              "title": "A document"
+            }
+          }
+        ],
+        "text": "cited text"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000015",
+      "id": "ab000000-0000-7000-8000-000000000018",
+      "kind": "image",
+      "observed_at": "2026-10-23T08:00:12.1234Z",
+      "parent": "ab000000-0000-7000-8000-000000000016",
+      "payload": {
+        "source": {
+          "data": "QUJD",
+          "media_type": "image/png",
+          "type": "inline"
+        }
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000015",
+      "id": "ab000000-0000-7000-8000-000000000019",
+      "kind": "structured_content",
+      "observed_at": "2026-10-23T08:00:13.12345Z",
+      "parent": "ab000000-0000-7000-8000-000000000016",
+      "payload": {
+        "value": {
+          "k": [
+            1,
+            2
+          ]
+        }
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000001a",
+      "id": "ab000000-0000-7000-8000-00000000001b",
+      "kind": "text",
+      "payload": {
+        "text": "fyi"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000001c",
+      "id": "ab000000-0000-7000-8000-00000000001d",
+      "kind": "text",
+      "observed_at": "2026-10-23T08:00:16.12345678Z",
+      "payload": {
+        "text": "done"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000029",
+      "id": "ab000000-0000-7000-8000-00000000002a",
+      "kind": "text",
+      "payload": {
+        "text": "please help"
+      },
       "state": "complete"
     },
     {
       "entry": "ab000000-0000-7000-8000-000000000002",
       "id": "ab000000-0000-7000-8000-00000000000b",
       "kind": "thinking",
-      "observed_at": "2026-10-23T08:00:13.4Z",
+      "observed_at": "2026-10-23T08:00:04.12345Z",
       "payload": {
         "replay": {
           "format": "anthropic.signature",
@@ -279,17 +461,15 @@
             "value": "Sig"
           }
         },
-        "replay_fragments": true,
         "text": "plan"
       },
-      "position": 0,
       "state": "producing"
     },
     {
       "entry": "ab000000-0000-7000-8000-000000000002",
       "id": "ab000000-0000-7000-8000-000000000011",
       "kind": "image",
-      "observed_at": "2026-10-23T08:00:15.4Z",
+      "observed_at": "2026-10-23T08:00:05.123456Z",
       "payload": {
         "source": {
           "data": "QUJD",
@@ -297,25 +477,28 @@
           "type": "inline"
         }
       },
-      "position": 1,
       "state": "complete"
     },
     {
       "entry": "ab000000-0000-7000-8000-000000000002",
       "id": "ab000000-0000-7000-8000-00000000000c",
       "kind": "runtime_tool_call",
+      "observed_at": "2026-10-23T08:00:03.1234Z",
       "payload": {
         "external_id": "toolu_1",
         "name": "lookup",
+        "provisional_arguments": {
+          "query": "provisional"
+        },
         "raw_arguments": "{\"query\":\"rust\"}"
       },
-      "position": 2,
       "state": "producing"
     },
     {
       "entry": "ab000000-0000-7000-8000-000000000002",
       "id": "ab000000-0000-7000-8000-00000000000a",
       "kind": "text",
+      "observed_at": "2026-10-23T08:00:02.123Z",
       "payload": {
         "citations": [
           {
@@ -329,18 +512,10 @@
             }
           }
         ],
+        "item_ref": "msg_1",
         "text": "Hello wörld"
       },
-      "position": 3,
       "state": "producing"
-    },
-    {
-      "entry": "ab000000-0000-7000-8000-000000000002",
-      "id": "ab000000-0000-7000-8000-00000000000e",
-      "kind": "text",
-      "payload": {},
-      "position": 4,
-      "state": "discarded"
     },
     {
       "entry": "ab000000-0000-7000-8000-000000000002",
@@ -349,7 +524,6 @@
       "payload": {
         "raw_json": "{\"a\":[1,2]}"
       },
-      "position": 5,
       "state": "producing"
     },
     {
@@ -360,7 +534,6 @@
         "operation": "web_search",
         "raw_arguments": "{\"q\":\"x\"}"
       },
-      "position": 6,
       "state": "producing"
     },
     {
@@ -370,18 +543,16 @@
       "payload": {
         "status": "running"
       },
-      "position": 7,
       "state": "producing"
     },
     {
       "entry": "ab000000-0000-7000-8000-00000000012d",
       "id": "ab000000-0000-7000-8000-000000000136",
       "kind": "text",
-      "observed_at": "2026-10-23T08:00:14.4Z",
+      "observed_at": "2026-10-23T08:00:05.123456Z",
       "payload": {
         "text": "cut"
       },
-      "position": 0,
       "state": "interrupted"
     },
     {
@@ -393,8 +564,28 @@
         "name": "lookup",
         "raw_arguments": "{\"q\":\"ru"
       },
-      "position": 1,
       "state": "interrupted"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000514",
+      "id": "ab000000-0000-7000-8000-000000000515",
+      "kind": "runtime_tool_call",
+      "payload": {
+        "arguments": {},
+        "name": "lookup"
+      },
+      "state": "complete"
+    },
+    {
+      "call": "ab000000-0000-7000-8000-000000000515",
+      "entry": "ab000000-0000-7000-8000-000000000516",
+      "id": "ab000000-0000-7000-8000-000000000517",
+      "kind": "runtime_tool_result",
+      "payload": {
+        "is_error": true,
+        "tool_name": "lookup"
+      },
+      "state": "complete"
     }
   ],
   "entries": [
@@ -402,7 +593,6 @@
       "author": "Claude",
       "id": "ab000000-0000-7000-8000-000000000065",
       "kind": "agent_request",
-      "observed_at": "2026-10-23T08:00:03.123Z",
       "payload": {
         "origin": {
           "id": "ab000000-0000-7000-8000-000000000001",
@@ -410,7 +600,6 @@
         },
         "source_conversation": "ab000000-0000-7000-8000-000000000002"
       },
-      "position": 0,
       "sender": {
         "id": "ab000000-0000-7000-8000-000000000002",
         "type": "agent"
@@ -426,7 +615,6 @@
         "in_reply_to": "ab000000-0000-7000-8000-0000000003e7",
         "source_conversation": "ab000000-0000-7000-8000-000000000002"
       },
-      "position": 0,
       "sender": {
         "id": "ab000000-0000-7000-8000-000000000002",
         "type": "agent"
@@ -442,7 +630,6 @@
         "in_reply_to": "ab000000-0000-7000-8000-0000000003e6",
         "source_conversation": "ab000000-0000-7000-8000-000000000002"
       },
-      "position": 0,
       "sender": {
         "id": "ab000000-0000-7000-8000-000000000002",
         "type": "agent"
@@ -457,7 +644,6 @@
         "summary": "done",
         "task": "ab000000-0000-7000-8000-000000000001"
       },
-      "position": 0,
       "state": "complete",
       "turn": "ab000000-0000-7000-8000-000000000004"
     },
@@ -467,7 +653,6 @@
       "payload": {
         "task": "ab000000-0000-7000-8000-000000000001"
       },
-      "position": 0,
       "state": "complete",
       "turn": "ab000000-0000-7000-8000-000000000005"
     },
@@ -478,7 +663,6 @@
         "reason": "it broke",
         "task": "ab000000-0000-7000-8000-000000000001"
       },
-      "position": 0,
       "state": "complete",
       "turn": "ab000000-0000-7000-8000-000000000006"
     },
@@ -490,77 +674,8 @@
         "request": "ab000000-0000-7000-8000-000000000001",
         "task": "ab000000-0000-7000-8000-000000000001"
       },
-      "position": 0,
       "state": "complete",
       "turn": "ab000000-0000-7000-8000-000000000007"
-    },
-    {
-      "id": "ab000000-0000-7000-8000-000000000190",
-      "kind": "human_message",
-      "payload": {},
-      "position": 0,
-      "sender": {
-        "id": "ab000000-0000-7000-8000-000000000001",
-        "type": "human"
-      },
-      "state": "complete",
-      "turn": "ab000000-0000-7000-8000-000000000028"
-    },
-    {
-      "id": "ab000000-0000-7000-8000-000000000191",
-      "kind": "request_accepted",
-      "observed_at": "2026-10-23T08:00:09.123Z",
-      "payload": {
-        "request": "ab000000-0000-7000-8000-000000000001"
-      },
-      "position": 0,
-      "state": "complete",
-      "turn": "ab000000-0000-7000-8000-000000000029"
-    },
-    {
-      "id": "ab000000-0000-7000-8000-000000000192",
-      "kind": "queue_position",
-      "payload": {
-        "position": 3,
-        "request": "ab000000-0000-7000-8000-000000000001"
-      },
-      "position": 0,
-      "state": "complete",
-      "turn": "ab000000-0000-7000-8000-00000000002a"
-    },
-    {
-      "id": "ab000000-0000-7000-8000-00000000019a",
-      "kind": "model_response",
-      "observed_at": "2026-10-23T08:00:04.123Z",
-      "payload": {
-        "ending": {
-          "type": "tool_use"
-        }
-      },
-      "position": 0,
-      "state": "complete",
-      "turn": "ab000000-0000-7000-8000-00000000002b"
-    },
-    {
-      "id": "ab000000-0000-7000-8000-00000000019c",
-      "kind": "runtime_tool_results",
-      "observed_at": "2026-10-23T08:00:05.123Z",
-      "payload": {},
-      "position": 1,
-      "state": "complete",
-      "turn": "ab000000-0000-7000-8000-00000000002b"
-    },
-    {
-      "id": "ab000000-0000-7000-8000-00000000019e",
-      "kind": "model_response",
-      "payload": {
-        "ending": {
-          "type": "finished"
-        }
-      },
-      "position": 2,
-      "state": "complete",
-      "turn": "ab000000-0000-7000-8000-00000000002b"
     },
     {
       "id": "ab000000-0000-7000-8000-0000000000e6",
@@ -570,21 +685,18 @@
           "type": "provider_continuation"
         }
       },
-      "position": 0,
       "state": "complete",
       "turn": "ab000000-0000-7000-8000-000000000014"
     },
     {
       "id": "ab000000-0000-7000-8000-0000000000f2",
       "kind": "turn_closure",
-      "observed_at": "2026-10-23T08:00:06.123Z",
       "payload": {
         "reason": {
           "detail": "stop",
           "type": "cancelled"
         }
       },
-      "position": 1,
       "state": "complete",
       "turn": "ab000000-0000-7000-8000-000000000014"
     },
@@ -596,7 +708,6 @@
           "type": "finished"
         }
       },
-      "position": 0,
       "state": "complete",
       "turn": "ab000000-0000-7000-8000-000000000015"
     },
@@ -608,7 +719,6 @@
           "type": "cancelled"
         }
       },
-      "position": 1,
       "state": "complete",
       "turn": "ab000000-0000-7000-8000-000000000015"
     },
@@ -621,7 +731,6 @@
           "type": "interrupted"
         }
       },
-      "position": 0,
       "state": "complete",
       "turn": "ab000000-0000-7000-8000-000000000016"
     },
@@ -634,7 +743,6 @@
           "type": "budget_exhausted"
         }
       },
-      "position": 0,
       "state": "complete",
       "turn": "ab000000-0000-7000-8000-000000000017"
     },
@@ -647,7 +755,6 @@
           "type": "failed"
         }
       },
-      "position": 0,
       "state": "complete",
       "turn": "ab000000-0000-7000-8000-000000000018"
     },
@@ -659,7 +766,6 @@
           "type": "finished"
         }
       },
-      "position": 0,
       "state": "complete",
       "turn": "ab000000-0000-7000-8000-000000000019"
     },
@@ -671,154 +777,451 @@
           "type": "completed"
         }
       },
-      "position": 1,
       "state": "complete",
       "turn": "ab000000-0000-7000-8000-000000000019"
     },
     {
       "id": "ab000000-0000-7000-8000-000000000002",
+      "kind": "human_message",
+      "observed_at": "2026-10-23T08:00:02.123Z",
+      "payload": {},
+      "sender": {
+        "id": "ab000000-0000-7000-8000-000000000001",
+        "type": "human"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000001"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000000c",
       "kind": "model_response",
-      "observed_at": "2026-10-23T08:00:07.123Z",
+      "observed_at": "2026-10-23T08:00:10.12Z",
+      "payload": {
+        "ending": {
+          "type": "tool_use"
+        },
+        "model": "gpt-6.1",
+        "provider_response_id": "resp_1",
+        "usage": {
+          "input_tokens": 10,
+          "output_tokens": 18446744073709551615
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-00000000000a"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000015",
+      "kind": "runtime_tool_results",
+      "observed_at": "2026-10-23T08:00:14.123456Z",
+      "payload": {},
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-00000000000a"
+    },
+    {
+      "author": "Claude",
+      "id": "ab000000-0000-7000-8000-00000000001a",
+      "kind": "agent_mail",
+      "observed_at": "2026-10-23T08:00:15.1234567Z",
+      "payload": {
+        "source_conversation": "ab000000-0000-7000-8000-000000000002"
+      },
+      "sender": {
+        "id": "ab000000-0000-7000-8000-000000000002",
+        "type": "agent"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-00000000000a"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000001c",
+      "kind": "model_response",
+      "observed_at": "2026-10-23T08:00:17.123456789Z",
+      "payload": {
+        "ending": {
+          "type": "finished"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-00000000000a"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000001e",
+      "kind": "turn_closure",
+      "observed_at": "2026-10-23T08:00:18.1Z",
+      "payload": {
+        "reason": {
+          "type": "completed"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-00000000000a"
+    },
+    {
+      "author": "Claude",
+      "id": "ab000000-0000-7000-8000-000000000029",
+      "kind": "agent_request",
+      "observed_at": "2026-10-23T08:00:20.123Z",
+      "payload": {
+        "origin": {
+          "block": "ab000000-0000-7000-8000-000000000384",
+          "type": "tool_call"
+        },
+        "source_conversation": "ab000000-0000-7000-8000-000000000002"
+      },
+      "sender": {
+        "id": "ab000000-0000-7000-8000-000000000002",
+        "type": "agent"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000028"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000033",
+      "kind": "request_accepted",
+      "observed_at": "2026-10-23T08:00:22.12345Z",
+      "payload": {
+        "request": "ab000000-0000-7000-8000-000000000001"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000032"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000034",
+      "kind": "task_started",
+      "observed_at": "2026-10-23T08:00:23.123456Z",
+      "payload": {
+        "conversation": "ab000000-0000-7000-8000-000000000003",
+        "request": "ab000000-0000-7000-8000-000000000001",
+        "task": "ab000000-0000-7000-8000-000000000001"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000032"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000003d",
+      "kind": "queue_position",
+      "observed_at": "2026-10-23T08:00:25.12345678Z",
+      "payload": {
+        "position": 2,
+        "request": "ab000000-0000-7000-8000-000000000001"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-00000000003c"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000002",
+      "kind": "model_response",
+      "observed_at": "2026-10-23T08:00:01.12Z",
       "payload": {
         "model": "m",
         "usage": {
           "input_tokens": 3
         }
       },
-      "position": 0,
       "state": "producing",
       "turn": "ab000000-0000-7000-8000-00000000001e"
     },
     {
       "id": "ab000000-0000-7000-8000-00000000012d",
       "kind": "model_response",
-      "observed_at": "2026-10-23T08:00:08.123Z",
       "payload": {
         "interruption": {
-          "type": "cancelled"
+          "detail": "stop requested",
+          "kind": "cancelled"
         }
       },
-      "position": 0,
       "state": "interrupted",
       "turn": "ab000000-0000-7000-8000-00000000001f"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000502",
+      "kind": "model_response",
+      "payload": {
+        "ending": {
+          "type": "output_exhaustion"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000501"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000504",
+      "kind": "model_response",
+      "payload": {
+        "ending": {
+          "sequence": "</end>",
+          "type": "stop_sequence"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000503"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000506",
+      "kind": "model_response",
+      "payload": {
+        "ending": {
+          "type": "stop_sequence"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000505"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000508",
+      "kind": "model_response",
+      "payload": {
+        "ending": {
+          "type": "refusal"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000507"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000050a",
+      "kind": "model_response",
+      "payload": {
+        "ending": {
+          "type": "filtering"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000509"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000050c",
+      "kind": "model_response",
+      "payload": {
+        "ending": {
+          "reason": "provider said length_cap",
+          "type": "unclassified"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-00000000050b"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000050e",
+      "kind": "model_response",
+      "payload": {
+        "interruption": {
+          "kind": "interrupted"
+        }
+      },
+      "state": "interrupted",
+      "turn": "ab000000-0000-7000-8000-00000000050d"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000510",
+      "kind": "model_response",
+      "payload": {
+        "interruption": {
+          "detail": "cut at 4096",
+          "kind": "truncated"
+        }
+      },
+      "state": "interrupted",
+      "turn": "ab000000-0000-7000-8000-00000000050f"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000512",
+      "kind": "model_response",
+      "payload": {
+        "interruption": {
+          "detail": "upstream 500",
+          "kind": "failed"
+        }
+      },
+      "state": "interrupted",
+      "turn": "ab000000-0000-7000-8000-000000000511"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000514",
+      "kind": "model_response",
+      "payload": {
+        "ending": {
+          "type": "tool_use"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000513"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000516",
+      "kind": "runtime_tool_results",
+      "payload": {},
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000513"
     }
   ],
   "schema": "br-llm-messages-records/1",
   "turns": [
     {
       "id": "ab000000-0000-7000-8000-000000000001",
-      "kind": "input_turn",
-      "observed_at": "2026-10-23T08:00:01Z",
-      "position": 0
+      "kind": "input_turn"
     },
     {
       "id": "ab000000-0000-7000-8000-000000000002",
-      "kind": "input_turn",
-      "position": 1
+      "kind": "input_turn"
     },
     {
       "id": "ab000000-0000-7000-8000-000000000003",
-      "kind": "input_turn",
-      "position": 2
+      "kind": "input_turn"
     },
     {
       "id": "ab000000-0000-7000-8000-000000000004",
-      "kind": "input_turn",
-      "position": 3
+      "kind": "input_turn"
     },
     {
       "id": "ab000000-0000-7000-8000-000000000005",
-      "kind": "input_turn",
-      "position": 4
+      "kind": "input_turn"
     },
     {
       "id": "ab000000-0000-7000-8000-000000000006",
-      "kind": "input_turn",
-      "position": 5
+      "kind": "input_turn"
     },
     {
       "id": "ab000000-0000-7000-8000-000000000007",
-      "kind": "input_turn",
-      "position": 6
-    },
-    {
-      "id": "ab000000-0000-7000-8000-000000000028",
-      "kind": "input_turn",
-      "position": 7
-    },
-    {
-      "id": "ab000000-0000-7000-8000-000000000029",
-      "kind": "input_turn",
-      "position": 8
-    },
-    {
-      "id": "ab000000-0000-7000-8000-00000000002a",
-      "kind": "input_turn",
-      "position": 9
-    },
-    {
-      "agent": "ab000000-0000-7000-8000-000000000001",
-      "author": "Codex",
-      "id": "ab000000-0000-7000-8000-00000000002b",
-      "kind": "ai_turn",
-      "observed_at": "2026-10-23T08:00:02.5Z",
-      "position": 10
+      "kind": "input_turn"
     },
     {
       "agent": "ab000000-0000-7000-8000-000000000001",
       "author": "Codex",
       "id": "ab000000-0000-7000-8000-000000000014",
-      "kind": "ai_turn",
-      "position": 11
+      "kind": "ai_turn"
     },
     {
       "agent": "ab000000-0000-7000-8000-000000000001",
       "author": "Codex",
       "id": "ab000000-0000-7000-8000-000000000015",
-      "kind": "ai_turn",
-      "position": 12
+      "kind": "ai_turn"
     },
     {
       "agent": "ab000000-0000-7000-8000-000000000001",
       "author": "Codex",
       "id": "ab000000-0000-7000-8000-000000000016",
-      "kind": "ai_turn",
-      "position": 13
+      "kind": "ai_turn"
     },
     {
       "agent": "ab000000-0000-7000-8000-000000000001",
       "author": "Codex",
       "id": "ab000000-0000-7000-8000-000000000017",
-      "kind": "ai_turn",
-      "position": 14
+      "kind": "ai_turn"
     },
     {
       "agent": "ab000000-0000-7000-8000-000000000001",
       "author": "Codex",
       "id": "ab000000-0000-7000-8000-000000000018",
-      "kind": "ai_turn",
-      "position": 15
+      "kind": "ai_turn"
     },
     {
       "agent": "ab000000-0000-7000-8000-000000000001",
       "author": "Codex",
       "id": "ab000000-0000-7000-8000-000000000019",
+      "kind": "ai_turn"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000001",
+      "kind": "input_turn",
+      "observed_at": "2026-10-23T08:00:03.1234Z"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex GPT-6.1-Sol high",
+      "id": "ab000000-0000-7000-8000-00000000000a",
       "kind": "ai_turn",
-      "position": 16
+      "observed_at": "2026-10-23T08:00:19.12Z"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000028",
+      "kind": "input_turn",
+      "observed_at": "2026-10-23T08:00:21.1234Z"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000002",
+      "author": "Claude",
+      "id": "ab000000-0000-7000-8000-000000000032",
+      "kind": "ai_turn",
+      "observed_at": "2026-10-23T08:00:24.1234567Z"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000003c",
+      "kind": "input_turn",
+      "observed_at": "2026-10-23T08:00:26.123456789Z"
     },
     {
       "agent": "ab000000-0000-7000-8000-000000000001",
       "author": "Codex",
       "id": "ab000000-0000-7000-8000-00000000001e",
-      "kind": "ai_turn",
-      "position": 17
+      "kind": "ai_turn"
     },
     {
       "agent": "ab000000-0000-7000-8000-000000000001",
       "author": "Codex",
       "id": "ab000000-0000-7000-8000-00000000001f",
-      "kind": "ai_turn",
-      "position": 18
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-000000000501",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-000000000503",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-000000000505",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-000000000507",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-000000000509",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-00000000050b",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-00000000050d",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-00000000050f",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-000000000511",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-000000000513",
+      "kind": "ai_turn"
     }
   ]
 }

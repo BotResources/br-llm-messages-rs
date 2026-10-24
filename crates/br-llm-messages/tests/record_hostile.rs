@@ -16,7 +16,6 @@ fn chained(length: u64) -> Value {
     for index in 0..length {
         let mut copy = template.clone();
         copy["id"] = json!(v7(1_000_000 + index).hyphenated().to_string());
-        copy["position"] = json!(0);
         if index > 0 {
             copy["parent"] = json!(v7(1_000_000 + index - 1).hyphenated().to_string());
         }
@@ -26,12 +25,13 @@ fn chained(length: u64) -> Value {
 }
 
 #[test]
-fn given_a_long_parent_chain_when_loaded_then_it_is_refused_quickly_as_a_disallowed_kind() {
+fn given_a_long_parent_chain_when_loaded_then_it_is_refused_quickly_as_an_invalid_record_structure()
+{
     let set = RecordSet::from_value(common::oj(chained(50_000))).unwrap();
     let started = Instant::now();
 
     let error = set.into_conversation(rich().id()).unwrap_err();
 
-    assert_eq!(error.code(), ErrorCode::DisallowedKind);
+    assert_eq!(error.code(), ErrorCode::InvalidRecordStructure);
     assert!(started.elapsed() < Duration::from_secs(20));
 }
