@@ -32,7 +32,9 @@ pub enum ResponseEnding {
 struct EndingWire {
     #[serde(rename = "type", deserialize_with = "crate::tagged::tag")]
     kind: String,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     reason: Option<String>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     sequence: Option<String>,
 }
 

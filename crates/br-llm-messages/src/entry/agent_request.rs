@@ -29,6 +29,7 @@ struct AgentRequestWire {
     source_conversation: ConversationId,
     origin: RequestOrigin,
     content: Vec<PlainBlock>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     observed_at: Option<ObservedAt>,
 }
 

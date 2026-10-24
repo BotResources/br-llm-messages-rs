@@ -14,9 +14,17 @@ pub(crate) struct TextPartial {
     pub(crate) text: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub(crate) citations: Vec<Citation>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     pub(crate) item_ref: Option<ItemRef>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     pub(crate) replay: Option<ReplayMaterial>,
 }
 
@@ -24,14 +32,22 @@ pub(crate) struct TextPartial {
 #[serde(deny_unknown_fields)]
 pub(crate) struct ThinkingPartial {
     pub(crate) text: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     pub(crate) replay: Option<ReplayMaterial>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct RedactedPartial {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     pub(crate) replay: Option<ReplayMaterial>,
 }
 
@@ -44,11 +60,23 @@ pub(crate) struct StructuredPartial {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct RuntimeCallPartial {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     pub(crate) name: Option<ToolName>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     pub(crate) external_id: Option<ExternalId>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     pub(crate) item_ref: Option<ItemRef>,
     #[serde(
         default,
@@ -57,18 +85,34 @@ pub(crate) struct RuntimeCallPartial {
     )]
     pub(crate) provisional_arguments: Option<OpaqueJson>,
     pub(crate) raw_arguments: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     pub(crate) replay: Option<ReplayMaterial>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct ProviderCallPartial {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     pub(crate) operation: Option<ProviderOperation>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     pub(crate) external_id: Option<ExternalId>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     pub(crate) item_ref: Option<ItemRef>,
     #[serde(
         default,
@@ -77,29 +121,57 @@ pub(crate) struct ProviderCallPartial {
     )]
     pub(crate) provisional_arguments: Option<OpaqueJson>,
     pub(crate) raw_arguments: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     pub(crate) replay: Option<ReplayMaterial>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct ProviderResultPartial {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     pub(crate) external_id: Option<ExternalId>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     pub(crate) replay: Option<ReplayMaterial>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct RecordPartial {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     pub(crate) operation: Option<ProviderOperation>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     pub(crate) external_id: Option<ExternalId>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     pub(crate) status: Option<ExecutionStatus>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     pub(crate) replay: Option<ReplayMaterial>,
 }
 

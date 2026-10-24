@@ -77,19 +77,18 @@ fn given_a_stored_record_set_when_reloaded_then_it_is_equal_and_byte_stable() {
 }
 
 #[test]
-fn given_a_provider_call_row_with_a_null_arguments_value_when_loaded_then_the_null_is_kept() {
-    let mut document = rich_set().to_value().unwrap().raw();
-    let row = document["blocks"]
-        .as_array_mut()
-        .unwrap()
-        .iter_mut()
-        .find(|row| row["kind"] == "provider_tool_call")
-        .expect("a provider call row");
-    row["payload"]["arguments"] = json!(null);
+fn given_a_provider_call_row_with_a_null_arguments_value_when_loaded_then_it_is_refused() {
+    let result = try_edit(&rich_set(), |document| {
+        let row = document["blocks"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|row| row["kind"] == "provider_tool_call")
+            .expect("a provider call row");
+        row["payload"]["arguments"] = json!(null);
+    });
 
-    let loaded = RecordSet::from_value(common::oj(document.clone())).unwrap();
-
-    assert_eq!(loaded.to_value().unwrap().raw(), document);
+    assert_eq!(result.unwrap_err().code(), ErrorCode::InvalidContent);
 }
 
 #[test]

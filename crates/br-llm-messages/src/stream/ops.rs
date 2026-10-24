@@ -97,6 +97,7 @@ pub struct InterruptionReason {
 #[serde(deny_unknown_fields)]
 struct InterruptionReasonWire {
     kind: InterruptionKind,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     detail: Option<String>,
 }
 

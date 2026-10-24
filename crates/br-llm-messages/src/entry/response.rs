@@ -12,13 +12,29 @@ use crate::value::{ExternalId, ModelName, ObservedAt, ResponseEnding, Usage};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ResponseMetadata {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     usage: Option<Usage>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     model: Option<ModelName>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     provider_response_id: Option<ExternalId>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     observed_at: Option<ObservedAt>,
 }
 
@@ -93,12 +109,16 @@ pub struct ModelResponse {
 struct ModelResponseWire {
     id: EntryId,
     ending: ResponseEnding,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     usage: Option<Usage>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     model: Option<ModelName>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     provider_response_id: Option<ExternalId>,
     content: Vec<ContentBlock>,
     #[serde(default, deserialize_with = "super::present")]
     author: bool,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     observed_at: Option<ObservedAt>,
 }
 

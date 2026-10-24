@@ -30,12 +30,17 @@ pub struct ProviderToolExecutionRecord {
 #[serde(deny_unknown_fields)]
 struct ProviderToolExecutionRecordWire {
     id: BlockId,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     external_id: Option<ExternalId>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     operation: Option<ProviderOperation>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     status: Option<ExecutionStatus>,
     #[serde(default)]
     content: Vec<PlainBlock>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     replay: Option<ReplayMaterial>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     observed_at: Option<ObservedAt>,
 }
 

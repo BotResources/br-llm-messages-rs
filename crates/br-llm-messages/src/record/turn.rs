@@ -24,8 +24,11 @@ pub struct TurnRecord {
 struct TurnRecordWire {
     id: TurnId,
     kind: TurnKind,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     agent: Option<AgentId>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     author: Option<Author>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     observed_at: Option<ObservedAt>,
 }
 

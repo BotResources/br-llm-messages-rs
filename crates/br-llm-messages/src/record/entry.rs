@@ -32,8 +32,11 @@ struct EntryRecordWire {
     turn: TurnId,
     kind: TurnEntryKind,
     state: RepresentationState,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     sender: Option<ActorRef>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     author: Option<Author>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     observed_at: Option<ObservedAt>,
     payload: OpaqueJson,
 }

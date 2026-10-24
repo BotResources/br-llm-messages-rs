@@ -21,10 +21,15 @@ pub struct Usage {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct UsageWire {
+    #[serde(default, deserialize_with = "crate::json::optional")]
     input_tokens: Option<u64>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     output_tokens: Option<u64>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     cache_read_input_tokens: Option<u64>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     cache_creation_input_tokens: Option<u64>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     thinking_tokens: Option<u64>,
 }
 

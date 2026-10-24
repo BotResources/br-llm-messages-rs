@@ -69,8 +69,9 @@ fn given_unknown_or_malformed_usage_fields_when_loaded_then_refused() {
         code_of::<Usage>(r#"{"input_tokens":18446744073709551616}"#),
         ErrorCode::InvalidContent
     );
+    assert!(serde_json::from_str::<Usage>(r#"{"input_tokens":null,"output_tokens":4}"#).is_err());
     assert_eq!(
-        serde_json::from_str::<Usage>(r#"{"input_tokens":null,"output_tokens":4}"#).unwrap(),
+        serde_json::from_str::<Usage>(r#"{"output_tokens":4}"#).unwrap(),
         Usage::new().with_output_tokens(4)
     );
 }

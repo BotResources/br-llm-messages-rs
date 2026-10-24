@@ -31,10 +31,13 @@ pub struct BlockRecord {
 struct BlockRecordWire {
     id: BlockId,
     entry: EntryId,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     parent: Option<BlockId>,
     kind: ContentBlockKind,
     state: RepresentationState,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     call: Option<BlockId>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     observed_at: Option<ObservedAt>,
     payload: OpaqueJson,
 }

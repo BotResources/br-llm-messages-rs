@@ -28,8 +28,11 @@ struct TextBlockWire {
     text: PlainText,
     #[serde(default)]
     citations: Vec<Citation>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     item_ref: Option<ItemRef>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     replay: Option<ReplayMaterial>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     observed_at: Option<ObservedAt>,
 }
 

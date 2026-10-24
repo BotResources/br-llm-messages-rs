@@ -59,7 +59,7 @@ pub fn goldens() -> Vec<(ContentBlockKind, Value)> {
         ),
         (
             ContentBlockKind::ProviderToolCall,
-            json!({"type": "provider_tool_call", "id": id(1), "external_id": "srv_1", "item_ref": "ws_01", "operation": "web_search", "arguments": null, "replay": sig()}),
+            json!({"type": "provider_tool_call", "id": id(1), "external_id": "srv_1", "item_ref": "ws_01", "operation": "web_search", "arguments": {"query": "x"}, "replay": sig()}),
         ),
         (
             ContentBlockKind::ProviderToolResult,
@@ -167,19 +167,22 @@ fn given_minimal_optional_fields_when_serialized_then_absent_ones_are_omitted() 
 }
 
 #[test]
-fn given_null_optionals_when_loaded_then_they_read_as_absent_and_provider_null_arguments_survive() {
-    let loaded = ContentBlock::from_value(common::oj(json!({
-        "type": "provider_tool_call", "id": id(1), "external_id": null, "operation": null, "replay": null, "arguments": null
-    })))
-    .unwrap();
+fn given_a_null_on_an_optional_provider_call_key_when_loaded_then_invalid_content() {
+    for key in [
+        "external_id",
+        "operation",
+        "replay",
+        "arguments",
+        "item_ref",
+        "observed_at",
+    ] {
+        let mut wire = json!({"type": "provider_tool_call", "id": id(1)});
+        wire[key] = Value::Null;
 
-    let ContentBlock::ProviderToolCall(call) = loaded else {
-        panic!("wrong kind");
-    };
-    assert_eq!(call.external_id(), None);
-    assert_eq!(call.operation(), None);
-    assert_eq!(call.replay(), None);
-    assert_eq!(call.arguments(), Some(&common::oj(Value::Null)));
+        let error = ContentBlock::from_value(common::oj(wire)).unwrap_err();
+
+        assert_eq!(error.code(), ErrorCode::InvalidContent, "{key}");
+    }
 }
 
 #[test]

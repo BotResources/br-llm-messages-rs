@@ -27,6 +27,7 @@ struct RuntimeToolResultWire {
     tool_name: ToolName,
     is_error: bool,
     content: Vec<PlainBlock>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     observed_at: Option<ObservedAt>,
 }
 

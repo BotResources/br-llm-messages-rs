@@ -25,6 +25,7 @@ struct HumanMessageWire {
     content: Vec<PlainBlock>,
     #[serde(default, deserialize_with = "super::present")]
     author: bool,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     observed_at: Option<ObservedAt>,
 }
 

@@ -11,7 +11,11 @@ use crate::value::{ImageSource, ObservedAt};
 pub struct ImageBlock {
     id: BlockId,
     source: ImageSource,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     observed_at: Option<ObservedAt>,
 }
 

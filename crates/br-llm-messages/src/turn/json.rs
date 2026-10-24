@@ -17,6 +17,7 @@ struct InputWire {
     entry: Value,
     #[serde(default, deserialize_with = "crate::entry::present")]
     author: bool,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     observed_at: Option<ObservedAt>,
 }
 
@@ -29,6 +30,7 @@ struct AiWire {
     agent: AgentId,
     author: Author,
     entries: Vec<Value>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     observed_at: Option<ObservedAt>,
 }
 

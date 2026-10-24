@@ -33,6 +33,14 @@ pub(crate) fn decode_ref<T: DeserializeOwned>(value: &Value) -> Result<T, Error>
     T::deserialize(value).map_err(|error| Error::from_data_error(&error))
 }
 
+pub(crate) fn optional<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    T::deserialize(deserializer).map(Some)
+}
+
 struct UniqueValue(Value);
 
 impl<'de> Deserialize<'de> for UniqueValue {

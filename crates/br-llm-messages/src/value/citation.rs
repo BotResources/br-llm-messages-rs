@@ -59,6 +59,7 @@ pub struct CitationSource {
 #[serde(deny_unknown_fields)]
 struct CitationSourceWire {
     reference: String,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     title: Option<String>,
 }
 
@@ -115,6 +116,7 @@ pub struct Citation {
 struct CitationWire {
     id: CitationId,
     source: CitationSource,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     range: Option<TextRange>,
 }
 

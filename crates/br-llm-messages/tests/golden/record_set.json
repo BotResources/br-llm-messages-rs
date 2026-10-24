@@ -113,7 +113,9 @@
       "id": "ab000000-0000-7000-8000-0000000000d3",
       "kind": "provider_tool_call",
       "payload": {
-        "arguments": null,
+        "arguments": {
+          "query": "weather"
+        },
         "external_id": "srv_1",
         "item_ref": "ws_9",
         "operation": "web_search",

@@ -28,8 +28,10 @@ struct AgentMailWire {
     sender: AgentId,
     author: Author,
     source_conversation: ConversationId,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     in_reply_to: Option<EntryId>,
     content: Vec<PlainBlock>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     observed_at: Option<ObservedAt>,
 }
 

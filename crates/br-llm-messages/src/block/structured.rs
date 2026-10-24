@@ -13,7 +13,11 @@ pub struct StructuredBlock {
     id: BlockId,
     #[serde(deserialize_with = "crate::value::opaque::value")]
     value: OpaqueJson,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     observed_at: Option<ObservedAt>,
 }
 

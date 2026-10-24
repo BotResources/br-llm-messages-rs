@@ -22,6 +22,7 @@ struct RequestAcceptedWire {
     request: RequestId,
     #[serde(default, deserialize_with = "super::present")]
     author: bool,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     observed_at: Option<ObservedAt>,
 }
 
@@ -84,6 +85,7 @@ struct QueuePositionWire {
     position: u32,
     #[serde(default, deserialize_with = "super::present")]
     author: bool,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     observed_at: Option<ObservedAt>,
 }
 

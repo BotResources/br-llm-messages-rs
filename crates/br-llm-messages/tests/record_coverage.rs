@@ -83,7 +83,7 @@ fn exotic_response() -> TurnEntry {
         .with_external_id(ExternalId::new("srv_1").unwrap())
         .with_item_ref(ItemRef::new("ws_9").unwrap())
         .with_operation(ProviderOperation::new("web_search").unwrap())
-        .with_arguments(common::oj(Value::Null))
+        .with_arguments(common::oj(json!({"query": "weather"})))
         .unwrap()
         .with_replay(envelope(json!({"k": {"z": 1, "a": 2}})));
     let replay_only =

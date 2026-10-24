@@ -27,10 +27,13 @@ pub struct ProviderToolResult {
 struct ProviderToolResultWire {
     id: BlockId,
     call: BlockId,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     external_id: Option<ExternalId>,
     #[serde(default)]
     content: Vec<PlainBlock>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     replay: Option<ReplayMaterial>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     observed_at: Option<ObservedAt>,
 }
 

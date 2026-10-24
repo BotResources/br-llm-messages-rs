@@ -24,9 +24,11 @@ struct TaskStartedWire {
     id: EntryId,
     request: RequestId,
     task: TaskId,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     conversation: Option<ConversationId>,
     #[serde(default, deserialize_with = "super::present")]
     author: bool,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     observed_at: Option<ObservedAt>,
 }
 
@@ -106,9 +108,11 @@ pub struct TaskCompleted {
 struct TaskCompletedWire {
     id: EntryId,
     task: TaskId,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     summary: Option<String>,
     #[serde(default, deserialize_with = "super::present")]
     author: bool,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     observed_at: Option<ObservedAt>,
 }
 
@@ -187,6 +191,7 @@ struct TaskFailedWire {
     reason: String,
     #[serde(default, deserialize_with = "super::present")]
     author: bool,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     observed_at: Option<ObservedAt>,
 }
 

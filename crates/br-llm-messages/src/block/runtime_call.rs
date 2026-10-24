@@ -27,12 +27,16 @@ pub struct RuntimeToolCall {
 #[serde(deny_unknown_fields)]
 struct RuntimeToolCallWire {
     id: BlockId,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     external_id: Option<ExternalId>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     item_ref: Option<ItemRef>,
     name: ToolName,
     #[serde(deserialize_with = "crate::value::opaque::arguments")]
     arguments: OpaqueJson,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     replay: Option<ReplayMaterial>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     observed_at: Option<ObservedAt>,
 }
 

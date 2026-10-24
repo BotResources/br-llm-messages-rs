@@ -11,11 +11,23 @@ use crate::value::{ExternalId, ItemRef, ObservedAt, ProviderOperation, ReplayMat
 #[serde(deny_unknown_fields)]
 pub struct ProviderToolCall {
     id: BlockId,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     external_id: Option<ExternalId>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     item_ref: Option<ItemRef>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     operation: Option<ProviderOperation>,
     #[serde(
         default,
@@ -23,9 +35,17 @@ pub struct ProviderToolCall {
         skip_serializing_if = "Option::is_none"
     )]
     arguments: Option<OpaqueJson>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     replay: Option<ReplayMaterial>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     observed_at: Option<ObservedAt>,
 }
 
@@ -63,7 +83,7 @@ impl ProviderToolCall {
     }
 
     pub fn with_arguments(mut self, arguments: OpaqueJson) -> Result<Self, Error> {
-        opaque::check(&arguments).map_err(|error| error.at("arguments"))?;
+        opaque::check_present(&arguments).map_err(|error| error.at("arguments"))?;
         self.arguments = Some(arguments);
         Ok(self)
     }

@@ -35,13 +35,21 @@ fn given_non_object_arguments_in_json_when_a_runtime_call_is_loaded_then_invalid
 
 #[test]
 fn given_non_object_arguments_when_a_provider_call_is_built_then_they_stay_unrestricted() {
-    for arguments in [json!(null), json!([1]), json!("x")] {
+    for arguments in [json!([1]), json!("x"), json!(3), json!(true)] {
         let call = ProviderToolCall::new(bid(1))
             .with_arguments(common::oj(arguments.clone()))
             .unwrap();
 
         assert_eq!(call.arguments().map(|value| value.raw()), Some(arguments));
     }
+}
+
+#[test]
+fn given_null_arguments_when_a_provider_call_is_built_then_invalid_content() {
+    let error = refused(ProviderToolCall::new(bid(1)).with_arguments(common::oj(json!(null))));
+
+    assert_eq!(error.code(), ErrorCode::InvalidContent);
+    assert_eq!(error.location(), Some("arguments"));
 }
 
 #[test]

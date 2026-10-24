@@ -17,7 +17,6 @@ pub(super) type Check = fn(&Value) -> Result<(), Error>;
 pub(super) struct Field {
     pub(super) key: &'static str,
     pub(super) required: bool,
-    pub(super) nullable: bool,
     pub(super) check: Check,
 }
 
@@ -25,7 +24,6 @@ const fn required(key: &'static str, check: Check) -> Field {
     Field {
         key,
         required: true,
-        nullable: false,
         check,
     }
 }
@@ -34,16 +32,6 @@ const fn optional(key: &'static str, check: Check) -> Field {
     Field {
         key,
         required: false,
-        nullable: false,
-        check,
-    }
-}
-
-const fn nullable(key: &'static str, check: Check) -> Field {
-    Field {
-        key,
-        required: false,
-        nullable: true,
         check,
     }
 }
@@ -55,6 +43,10 @@ fn typed<T: DeserializeOwned + Serialize>(value: &Value) -> Result<(), Error> {
     } else {
         Err(Error::new(ErrorCode::InvalidContent))
     }
+}
+
+fn present_opaque_value(value: &Value) -> Result<(), Error> {
+    crate::value::opaque::check_present_value(value)
 }
 
 fn opaque_value(value: &Value) -> Result<(), Error> {
@@ -156,7 +148,7 @@ pub(super) fn block_fields(kind: ContentBlockKind) -> Vec<Field> {
             optional("external_id", typed::<ExternalId>),
             optional("item_ref", typed::<ItemRef>),
             optional("operation", typed::<ProviderOperation>),
-            nullable("arguments", opaque_value),
+            optional("arguments", present_opaque_value),
             optional("replay", typed::<ReplayMaterial>),
         ],
         ContentBlockKind::ProviderToolResult => vec![
@@ -184,7 +176,6 @@ pub(super) fn check_object(object: &Map<String, Value>, fields: &[Field]) -> Res
                 return Err(Error::new(ErrorCode::InvalidContent).at(field.key));
             }
             None => {}
-            Some(Value::Null) if field.nullable => {}
             Some(value) => (field.check)(value).map_err(|error| error.at(field.key))?,
         }
     }

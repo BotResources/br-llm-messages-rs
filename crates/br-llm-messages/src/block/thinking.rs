@@ -22,7 +22,9 @@ pub struct ThinkingBlock {
 struct ThinkingBlockWire {
     id: BlockId,
     text: String,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     replay: Option<ReplayMaterial>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     observed_at: Option<ObservedAt>,
 }
 
@@ -101,7 +103,11 @@ impl TryFrom<ThinkingBlockWire> for ThinkingBlock {
 pub struct RedactedThinkingBlock {
     id: BlockId,
     material: ReplayMaterial,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::json::optional"
+    )]
     observed_at: Option<ObservedAt>,
 }
 

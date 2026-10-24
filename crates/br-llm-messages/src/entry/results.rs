@@ -39,6 +39,7 @@ struct RuntimeToolResultsWire {
     results: Vec<ContentBlock>,
     #[serde(default, deserialize_with = "super::present")]
     author: bool,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     observed_at: Option<ObservedAt>,
 }
 

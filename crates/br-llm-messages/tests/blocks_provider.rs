@@ -90,13 +90,13 @@ fn given_a_provider_call_with_everything_exposed_when_built_then_every_field_is_
     let call = ProviderToolCall::new(bid(1))
         .with_external_id(ExternalId::new("srvtoolu_1").unwrap())
         .with_operation(ProviderOperation::new("web_search").unwrap())
-        .with_arguments(common::oj(json!(null)))
+        .with_arguments(common::oj(json!({"k": 1})))
         .unwrap()
         .with_replay(signature("s"));
 
     assert_eq!(call.external_id().map(|e| e.as_str()), Some("srvtoolu_1"));
     assert_eq!(call.operation().map(|o| o.as_str()), Some("web_search"));
-    assert_eq!(call.arguments(), Some(&common::oj(json!(null))));
+    assert_eq!(call.arguments(), Some(&common::oj(json!({"k": 1}))));
     assert_eq!(call.replay(), Some(&signature("s")));
 }
 

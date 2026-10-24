@@ -39,10 +39,22 @@ pub enum ClosureReason {
 
 tagged_enum! {
     enum ClosureReasonWire, ClosureReasonRaw, remote = "ClosureReasonWire", [tag = "type", rename_all = "snake_case", deny_unknown_fields] {
-        Completed { detail: Option<String> },
-        Cancelled { detail: Option<String> },
-        Interrupted { detail: Option<String> },
-        BudgetExhausted { detail: Option<String> },
+        Completed {
+            #[serde(default, deserialize_with = "crate::json::optional")]
+            detail: Option<String>,
+        },
+        Cancelled {
+            #[serde(default, deserialize_with = "crate::json::optional")]
+            detail: Option<String>,
+        },
+        Interrupted {
+            #[serde(default, deserialize_with = "crate::json::optional")]
+            detail: Option<String>,
+        },
+        BudgetExhausted {
+            #[serde(default, deserialize_with = "crate::json::optional")]
+            detail: Option<String>,
+        },
         Failed { detail: Option<String> },
     }
 }
@@ -145,6 +157,7 @@ struct TurnClosureWire {
     reason: ClosureReason,
     #[serde(default, deserialize_with = "super::present")]
     author: bool,
+    #[serde(default, deserialize_with = "crate::json::optional")]
     observed_at: Option<ObservedAt>,
 }
 
