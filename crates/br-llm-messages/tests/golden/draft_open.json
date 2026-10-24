@@ -1,0 +1,115 @@
+{
+  "blocks": [
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-00000000000b",
+      "kind": "thinking",
+      "observed_at": "2026-10-23T08:00:04.12345Z",
+      "payload": {
+        "replay": {
+          "format": "anthropic.signature",
+          "payload": {
+            "type": "text",
+            "value": "Sig"
+          }
+        },
+        "text": "plan"
+      },
+      "state": "producing"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-000000000011",
+      "kind": "image",
+      "observed_at": "2026-10-23T08:00:05.123456Z",
+      "payload": {
+        "source": {
+          "data": "QUJD",
+          "media_type": "image/png",
+          "type": "inline"
+        }
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-00000000000c",
+      "kind": "runtime_tool_call",
+      "observed_at": "2026-10-23T08:00:03.1234Z",
+      "payload": {
+        "external_id": "toolu_1",
+        "name": "lookup",
+        "provisional_arguments": {
+          "query": "provisional"
+        },
+        "raw_arguments": "{\"query\":\"rust\"}"
+      },
+      "state": "producing"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-00000000000a",
+      "kind": "text",
+      "observed_at": "2026-10-23T08:00:02.123Z",
+      "payload": {
+        "citations": [
+          {
+            "id": "ab000000-0000-7000-8000-000000000032",
+            "range": {
+              "end": 5,
+              "start": 0
+            },
+            "source": {
+              "reference": "doc"
+            }
+          }
+        ],
+        "item_ref": "msg_1",
+        "text": "Hello wörld"
+      },
+      "state": "producing"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-00000000000d",
+      "kind": "structured_content",
+      "payload": {
+        "raw_json": "{\"a\":[1,2]}"
+      },
+      "state": "producing"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-00000000000f",
+      "kind": "provider_tool_call",
+      "payload": {
+        "operation": "web_search",
+        "raw_arguments": "{\"q\":\"x\"}"
+      },
+      "state": "producing"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-000000000010",
+      "kind": "provider_tool_execution_record",
+      "payload": {
+        "status": "running"
+      },
+      "state": "producing"
+    }
+  ],
+  "entry": {
+    "id": "ab000000-0000-7000-8000-000000000002",
+    "kind": "model_response",
+    "observed_at": "2026-10-23T08:00:01.12Z",
+    "payload": {
+      "model": "m",
+      "usage": {
+        "input_tokens": 3
+      }
+    },
+    "state": "producing",
+    "turn": "ab000000-0000-7000-8000-000000000001"
+  },
+  "schema": "br-llm-messages-draft/1"
+}

@@ -1,0 +1,415 @@
+{
+  "deltas": [
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "metadata": {
+        "model": "m",
+        "observed_at": "2026-10-23T08:00:01.12Z"
+      },
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "response_started"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000b",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "start": {
+        "observed_at": "2026-10-23T08:00:04.12345Z",
+        "type": "thinking"
+      },
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "block_started"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-000000000011",
+      "content": {
+        "id": "ab000000-0000-7000-8000-000000000011",
+        "observed_at": "2026-10-23T08:00:05.123456Z",
+        "source": {
+          "data": "QUJD",
+          "media_type": "image/png",
+          "type": "inline"
+        },
+        "type": "image"
+      },
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "block_inserted"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000c",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "start": {
+        "arguments": {
+          "query": "provisional"
+        },
+        "observed_at": "2026-10-23T08:00:03.1234Z",
+        "type": "runtime_tool_call"
+      },
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "block_started"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000a",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "start": {
+        "observed_at": "2026-10-23T08:00:02.123Z",
+        "type": "text"
+      },
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "block_started"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000d",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "start": {
+        "type": "structured_content"
+      },
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "block_started"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000f",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "start": {
+        "operation": "web_search",
+        "type": "provider_tool_call"
+      },
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "block_started"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-000000000010",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "start": {
+        "type": "provider_tool_execution_record"
+      },
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "block_started"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000a",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "text": "Hello ",
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "text_appended"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000b",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "text": "plan",
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "thinking_appended"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000b",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "format": "anthropic.signature",
+      "fragment": "Sig",
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "replay_fragment_appended"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000a",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "block_metadata_updated",
+      "update": {
+        "citation": {
+          "id": "ab000000-0000-7000-8000-000000000032",
+          "range": {
+            "end": 5,
+            "start": 0
+          },
+          "source": {
+            "reference": "doc"
+          }
+        },
+        "type": "citation_added"
+      }
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000c",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "fragment": "{\"query\":",
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "json_appended"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "response_metadata_updated",
+      "update": {
+        "usage": {
+          "input_tokens": 3
+        }
+      }
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000a",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "text": "wörld",
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "text_appended"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000c",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "block_metadata_updated",
+      "update": {
+        "name": "lookup",
+        "type": "tool_name_set"
+      }
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000c",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "block_metadata_updated",
+      "update": {
+        "external_id": "toolu_1",
+        "type": "external_id_set"
+      }
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000a",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "block_metadata_updated",
+      "update": {
+        "item_ref": "msg_1",
+        "type": "item_ref_set"
+      }
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000c",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "fragment": "\"rust\"}",
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "json_appended"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000d",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "fragment": "{\"a\":[1,",
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "json_appended"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000f",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "fragment": "{\"q\"",
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "json_appended"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000d",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "fragment": "2]}",
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "json_appended"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-000000000010",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "block_metadata_updated",
+      "update": {
+        "status": "running",
+        "type": "execution_status_set"
+      }
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000f",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "fragment": ":\"x\"}",
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "json_appended"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000a",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "format": "anthropic.signature",
+      "fragment": "Ab",
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "replay_fragment_appended"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000a",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "format": "anthropic.signature",
+      "fragment": "Cd",
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "replay_fragment_appended"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000a",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "finalization": {
+        "type": "accumulated"
+      },
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "block_finalized"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000b",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "finalization": {
+        "type": "accumulated"
+      },
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "block_finalized"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000c",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "material": {
+        "format": "anthropic.signature",
+        "payload": {
+          "type": "text",
+          "value": "whole-sig"
+        }
+      },
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "replay_material_set"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000c",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "finalization": {
+        "type": "accumulated"
+      },
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "block_finalized"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000d",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "finalization": {
+        "type": "accumulated"
+      },
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "block_finalized"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-00000000000f",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "finalization": {
+        "type": "accumulated"
+      },
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "block_finalized"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-000000000010",
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "finalization": {
+        "block": {
+          "content": [
+            {
+              "id": "ab000000-0000-7000-8000-00000000001e",
+              "text": "log",
+              "type": "text"
+            }
+          ],
+          "id": "ab000000-0000-7000-8000-000000000010",
+          "observed_at": "2026-10-23T08:00:06.1234567Z",
+          "operation": "code_run",
+          "status": "completed",
+          "type": "provider_tool_execution_record"
+        },
+        "type": "authoritative"
+      },
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "block_finalized"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-000000000012",
+      "content": {
+        "call": "ab000000-0000-7000-8000-00000000000f",
+        "content": [
+          {
+            "id": "ab000000-0000-7000-8000-00000000001f",
+            "text": "found",
+            "type": "text"
+          }
+        ],
+        "id": "ab000000-0000-7000-8000-000000000012",
+        "observed_at": "2026-10-23T08:00:07.12345678Z",
+        "type": "provider_tool_result"
+      },
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "block_inserted"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-000000000013",
+      "content": {
+        "id": "ab000000-0000-7000-8000-000000000013",
+        "material": {
+          "format": "anthropic.signature",
+          "payload": {
+            "type": "text",
+            "value": "opaque"
+          }
+        },
+        "type": "redacted_thinking"
+      },
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "block_inserted"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "response_metadata_updated",
+      "update": {
+        "usage": {
+          "input_tokens": 3,
+          "output_tokens": 9
+        }
+      }
+    },
+    {
+      "ending": {
+        "type": "tool_use"
+      },
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "response_completed"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000003",
+      "metadata": {},
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "response_started"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-000000000028",
+      "entry": "ab000000-0000-7000-8000-000000000003",
+      "start": {
+        "observed_at": "2026-10-23T08:00:05.123456Z",
+        "type": "text"
+      },
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "block_started"
+    },
+    {
+      "block": "ab000000-0000-7000-8000-000000000028",
+      "entry": "ab000000-0000-7000-8000-000000000003",
+      "text": "cut off",
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "text_appended"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000003",
+      "reason": {
+        "detail": "busy",
+        "kind": "failed"
+      },
+      "turn": "ab000000-0000-7000-8000-000000000001",
+      "type": "response_interrupted"
+    }
+  ],
+  "schema": "br-llm-messages-delta/1"
+}

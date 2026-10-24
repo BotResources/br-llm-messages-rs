@@ -1,0 +1,1229 @@
+{
+  "blocks": [
+    {
+      "entry": "ab000000-0000-7000-8000-000000000065",
+      "id": "ab000000-0000-7000-8000-000000000066",
+      "kind": "text",
+      "payload": {
+        "text": "do it"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000067",
+      "id": "ab000000-0000-7000-8000-000000000068",
+      "kind": "text",
+      "payload": {
+        "text": "fyi"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000069",
+      "id": "ab000000-0000-7000-8000-00000000006a",
+      "kind": "text",
+      "payload": {
+        "text": "re"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-0000000000e6",
+      "id": "ab000000-0000-7000-8000-0000000000c8",
+      "kind": "text",
+      "payload": {
+        "item_ref": "msg_9",
+        "replay": {
+          "format": "anthropic.signature",
+          "payload": {
+            "type": "text",
+            "value": "text-sig"
+          }
+        },
+        "text": "said"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-0000000000e6",
+      "id": "ab000000-0000-7000-8000-0000000000c9",
+      "kind": "structured_content",
+      "payload": {
+        "value": null
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-0000000000e6",
+      "id": "ab000000-0000-7000-8000-0000000000ca",
+      "kind": "image",
+      "payload": {
+        "source": {
+          "data": "QUJD",
+          "media_type": "image/png",
+          "type": "inline"
+        }
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-0000000000e6",
+      "id": "ab000000-0000-7000-8000-0000000000cb",
+      "kind": "redacted_thinking",
+      "payload": {
+        "material": {
+          "format": "openai.reasoning",
+          "payload": {
+            "type": "json",
+            "value": [
+              1,
+              2
+            ]
+          }
+        }
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-0000000000e6",
+      "id": "ab000000-0000-7000-8000-0000000000d2",
+      "kind": "runtime_tool_call",
+      "payload": {
+        "arguments": {
+          "q": [
+            1,
+            null
+          ]
+        },
+        "external_id": "toolu_9",
+        "item_ref": "fc_9",
+        "name": "lookup",
+        "replay": {
+          "format": "anthropic.signature",
+          "payload": {
+            "type": "text",
+            "value": "call-sig"
+          }
+        }
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-0000000000e6",
+      "id": "ab000000-0000-7000-8000-0000000000d3",
+      "kind": "provider_tool_call",
+      "payload": {
+        "arguments": {
+          "query": "weather"
+        },
+        "external_id": "srv_1",
+        "item_ref": "ws_9",
+        "operation": "web_search",
+        "replay": {
+          "format": "openai.reasoning",
+          "payload": {
+            "type": "json",
+            "value": {
+              "k": {
+                "a": 2,
+                "z": 1
+              }
+            }
+          }
+        }
+      },
+      "state": "complete"
+    },
+    {
+      "call": "ab000000-0000-7000-8000-0000000000d3",
+      "entry": "ab000000-0000-7000-8000-0000000000e6",
+      "id": "ab000000-0000-7000-8000-0000000000d4",
+      "kind": "provider_tool_result",
+      "payload": {
+        "replay": {
+          "format": "anthropic.signature",
+          "payload": {
+            "type": "text",
+            "value": "opaque"
+          }
+        }
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-0000000000e6",
+      "id": "ab000000-0000-7000-8000-0000000000dc",
+      "kind": "provider_tool_execution_record",
+      "payload": {
+        "external_id": "rec",
+        "operation": "code",
+        "replay": {
+          "format": "anthropic.signature",
+          "payload": {
+            "type": "text",
+            "value": "o"
+          }
+        },
+        "status": "incomplete"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-0000000000e6",
+      "id": "ab000000-0000-7000-8000-0000000000dd",
+      "kind": "provider_tool_execution_record",
+      "payload": {
+        "external_id": "rec",
+        "operation": "code",
+        "replay": {
+          "format": "anthropic.signature",
+          "payload": {
+            "type": "text",
+            "value": "m"
+          }
+        },
+        "status": "incomplete"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-0000000000e6",
+      "id": "ab000000-0000-7000-8000-0000000000de",
+      "kind": "text",
+      "parent": "ab000000-0000-7000-8000-0000000000dd",
+      "payload": {
+        "text": "partly"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-0000000000e6",
+      "id": "ab000000-0000-7000-8000-0000000000df",
+      "kind": "provider_tool_execution_record",
+      "payload": {
+        "external_id": "rec",
+        "operation": "code",
+        "status": "incomplete"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-0000000000e6",
+      "id": "ab000000-0000-7000-8000-0000000000e1",
+      "kind": "provider_tool_execution_record",
+      "payload": {
+        "external_id": "rec",
+        "operation": "code",
+        "status": "incomplete"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-0000000000e6",
+      "id": "ab000000-0000-7000-8000-0000000000e2",
+      "kind": "text",
+      "parent": "ab000000-0000-7000-8000-0000000000e1",
+      "payload": {
+        "text": "visible"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-0000000000e6",
+      "id": "ab000000-0000-7000-8000-0000000000e0",
+      "kind": "provider_tool_execution_record",
+      "payload": {
+        "status": "pending"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-000000000003",
+      "kind": "text",
+      "observed_at": "2026-10-23T08:00:01.12Z",
+      "payload": {
+        "citations": [
+          {
+            "id": "ab000000-0000-7000-8000-000000000004",
+            "range": {
+              "end": 5,
+              "start": 0
+            },
+            "source": {
+              "reference": "doc-1",
+              "title": "A document"
+            }
+          }
+        ],
+        "text": "cited text"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000000c",
+      "id": "ab000000-0000-7000-8000-00000000000d",
+      "kind": "thinking",
+      "observed_at": "2026-10-23T08:00:04.12345Z",
+      "payload": {
+        "replay": {
+          "format": "anthropic.signature",
+          "payload": {
+            "type": "text",
+            "value": "sig"
+          }
+        },
+        "text": ""
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000000c",
+      "id": "ab000000-0000-7000-8000-00000000000e",
+      "kind": "text",
+      "observed_at": "2026-10-23T08:00:05.123456Z",
+      "payload": {
+        "item_ref": "msg_1",
+        "text": "calling"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000000c",
+      "id": "ab000000-0000-7000-8000-00000000000f",
+      "kind": "runtime_tool_call",
+      "observed_at": "2026-10-23T08:00:06.1234567Z",
+      "payload": {
+        "arguments": {
+          "q": "rust"
+        },
+        "external_id": "toolu_1",
+        "item_ref": "fc_1",
+        "name": "lookup"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000000c",
+      "id": "ab000000-0000-7000-8000-000000000010",
+      "kind": "provider_tool_call",
+      "observed_at": "2026-10-23T08:00:07.12345678Z",
+      "payload": {
+        "arguments": {
+          "query": "x"
+        },
+        "operation": "web_search"
+      },
+      "state": "complete"
+    },
+    {
+      "call": "ab000000-0000-7000-8000-000000000010",
+      "entry": "ab000000-0000-7000-8000-00000000000c",
+      "id": "ab000000-0000-7000-8000-000000000011",
+      "kind": "provider_tool_result",
+      "observed_at": "2026-10-23T08:00:08.123456789Z",
+      "payload": {},
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000000c",
+      "id": "ab000000-0000-7000-8000-000000000012",
+      "kind": "text",
+      "parent": "ab000000-0000-7000-8000-000000000011",
+      "payload": {
+        "text": "found"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000000c",
+      "id": "ab000000-0000-7000-8000-000000000013",
+      "kind": "provider_tool_execution_record",
+      "observed_at": "2026-10-23T08:00:09.1Z",
+      "payload": {
+        "status": "completed"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000000c",
+      "id": "ab000000-0000-7000-8000-000000000014",
+      "kind": "text",
+      "parent": "ab000000-0000-7000-8000-000000000013",
+      "payload": {
+        "text": "log"
+      },
+      "state": "complete"
+    },
+    {
+      "call": "ab000000-0000-7000-8000-00000000000f",
+      "entry": "ab000000-0000-7000-8000-000000000015",
+      "id": "ab000000-0000-7000-8000-000000000016",
+      "kind": "runtime_tool_result",
+      "observed_at": "2026-10-23T08:00:11.123Z",
+      "payload": {
+        "is_error": false,
+        "tool_name": "lookup"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000015",
+      "id": "ab000000-0000-7000-8000-000000000017",
+      "kind": "text",
+      "observed_at": "2026-10-23T08:00:01.12Z",
+      "parent": "ab000000-0000-7000-8000-000000000016",
+      "payload": {
+        "citations": [
+          {
+            "id": "ab000000-0000-7000-8000-00000000001f",
+            "range": {
+              "end": 5,
+              "start": 0
+            },
+            "source": {
+              "reference": "doc-1",
+              "title": "A document"
+            }
+          }
+        ],
+        "text": "cited text"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000015",
+      "id": "ab000000-0000-7000-8000-000000000018",
+      "kind": "image",
+      "observed_at": "2026-10-23T08:00:12.1234Z",
+      "parent": "ab000000-0000-7000-8000-000000000016",
+      "payload": {
+        "source": {
+          "data": "QUJD",
+          "media_type": "image/png",
+          "type": "inline"
+        }
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000015",
+      "id": "ab000000-0000-7000-8000-000000000019",
+      "kind": "structured_content",
+      "observed_at": "2026-10-23T08:00:13.12345Z",
+      "parent": "ab000000-0000-7000-8000-000000000016",
+      "payload": {
+        "value": {
+          "k": [
+            1,
+            2
+          ]
+        }
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000001a",
+      "id": "ab000000-0000-7000-8000-00000000001b",
+      "kind": "text",
+      "payload": {
+        "text": "fyi"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000001c",
+      "id": "ab000000-0000-7000-8000-00000000001d",
+      "kind": "text",
+      "observed_at": "2026-10-23T08:00:16.12345678Z",
+      "payload": {
+        "text": "done"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000029",
+      "id": "ab000000-0000-7000-8000-00000000002a",
+      "kind": "text",
+      "payload": {
+        "text": "please help"
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-00000000000b",
+      "kind": "thinking",
+      "observed_at": "2026-10-23T08:00:04.12345Z",
+      "payload": {
+        "replay": {
+          "format": "anthropic.signature",
+          "payload": {
+            "type": "text",
+            "value": "Sig"
+          }
+        },
+        "text": "plan"
+      },
+      "state": "producing"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-000000000011",
+      "kind": "image",
+      "observed_at": "2026-10-23T08:00:05.123456Z",
+      "payload": {
+        "source": {
+          "data": "QUJD",
+          "media_type": "image/png",
+          "type": "inline"
+        }
+      },
+      "state": "complete"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-00000000000c",
+      "kind": "runtime_tool_call",
+      "observed_at": "2026-10-23T08:00:03.1234Z",
+      "payload": {
+        "external_id": "toolu_1",
+        "name": "lookup",
+        "provisional_arguments": {
+          "query": "provisional"
+        },
+        "raw_arguments": "{\"query\":\"rust\"}"
+      },
+      "state": "producing"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-00000000000a",
+      "kind": "text",
+      "observed_at": "2026-10-23T08:00:02.123Z",
+      "payload": {
+        "citations": [
+          {
+            "id": "ab000000-0000-7000-8000-000000000032",
+            "range": {
+              "end": 5,
+              "start": 0
+            },
+            "source": {
+              "reference": "doc"
+            }
+          }
+        ],
+        "item_ref": "msg_1",
+        "text": "Hello wörld"
+      },
+      "state": "producing"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-00000000000d",
+      "kind": "structured_content",
+      "payload": {
+        "raw_json": "{\"a\":[1,2]}"
+      },
+      "state": "producing"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-00000000000f",
+      "kind": "provider_tool_call",
+      "payload": {
+        "operation": "web_search",
+        "raw_arguments": "{\"q\":\"x\"}"
+      },
+      "state": "producing"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000002",
+      "id": "ab000000-0000-7000-8000-000000000010",
+      "kind": "provider_tool_execution_record",
+      "payload": {
+        "status": "running"
+      },
+      "state": "producing"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000012d",
+      "id": "ab000000-0000-7000-8000-000000000136",
+      "kind": "text",
+      "observed_at": "2026-10-23T08:00:05.123456Z",
+      "payload": {
+        "text": "cut"
+      },
+      "state": "interrupted"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-00000000012d",
+      "id": "ab000000-0000-7000-8000-000000000137",
+      "kind": "runtime_tool_call",
+      "payload": {
+        "external_id": "toolu_7",
+        "name": "lookup",
+        "raw_arguments": "{\"q\":\"ru"
+      },
+      "state": "interrupted"
+    },
+    {
+      "entry": "ab000000-0000-7000-8000-000000000514",
+      "id": "ab000000-0000-7000-8000-000000000515",
+      "kind": "runtime_tool_call",
+      "payload": {
+        "arguments": {},
+        "name": "lookup"
+      },
+      "state": "complete"
+    },
+    {
+      "call": "ab000000-0000-7000-8000-000000000515",
+      "entry": "ab000000-0000-7000-8000-000000000516",
+      "id": "ab000000-0000-7000-8000-000000000517",
+      "kind": "runtime_tool_result",
+      "payload": {
+        "is_error": true,
+        "tool_name": "lookup"
+      },
+      "state": "complete"
+    }
+  ],
+  "entries": [
+    {
+      "author": "Claude",
+      "id": "ab000000-0000-7000-8000-000000000065",
+      "kind": "agent_request",
+      "payload": {
+        "origin": {
+          "id": "ab000000-0000-7000-8000-000000000001",
+          "type": "request"
+        },
+        "source_conversation": "ab000000-0000-7000-8000-000000000002"
+      },
+      "sender": {
+        "id": "ab000000-0000-7000-8000-000000000002",
+        "type": "agent"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000001"
+    },
+    {
+      "author": "Claude",
+      "id": "ab000000-0000-7000-8000-000000000067",
+      "kind": "agent_mail",
+      "payload": {
+        "in_reply_to": "ab000000-0000-7000-8000-0000000003e7",
+        "source_conversation": "ab000000-0000-7000-8000-000000000002"
+      },
+      "sender": {
+        "id": "ab000000-0000-7000-8000-000000000002",
+        "type": "agent"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000002"
+    },
+    {
+      "author": "Claude",
+      "id": "ab000000-0000-7000-8000-000000000069",
+      "kind": "agent_mail",
+      "payload": {
+        "in_reply_to": "ab000000-0000-7000-8000-0000000003e6",
+        "source_conversation": "ab000000-0000-7000-8000-000000000002"
+      },
+      "sender": {
+        "id": "ab000000-0000-7000-8000-000000000002",
+        "type": "agent"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000003"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000006b",
+      "kind": "task_completed",
+      "payload": {
+        "summary": "done",
+        "task": "ab000000-0000-7000-8000-000000000001"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000004"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000006c",
+      "kind": "task_completed",
+      "payload": {
+        "task": "ab000000-0000-7000-8000-000000000001"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000005"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000006d",
+      "kind": "task_failed",
+      "payload": {
+        "reason": "it broke",
+        "task": "ab000000-0000-7000-8000-000000000001"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000006"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000006e",
+      "kind": "task_started",
+      "payload": {
+        "conversation": "ab000000-0000-7000-8000-000000000003",
+        "request": "ab000000-0000-7000-8000-000000000001",
+        "task": "ab000000-0000-7000-8000-000000000001"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000007"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-0000000000e6",
+      "kind": "model_response",
+      "payload": {
+        "ending": {
+          "type": "provider_continuation"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000014"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-0000000000f2",
+      "kind": "turn_closure",
+      "payload": {
+        "reason": {
+          "detail": "stop",
+          "type": "cancelled"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000014"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-0000000000fa",
+      "kind": "model_response",
+      "payload": {
+        "ending": {
+          "type": "finished"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000015"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-0000000000fb",
+      "kind": "turn_closure",
+      "payload": {
+        "reason": {
+          "type": "cancelled"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000015"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-0000000000fc",
+      "kind": "turn_closure",
+      "payload": {
+        "reason": {
+          "detail": "code",
+          "type": "interrupted"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000016"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-0000000000fd",
+      "kind": "turn_closure",
+      "payload": {
+        "reason": {
+          "detail": "tokens",
+          "type": "budget_exhausted"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000017"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-0000000000fe",
+      "kind": "turn_closure",
+      "payload": {
+        "reason": {
+          "detail": "code",
+          "type": "failed"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000018"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-0000000000ff",
+      "kind": "model_response",
+      "payload": {
+        "ending": {
+          "type": "finished"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000019"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000100",
+      "kind": "turn_closure",
+      "payload": {
+        "reason": {
+          "type": "completed"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000019"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000002",
+      "kind": "human_message",
+      "observed_at": "2026-10-23T08:00:02.123Z",
+      "payload": {},
+      "sender": {
+        "id": "ab000000-0000-7000-8000-000000000001",
+        "type": "human"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000001"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000000c",
+      "kind": "model_response",
+      "observed_at": "2026-10-23T08:00:10.12Z",
+      "payload": {
+        "ending": {
+          "type": "tool_use"
+        },
+        "model": "gpt-6.1",
+        "provider_response_id": "resp_1",
+        "usage": {
+          "input_tokens": 10,
+          "output_tokens": 18446744073709551615
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-00000000000a"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000015",
+      "kind": "runtime_tool_results",
+      "observed_at": "2026-10-23T08:00:14.123456Z",
+      "payload": {},
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-00000000000a"
+    },
+    {
+      "author": "Claude",
+      "id": "ab000000-0000-7000-8000-00000000001a",
+      "kind": "agent_mail",
+      "observed_at": "2026-10-23T08:00:15.1234567Z",
+      "payload": {
+        "source_conversation": "ab000000-0000-7000-8000-000000000002"
+      },
+      "sender": {
+        "id": "ab000000-0000-7000-8000-000000000002",
+        "type": "agent"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-00000000000a"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000001c",
+      "kind": "model_response",
+      "observed_at": "2026-10-23T08:00:17.123456789Z",
+      "payload": {
+        "ending": {
+          "type": "finished"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-00000000000a"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000001e",
+      "kind": "turn_closure",
+      "observed_at": "2026-10-23T08:00:18.1Z",
+      "payload": {
+        "reason": {
+          "type": "completed"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-00000000000a"
+    },
+    {
+      "author": "Claude",
+      "id": "ab000000-0000-7000-8000-000000000029",
+      "kind": "agent_request",
+      "observed_at": "2026-10-23T08:00:20.123Z",
+      "payload": {
+        "origin": {
+          "block": "ab000000-0000-7000-8000-000000000384",
+          "type": "tool_call"
+        },
+        "source_conversation": "ab000000-0000-7000-8000-000000000002"
+      },
+      "sender": {
+        "id": "ab000000-0000-7000-8000-000000000002",
+        "type": "agent"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000028"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000033",
+      "kind": "request_accepted",
+      "observed_at": "2026-10-23T08:00:22.12345Z",
+      "payload": {
+        "request": "ab000000-0000-7000-8000-000000000001"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000032"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000034",
+      "kind": "task_started",
+      "observed_at": "2026-10-23T08:00:23.123456Z",
+      "payload": {
+        "conversation": "ab000000-0000-7000-8000-000000000003",
+        "request": "ab000000-0000-7000-8000-000000000001",
+        "task": "ab000000-0000-7000-8000-000000000001"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000032"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000003d",
+      "kind": "queue_position",
+      "observed_at": "2026-10-23T08:00:25.12345678Z",
+      "payload": {
+        "position": 2,
+        "request": "ab000000-0000-7000-8000-000000000001"
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-00000000003c"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000002",
+      "kind": "model_response",
+      "observed_at": "2026-10-23T08:00:01.12Z",
+      "payload": {
+        "model": "m",
+        "usage": {
+          "input_tokens": 3
+        }
+      },
+      "state": "producing",
+      "turn": "ab000000-0000-7000-8000-00000000001e"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000012d",
+      "kind": "model_response",
+      "payload": {
+        "interruption": {
+          "detail": "stop requested",
+          "kind": "cancelled"
+        }
+      },
+      "state": "interrupted",
+      "turn": "ab000000-0000-7000-8000-00000000001f"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000502",
+      "kind": "model_response",
+      "payload": {
+        "ending": {
+          "type": "output_exhaustion"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000501"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000504",
+      "kind": "model_response",
+      "payload": {
+        "ending": {
+          "sequence": "</end>",
+          "type": "stop_sequence"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000503"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000506",
+      "kind": "model_response",
+      "payload": {
+        "ending": {
+          "type": "stop_sequence"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000505"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000508",
+      "kind": "model_response",
+      "payload": {
+        "ending": {
+          "type": "refusal"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000507"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000050a",
+      "kind": "model_response",
+      "payload": {
+        "ending": {
+          "type": "filtering"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000509"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000050c",
+      "kind": "model_response",
+      "payload": {
+        "ending": {
+          "reason": "provider said length_cap",
+          "type": "unclassified"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-00000000050b"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000050e",
+      "kind": "model_response",
+      "payload": {
+        "interruption": {
+          "kind": "interrupted"
+        }
+      },
+      "state": "interrupted",
+      "turn": "ab000000-0000-7000-8000-00000000050d"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000510",
+      "kind": "model_response",
+      "payload": {
+        "interruption": {
+          "detail": "cut at 4096",
+          "kind": "truncated"
+        }
+      },
+      "state": "interrupted",
+      "turn": "ab000000-0000-7000-8000-00000000050f"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000512",
+      "kind": "model_response",
+      "payload": {
+        "interruption": {
+          "detail": "upstream 500",
+          "kind": "failed"
+        }
+      },
+      "state": "interrupted",
+      "turn": "ab000000-0000-7000-8000-000000000511"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000514",
+      "kind": "model_response",
+      "payload": {
+        "ending": {
+          "type": "tool_use"
+        }
+      },
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000513"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000516",
+      "kind": "runtime_tool_results",
+      "payload": {},
+      "state": "complete",
+      "turn": "ab000000-0000-7000-8000-000000000513"
+    }
+  ],
+  "schema": "br-llm-messages-records/1",
+  "turns": [
+    {
+      "id": "ab000000-0000-7000-8000-000000000001",
+      "kind": "input_turn"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000002",
+      "kind": "input_turn"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000003",
+      "kind": "input_turn"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000004",
+      "kind": "input_turn"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000005",
+      "kind": "input_turn"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000006",
+      "kind": "input_turn"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000007",
+      "kind": "input_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-000000000014",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-000000000015",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-000000000016",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-000000000017",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-000000000018",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-000000000019",
+      "kind": "ai_turn"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000001",
+      "kind": "input_turn",
+      "observed_at": "2026-10-23T08:00:03.1234Z"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex GPT-6.1-Sol high",
+      "id": "ab000000-0000-7000-8000-00000000000a",
+      "kind": "ai_turn",
+      "observed_at": "2026-10-23T08:00:19.12Z"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-000000000028",
+      "kind": "input_turn",
+      "observed_at": "2026-10-23T08:00:21.1234Z"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000002",
+      "author": "Claude",
+      "id": "ab000000-0000-7000-8000-000000000032",
+      "kind": "ai_turn",
+      "observed_at": "2026-10-23T08:00:24.1234567Z"
+    },
+    {
+      "id": "ab000000-0000-7000-8000-00000000003c",
+      "kind": "input_turn",
+      "observed_at": "2026-10-23T08:00:26.123456789Z"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-00000000001e",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-00000000001f",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-000000000501",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-000000000503",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-000000000505",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-000000000507",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-000000000509",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-00000000050b",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-00000000050d",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-00000000050f",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-000000000511",
+      "kind": "ai_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "id": "ab000000-0000-7000-8000-000000000513",
+      "kind": "ai_turn"
+    }
+  ]
+}

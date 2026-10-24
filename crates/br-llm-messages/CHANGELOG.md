@@ -7,7 +7,12 @@ released under the tag `v{version}`. Format follows
 Release headings are plain `## X.Y.Z` — the release pipeline greps that exact
 form to decide whether a version ships.
 
-## Unreleased
+## 1.0.0 - 2026-10-24
+
+Breaking rewrite of the model: turns of typed entries and content blocks, UUIDv7 ids, streaming drafts, storage records, perspective projection.
+Stored schemas are `br-llm-messages/4`, `br-llm-messages-delta/1`, `br-llm-messages-draft/1` and `br-llm-messages-records/1`; documents of earlier schemas do not load.
+An explicit JSON `null` for an optional key is refused with `invalid_content` in every document (turns, entries, blocks, deltas, delta streams, draft checkpoints, record rows and payloads); an absent key is absent. This includes the `arguments` of a provider tool call, which can no longer hold the JSON value `null`.
+Removed: `Step`, `TurnItem`, `UserInput`, `lighten`, `render`; tool offering is not this library's concern.
 
 ## 0.5.0 - 2026-10-15
 

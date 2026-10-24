@@ -1,0 +1,218 @@
+mod common;
+
+use br_llm_messages::{
+    ContentBlock, ErrorCode, ExecutionStatus, ExternalId, PlainBlock, ProviderOperation,
+    ProviderToolCall, ProviderToolExecutionRecord, ProviderToolResult, RedactedThinkingBlock,
+    ResultExposure, RuntimeToolCall, RuntimeToolResult, TextBlock, ThinkingBlock,
+};
+use common::{bid, envelope, plain_text, png, refused, signature, text_block, tool, v7};
+use serde_json::json;
+
+fn every_non_plain_kind() -> Vec<ContentBlock> {
+    vec![
+        ThinkingBlock::new(bid(1), "t").unwrap().into(),
+        RedactedThinkingBlock::new(bid(2), signature("s")).into(),
+        RuntimeToolCall::new(bid(3), tool("t"), common::oj(json!({})))
+            .unwrap()
+            .into(),
+        RuntimeToolResult::new(bid(4), bid(3), tool("t"), true, vec![])
+            .unwrap()
+            .into(),
+        ProviderToolCall::new(bid(5)).into(),
+        ProviderToolResult::new(bid(6), bid(5), vec![plain_text(7, "r")])
+            .unwrap()
+            .into(),
+        ProviderToolExecutionRecord::new(bid(8)).into(),
+    ]
+}
+
+#[test]
+fn given_any_non_plain_block_when_made_plain_then_disallowed_kind_with_its_id() {
+    for block in every_non_plain_kind() {
+        let id = block.id();
+        let error = refused(PlainBlock::try_from(block));
+
+        assert_eq!(error.code(), ErrorCode::DisallowedKind);
+        assert_eq!(error.object_id(), Some(id.as_uuid()));
+    }
+}
+
+#[test]
+fn given_plain_kinds_when_made_plain_then_accepted_and_converted_back() {
+    let text = ContentBlock::from(text_block(1, "x"));
+    let image = ContentBlock::from(png(2));
+
+    let plain = [
+        PlainBlock::try_from(text.clone()).unwrap(),
+        PlainBlock::try_from(image.clone()).unwrap(),
+    ];
+
+    assert_eq!(ContentBlock::from(plain[0].clone()), text);
+    assert_eq!(ContentBlock::from(plain[1].clone()), image);
+    assert_eq!(plain[0].id(), bid(1));
+}
+
+#[test]
+fn given_text_carrying_model_only_fields_when_made_plain_then_disallowed_kind() {
+    let replayed = TextBlock::new(bid(1), "x")
+        .unwrap()
+        .with_replay(signature("s"));
+
+    let referenced = TextBlock::new(bid(2), "x")
+        .unwrap()
+        .with_item_ref(br_llm_messages::ItemRef::new("msg_1").unwrap());
+
+    for block in [replayed, referenced] {
+        let error = refused(PlainBlock::try_from(block.clone()));
+        assert_eq!(error.code(), ErrorCode::DisallowedKind);
+        assert_eq!(error.object_id(), Some(block.id().as_uuid()));
+        assert_eq!(
+            refused(PlainBlock::try_from(ContentBlock::from(block))).code(),
+            ErrorCode::DisallowedKind
+        );
+    }
+}
+
+#[test]
+fn given_a_provider_result_with_a_repeated_nested_id_when_built_then_reused_identity() {
+    let error = refused(ProviderToolResult::new(
+        bid(5),
+        bid(6),
+        vec![plain_text(1, "a"), plain_text(1, "b")],
+    ));
+
+    assert_eq!(error.code(), ErrorCode::ReusedIdentity);
+    assert_eq!(error.location(), Some("content[1]"));
+}
+
+#[test]
+fn given_a_provider_call_with_everything_exposed_when_built_then_every_field_is_retained() {
+    let call = ProviderToolCall::new(bid(1))
+        .with_external_id(ExternalId::new("srvtoolu_1").unwrap())
+        .with_operation(ProviderOperation::new("web_search").unwrap())
+        .with_arguments(common::oj(json!({"k": 1})))
+        .unwrap()
+        .with_replay(signature("s"));
+
+    assert_eq!(call.external_id().map(|e| e.as_str()), Some("srvtoolu_1"));
+    assert_eq!(call.operation().map(|o| o.as_str()), Some("web_search"));
+    assert_eq!(call.arguments(), Some(&common::oj(json!({"k": 1}))));
+    assert_eq!(call.replay(), Some(&signature("s")));
+}
+
+#[test]
+fn given_a_provider_call_exposing_nothing_when_built_then_absence_is_kept() {
+    let call = ProviderToolCall::new(bid(1));
+
+    assert_eq!(call.external_id(), None);
+    assert_eq!(call.operation(), None);
+    assert_eq!(call.arguments(), None);
+    assert_eq!(call.replay(), None);
+}
+
+#[test]
+fn given_a_provider_result_when_built_then_it_links_to_the_call_by_identity() {
+    let result = ProviderToolResult::new(bid(2), bid(1), vec![plain_text(3, "found")])
+        .unwrap()
+        .with_external_id(ExternalId::new("res_1").unwrap());
+
+    assert_eq!(result.call(), bid(1));
+    assert_eq!(result.content().len(), 1);
+    assert_eq!(result.external_id().map(|e| e.as_str()), Some("res_1"));
+}
+
+#[test]
+fn given_no_content_and_no_replay_when_a_provider_result_is_built_then_invalid_content() {
+    let error = refused(ProviderToolResult::new(bid(2), bid(1), vec![]));
+
+    assert_eq!(error.code(), ErrorCode::InvalidContent);
+    assert_eq!(error.object_id(), Some(v7(2)));
+}
+
+#[test]
+fn given_replay_only_when_a_provider_result_is_built_then_accepted_without_invented_content() {
+    let opaque = ProviderToolResult::replay_only(bid(2), bid(1), envelope(json!({}))).unwrap();
+
+    assert!(opaque.content().is_empty());
+    assert!(opaque.replay().is_some());
+}
+
+#[test]
+fn given_a_provider_result_nested_id_clash_when_built_then_reused_identity() {
+    let error = refused(ProviderToolResult::new(
+        bid(2),
+        bid(1),
+        vec![plain_text(2, "x")],
+    ));
+
+    assert_eq!(error.code(), ErrorCode::ReusedIdentity);
+}
+
+#[test]
+fn given_every_combination_of_content_and_replay_when_a_record_is_built_then_each_is_valid_and_exposure_is_derived()
+ {
+    let bare = ProviderToolExecutionRecord::new(bid(1));
+    let readable = ProviderToolExecutionRecord::new(bid(2))
+        .with_content(vec![plain_text(3, "a")])
+        .unwrap();
+    let opaque = ProviderToolExecutionRecord::new(bid(4)).with_replay(signature("s"));
+    let mixed = ProviderToolExecutionRecord::new(bid(5))
+        .with_content(vec![plain_text(6, "b")])
+        .unwrap()
+        .with_replay(signature("m"));
+
+    assert_eq!(bare.exposure(), ResultExposure::NotExposed);
+    assert_eq!(readable.exposure(), ResultExposure::Readable);
+    assert_eq!(opaque.exposure(), ResultExposure::Opaque);
+    assert_eq!(mixed.exposure(), ResultExposure::Mixed);
+    assert_eq!((readable.content().len(), readable.replay()), (1, None));
+    assert_eq!(
+        (opaque.content().len(), opaque.replay()),
+        (0, Some(&signature("s")))
+    );
+    assert_eq!(
+        (mixed.content().len(), mixed.replay()),
+        (1, Some(&signature("m")))
+    );
+    assert_eq!((bare.content().len(), bare.replay()), (0, None));
+}
+
+#[test]
+fn given_a_record_when_content_is_replaced_then_exposure_follows_the_content_not_a_stored_flag() {
+    let record = ProviderToolExecutionRecord::new(bid(1)).with_replay(signature("s"));
+
+    let with_content = record
+        .clone()
+        .with_content(vec![plain_text(2, "x")])
+        .unwrap();
+    let emptied = with_content.clone().with_content(vec![]).unwrap();
+
+    assert_eq!(record.exposure(), ResultExposure::Opaque);
+    assert_eq!(with_content.exposure(), ResultExposure::Mixed);
+    assert_eq!(emptied.exposure(), ResultExposure::Opaque);
+}
+
+#[test]
+fn given_a_record_without_status_when_built_then_status_stays_absent_and_never_defaults() {
+    let bare = ProviderToolExecutionRecord::new(bid(1));
+    let running = ProviderToolExecutionRecord::new(bid(2))
+        .with_operation(ProviderOperation::new("code_execution").unwrap())
+        .with_status(ExecutionStatus::Running);
+
+    assert_eq!(bare.status(), None);
+    assert_eq!(running.status(), Some(ExecutionStatus::Running));
+    assert_eq!(
+        running.operation().map(|o| o.as_str()),
+        Some("code_execution")
+    );
+    assert_eq!(bare.exposure(), ResultExposure::NotExposed);
+}
+
+#[test]
+fn given_record_content_reusing_the_record_id_when_built_then_reused_identity() {
+    let error =
+        refused(ProviderToolExecutionRecord::new(bid(1)).with_content(vec![plain_text(1, "x")]));
+
+    assert_eq!(error.code(), ErrorCode::ReusedIdentity);
+    assert_eq!(error.location(), Some("content[0]"));
+}
