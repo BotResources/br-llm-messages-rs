@@ -219,3 +219,52 @@ fn given_a_response_row_without_ending_in_the_targets_own_turn_when_projected_th
 
     assert_eq!(error.code(), ErrorCode::InvalidContent);
 }
+
+fn with_interrupted_block(
+    rows: &RecordSet,
+    target: br_llm_messages::BlockId,
+) -> (RecordSet, usize) {
+    let index = rows
+        .blocks()
+        .iter()
+        .position(|row| row.id() == target)
+        .expect("the block row exists");
+    let blocks = rows
+        .blocks()
+        .iter()
+        .map(|row| {
+            if row.id() == target {
+                BlockRecord::new(
+                    row.id(),
+                    row.entry(),
+                    row.kind(),
+                    RepresentationState::Interrupted,
+                    row.payload().clone(),
+                )
+            } else {
+                row.clone()
+            }
+        })
+        .collect();
+    (rows.clone().with_blocks(blocks), index)
+}
+
+#[test]
+fn given_an_interrupted_block_row_under_a_complete_or_producing_foreign_response_when_projected_then_disallowed_kind()
+ {
+    let turns = history();
+    let complete = rows_with(&[], &turns, 1);
+    let producing_rows = rows_with(&[producing(30, 32, 33, "partial")], &turns, 1);
+
+    for (rows, block) in [(complete, bid(12)), (producing_rows, bid(34))] {
+        let (rows, index) = with_interrupted_block(&rows, block);
+
+        let error = refused(rows.into_projected_thread(cvid(900), aid(1)));
+
+        assert_eq!(error.code(), ErrorCode::DisallowedKind);
+        assert_eq!(
+            error.location(),
+            Some(format!("blocks[{index}].state").as_str())
+        );
+    }
+}
