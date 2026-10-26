@@ -7,7 +7,7 @@ use super::check_content;
 use crate::block::PlainBlock;
 use crate::error::{Error, ErrorCode};
 use crate::id::{AgentId, EntryId};
-use crate::value::Author;
+use crate::value::{Author, ObservedAt};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -18,6 +18,8 @@ struct OutputWire {
     agent: AgentId,
     author: Author,
     content: Vec<PlainBlock>,
+    #[serde(default, deserialize_with = "crate::json::optional")]
+    observed_at: Option<ObservedAt>,
 }
 
 fn checked_content(id: EntryId, content: &[PlainBlock]) -> Result<(), Error> {
@@ -77,6 +79,11 @@ macro_rules! projected_output {
 
             pub(crate) fn from_projected_value(value: Value) -> Result<Self, Error> {
                 let wire: OutputWire = crate::json::decode_value(value)?;
+                if wire.observed_at.is_some() {
+                    return Err(Error::new(ErrorCode::DisallowedKind)
+                        .with_id(wire.id.as_uuid())
+                        .at("observed_at"));
+                }
                 $name::from_content(wire.id, wire.agent, wire.author, wire.content)
             }
         }

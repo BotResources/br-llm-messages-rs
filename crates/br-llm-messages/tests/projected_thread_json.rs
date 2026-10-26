@@ -101,7 +101,7 @@ fn given_unknown_fields_or_discriminants_or_duplicate_keys_when_loaded_then_refu
     );
     assert_eq!(
         refused(load(output_extra)).code(),
-        ErrorCode::InvalidContent
+        ErrorCode::DisallowedKind
     );
     let duplicate = r#"{"schema":"br-llm-messages-projected-thread/1","schema":"x"}"#;
     assert_eq!(

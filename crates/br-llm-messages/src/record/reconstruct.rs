@@ -35,16 +35,18 @@ fn citation_ids(row: &BlockRecord) -> Vec<Uuid> {
         .unwrap_or_default()
 }
 
-pub(super) fn ensure_unique(set: &RecordSet) -> Result<(), Error> {
-    let mut seen: HashSet<Uuid> = HashSet::new();
-    let ids = set
-        .turns()
+pub(super) fn ids_of(set: &RecordSet) -> impl Iterator<Item = Uuid> {
+    set.turns()
         .iter()
         .map(|row| row.id().as_uuid())
         .chain(set.entries().iter().map(|row| row.id().as_uuid()))
         .chain(set.blocks().iter().map(|row| row.id().as_uuid()))
-        .chain(set.blocks().iter().flat_map(citation_ids));
-    for id in ids {
+        .chain(set.blocks().iter().flat_map(citation_ids))
+}
+
+pub(super) fn ensure_unique(set: &RecordSet) -> Result<(), Error> {
+    let mut seen: HashSet<Uuid> = HashSet::new();
+    for id in ids_of(set) {
         if !seen.insert(id) {
             return Err(Error::new(ErrorCode::ReusedIdentity).with_id(id));
         }

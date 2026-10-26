@@ -14,7 +14,7 @@ use super::turn::TurnRecord;
 use crate::conversation::Conversation;
 use crate::error::{Error, ErrorCode};
 use crate::id::{AgentId, ConversationId};
-use crate::projection::ProjectedThread;
+use crate::projection::{PendingResponse, ProjectedThread};
 use crate::turn::Turn;
 
 pub const RECORD_SCHEMA: &str = "br-llm-messages-records/1";
@@ -122,7 +122,16 @@ impl RecordSet {
         conversation: ConversationId,
         agent: AgentId,
     ) -> Result<ProjectedThread, Error> {
-        rebuild_thread(&self, conversation, agent)
+        rebuild_thread(&self, conversation, agent, &[])
+    }
+
+    pub fn into_projected_thread_pending(
+        self,
+        conversation: ConversationId,
+        agent: AgentId,
+        pending: &[PendingResponse<'_>],
+    ) -> Result<ProjectedThread, Error> {
+        rebuild_thread(&self, conversation, agent, pending)
     }
 
     pub fn to_json(&self) -> Result<String, Error> {

@@ -32,7 +32,7 @@ pub use id::{
     AgentId, BlockId, CitationId, ConversationId, EntryId, HumanId, RequestId, TaskId, TurnId,
 };
 pub use opaque_json::OpaqueJson;
-pub use projection::{PROJECTED_THREAD_SCHEMA, Perspective, ProjectedThread};
+pub use projection::{PROJECTED_THREAD_SCHEMA, PendingResponse, Perspective, ProjectedThread};
 pub use record::{
     ActorRef, BlockRecord, EntryRecord, RECORD_SCHEMA, RecordSet, RepresentationState, TurnRecord,
 };

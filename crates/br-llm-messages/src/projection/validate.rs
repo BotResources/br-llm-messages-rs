@@ -4,7 +4,7 @@ use super::ProjectedThread;
 use crate::entry::IncomingEntry;
 use crate::error::{Error, ErrorCode};
 use crate::id::{AgentId, ConversationId};
-use crate::turn::Turn;
+use crate::turn::{Class, Turn};
 
 impl ProjectedThread {
     pub(crate) fn assemble(
@@ -16,9 +16,13 @@ impl ProjectedThread {
         for (position, turn) in turns.iter().enumerate() {
             let located = |error: Error| error.at(format!("turns[{position}]"));
             check_turn(agent, turn).map_err(located)?;
-            for (id, _) in turn.declared() {
+            for (id, place) in turn.declared() {
                 if !seen.insert(id) {
-                    return Err(located(Error::new(ErrorCode::ReusedIdentity).with_id(id)));
+                    let clash = Error::new(ErrorCode::ReusedIdentity).with_id(id);
+                    return Err(located(match place.class {
+                        Class::Turn => clash,
+                        _ => clash.at(format!("entries[{}]", place.entry)),
+                    }));
                 }
             }
         }

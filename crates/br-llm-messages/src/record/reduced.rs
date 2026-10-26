@@ -1,92 +1,27 @@
 use std::collections::{HashMap, HashSet};
 
+use uuid::Uuid;
+
 use super::block::BlockRecord;
 use super::entry::EntryRecord;
 use super::kinds::RepresentationState;
 use super::partial::{TextPartial, decode as decode_partial};
-use super::reconstruct::{build_entry, build_turn, ensure_parents, ensure_unique, entries_by_turn};
+use super::reconstruct::{
+    build_entry, build_turn, ensure_parents, ensure_unique, entries_by_turn, ids_of,
+};
+use super::reduced_check::{Owners, check_rows, check_states, other_turns, without_interrupted};
 use super::set::RecordSet;
 use super::tree::BlockTree;
 use super::turn::TurnRecord;
 use crate::block::{ContentBlock, ContentBlockKind, PlainBlock};
 use crate::entry::{AgentOutput, IncomingEntry, PartialAgentOutput, TurnEntryKind};
 use crate::error::{Error, ErrorCode};
-use crate::id::{AgentId, ConversationId, EntryId, TurnId};
-use crate::projection::{ProjectedThread, accumulated_text, translated_turn, usable_block};
+use crate::id::{AgentId, ConversationId, TurnId};
+use crate::projection::{
+    Owner, PendingResponse, ProjectedThread, accumulated_text, pending_entries, translated_turn,
+    usable_block,
+};
 use crate::turn::{Turn, TurnKind};
-
-type Owners = HashMap<EntryId, (TurnId, RepresentationState)>;
-
-fn other_turns(set: &RecordSet, agent: AgentId) -> HashSet<TurnId> {
-    set.turns()
-        .iter()
-        .filter(|row| {
-            row.kind() == TurnKind::AITurn && row.agent().is_some_and(|owner| owner != agent)
-        })
-        .map(TurnRecord::id)
-        .collect()
-}
-
-fn check_rows(set: &RecordSet, others: &HashSet<TurnId>) -> Result<(), Error> {
-    for (index, row) in set.turns().iter().enumerate() {
-        row.check_local()
-            .map_err(|error| error.at(format!("turns[{index}]")))?;
-    }
-    for (index, row) in set.entries().iter().enumerate() {
-        let checked = if others.contains(&row.turn()) {
-            row.check_reduced()
-        } else {
-            row.check_local()
-        };
-        checked.map_err(|error| error.at(format!("entries[{index}]")))?;
-    }
-    for (index, row) in set.blocks().iter().enumerate() {
-        row.check_local()
-            .map_err(|error| error.at(format!("blocks[{index}]")))?;
-    }
-    Ok(())
-}
-
-fn refused(id: uuid::Uuid, location: String) -> Error {
-    Error::new(ErrorCode::DisallowedKind)
-        .with_id(id)
-        .at(location)
-}
-
-fn check_states(set: &RecordSet, others: &HashSet<TurnId>, owners: &Owners) -> Result<(), Error> {
-    for (index, row) in set.entries().iter().enumerate() {
-        let foreign_response =
-            others.contains(&row.turn()) && row.kind() == TurnEntryKind::ModelResponse;
-        if !foreign_response && row.state() != RepresentationState::Complete {
-            return Err(refused(
-                row.id().as_uuid(),
-                format!("entries[{index}].state"),
-            ));
-        }
-    }
-    for (index, row) in set.blocks().iter().enumerate() {
-        let reduced = owners
-            .get(&row.entry())
-            .filter(|(turn, _)| others.contains(turn));
-        let allowed = match reduced {
-            Some((_, state)) => {
-                row.state() == RepresentationState::Complete || row.state() == *state
-            }
-            None => row.state() == RepresentationState::Complete,
-        };
-        if !allowed {
-            return Err(refused(
-                row.id().as_uuid(),
-                format!("blocks[{index}].state"),
-            ));
-        }
-        let usable_root = row.kind().is_plain() && row.parent().is_none();
-        if reduced.is_some() && !usable_root {
-            return Err(refused(row.id().as_uuid(), format!("blocks[{index}]")));
-        }
-    }
-    Ok(())
-}
 
 fn block_of(row: &BlockRecord, tree: &BlockTree<'_>) -> Result<Option<PlainBlock>, Error> {
     let located = |error: Error| error.with_id(row.id().as_uuid());
@@ -132,6 +67,7 @@ fn translate(
     row: &TurnRecord,
     entries: &[&EntryRecord],
     tree: &BlockTree<'_>,
+    pending: Vec<IncomingEntry>,
 ) -> Result<Option<Turn>, Error> {
     let (Some(agent), Some(author)) = (row.agent(), row.author()) else {
         return Err(Error::new(ErrorCode::InvalidContent).with_id(row.id().as_uuid()));
@@ -142,7 +78,8 @@ fn translate(
             .map_err(|error| error.at(format!("entries[{index}]")))?;
         kept.extend(built);
     }
-    Ok(translated_turn(row.id(), kept))
+    kept.extend(pending);
+    translated_turn(row.id(), kept)
 }
 
 fn translate_row(
@@ -157,41 +94,22 @@ fn translate_row(
     IncomingEntry::try_from(build_entry(entry, tree)?).map(Some)
 }
 
-fn without_interrupted(set: &RecordSet) -> RecordSet {
-    let dropped: HashSet<EntryId> = set
-        .entries()
+fn owners_of(set: &RecordSet) -> HashMap<TurnId, Owner> {
+    set.turns()
         .iter()
-        .filter(|row| row.state() == RepresentationState::Interrupted)
-        .map(EntryRecord::id)
-        .collect();
-    RecordSet::new()
-        .with_turns(set.turns().to_vec())
-        .with_entries(
-            set.entries()
-                .iter()
-                .filter(|row| !dropped.contains(&row.id()))
-                .cloned()
-                .collect(),
-        )
-        .with_blocks(
-            set.blocks()
-                .iter()
-                .filter(|row| {
-                    row.state() != RepresentationState::Interrupted
-                        && !dropped.contains(&row.entry())
-                })
-                .cloned()
-                .collect(),
-        )
+        .filter(|row| row.kind() == TurnKind::AITurn)
+        .filter_map(|row| Some((row.id(), (row.agent()?, row.author()?.clone()))))
+        .collect()
 }
 
 pub(super) fn rebuild_thread(
     set: &RecordSet,
     conversation: ConversationId,
     agent: AgentId,
+    pending: &[PendingResponse<'_>],
 ) -> Result<ProjectedThread, Error> {
-    let set = &without_interrupted(set);
     let others = other_turns(set, agent);
+    let set = &without_interrupted(set, &others);
     check_rows(set, &others)?;
     ensure_unique(set)?;
     ensure_parents(set)?;
@@ -201,13 +119,27 @@ pub(super) fn rebuild_thread(
         .map(|row| (row.id(), (row.turn(), row.state())))
         .collect();
     check_states(set, &others, &owners)?;
+    let mut taken: HashSet<Uuid> = ids_of(set).collect();
+    taken.insert(conversation.as_uuid());
+    let turn_owners = owners_of(set);
+    let mut pending = pending_entries(
+        agent,
+        pending,
+        |turn| turn_owners.get(&turn).cloned(),
+        &taken,
+    )?;
     let tree = BlockTree::build(set.blocks())?;
     let mut by_turn = entries_by_turn(set);
     let mut turns = Vec::with_capacity(set.turns().len());
     for (index, row) in set.turns().iter().enumerate() {
         let entries = by_turn.remove(&row.id()).unwrap_or_default();
         let built = if others.contains(&row.id()) {
-            translate(row, &entries, &tree)
+            translate(
+                row,
+                &entries,
+                &tree,
+                pending.remove(&row.id()).unwrap_or_default(),
+            )
         } else {
             build_turn(row, entries, &tree).map(Some)
         };

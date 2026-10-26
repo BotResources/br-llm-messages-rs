@@ -6,6 +6,7 @@ mod partial;
 mod payload;
 mod reconstruct;
 mod reduced;
+mod reduced_check;
 mod schema;
 mod set;
 mod tree;

@@ -109,17 +109,31 @@ impl EntryRecord {
     }
 
     pub fn check_local(&self) -> Result<(), Error> {
-        self.check_inner().map_err(|error| match error.object_id() {
-            Some(_) => error,
-            None => error.with_id(self.id.as_uuid()),
-        })
+        self.check_with(false)
     }
 
-    fn check_inner(&self) -> Result<(), Error> {
+    fn check_with(&self, loading: bool) -> Result<(), Error> {
+        self.check_inner(loading)
+            .map_err(|error| match error.object_id() {
+                Some(_) => error,
+                None => error.with_id(self.id.as_uuid()),
+            })
+    }
+
+    fn check_inner(&self, loading: bool) -> Result<(), Error> {
         self.check_columns()?;
         let object = as_object(self.payload.inner())?;
         let checked = match (self.kind, self.state) {
-            (_, RepresentationState::Complete) => check_object(object, &entry_fields(self.kind)),
+            (_, RepresentationState::Complete) => {
+                let mut fields = entry_fields(self.kind);
+                if loading && self.kind == TurnEntryKind::ModelResponse {
+                    fields
+                        .iter_mut()
+                        .filter(|field| field.key == "ending")
+                        .for_each(|field| field.required = false);
+                }
+                check_object(object, &fields)
+            }
             (TurnEntryKind::ModelResponse, RepresentationState::Producing) => {
                 check_object(object, &header_fields(false))
             }
@@ -189,7 +203,7 @@ impl TryFrom<EntryRecordWire> for EntryRecord {
             observed_at: wire.observed_at,
             payload: wire.payload,
         };
-        record.check_local()?;
+        record.check_with(true)?;
         Ok(record)
     }
 }

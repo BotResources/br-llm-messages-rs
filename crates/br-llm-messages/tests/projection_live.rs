@@ -100,7 +100,9 @@ fn given_a_draft_of_an_unknown_turn_or_of_the_target_agent_when_projected_then_i
     ));
 
     assert_eq!(unknown.code(), ErrorCode::UnknownReference);
+    assert_eq!(unknown.object_id(), Some(common::eid(90).as_uuid()));
     assert_eq!(own.code(), ErrorCode::DisallowedKind);
+    assert_eq!(own.object_id(), Some(common::eid(32).as_uuid()));
 }
 
 #[test]

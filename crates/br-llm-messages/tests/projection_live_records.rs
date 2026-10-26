@@ -99,15 +99,15 @@ fn given_interrupted_rows_in_any_position_when_projected_from_records_then_they_
 }
 
 #[test]
-fn given_an_interrupted_row_under_the_target_agents_turn_when_projected_from_records_then_it_is_ignored()
+fn given_an_interrupted_row_under_the_target_agents_turn_when_projected_from_records_then_disallowed_kind()
  {
     let turns = history();
     let drafts = [interrupted(30, 32, 33)];
 
     let rows = rows_with(&drafts, &turns, 2);
-    let thread = rows.into_projected_thread(cvid(900), aid(2)).unwrap();
+    let error = refused(rows.into_projected_thread(cvid(900), aid(2)));
 
-    assert_eq!(thread.turns(), &turns[..]);
+    assert_eq!(error.code(), ErrorCode::DisallowedKind);
 }
 
 #[test]
