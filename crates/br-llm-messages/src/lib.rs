@@ -22,16 +22,17 @@ pub use block::{
 };
 pub use conversation::{BlockRef, CONVERSATION_SCHEMA, Conversation, EntryRef};
 pub use entry::{
-    AgentMail, AgentRequest, ClosureReason, HumanMessage, IncomingEntry, ModelResponse,
-    QueuePosition, RequestAccepted, RequestOrigin, ResponseMetadata, RuntimeToolResults,
-    TaskCompleted, TaskFailed, TaskStarted, TurnClosure, TurnEntry, TurnEntryKind,
+    AgentMail, AgentOutput, AgentRequest, ClosureReason, HumanMessage, IncomingEntry,
+    ModelResponse, PartialAgentOutput, QueuePosition, RequestAccepted, RequestOrigin,
+    ResponseMetadata, RuntimeToolResults, TaskCompleted, TaskFailed, TaskStarted, TurnClosure,
+    TurnEntry, TurnEntryKind,
 };
 pub use error::{Error, ErrorCode};
 pub use id::{
     AgentId, BlockId, CitationId, ConversationId, EntryId, HumanId, RequestId, TaskId, TurnId,
 };
 pub use opaque_json::OpaqueJson;
-pub use projection::{OtherItem, OtherTurn, OwnTurn, Perspective, ProjectedTurn, Projection};
+pub use projection::{PROJECTED_THREAD_SCHEMA, Perspective, ProjectedThread};
 pub use record::{
     ActorRef, BlockRecord, EntryRecord, RECORD_SCHEMA, RecordSet, RepresentationState, TurnRecord,
 };

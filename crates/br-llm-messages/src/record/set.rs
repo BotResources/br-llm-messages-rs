@@ -9,10 +9,12 @@ use super::block::BlockRecord;
 use super::decompose::turn_rows;
 use super::entry::EntryRecord;
 use super::reconstruct::rebuild;
+use super::reduced::rebuild_thread;
 use super::turn::TurnRecord;
 use crate::conversation::Conversation;
 use crate::error::{Error, ErrorCode};
-use crate::id::ConversationId;
+use crate::id::{AgentId, ConversationId};
+use crate::projection::ProjectedThread;
 use crate::turn::Turn;
 
 pub const RECORD_SCHEMA: &str = "br-llm-messages-records/1";
@@ -113,6 +115,14 @@ impl RecordSet {
     pub fn into_conversation(self, id: ConversationId) -> Result<Conversation, Error> {
         let turns = rebuild(&self)?;
         Conversation::from_parts(id, turns)
+    }
+
+    pub fn into_projected_thread(
+        self,
+        conversation: ConversationId,
+        agent: AgentId,
+    ) -> Result<ProjectedThread, Error> {
+        rebuild_thread(&self, conversation, agent)
     }
 
     pub fn to_json(&self) -> Result<String, Error> {

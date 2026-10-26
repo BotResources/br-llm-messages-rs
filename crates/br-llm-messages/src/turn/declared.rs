@@ -8,6 +8,7 @@ pub(crate) enum Class {
     Conversation,
     Turn,
     Entry(TurnEntryKind),
+    Output,
     Block(ContentBlockKind),
     Citation,
 }
@@ -45,6 +46,8 @@ pub(crate) fn body_of_incoming(entry: &IncomingEntry) -> Body<'_> {
         IncomingEntry::HumanMessage(entry) => Body::Content(entry.content()),
         IncomingEntry::AgentRequest(entry) => Body::Content(entry.content()),
         IncomingEntry::AgentMail(entry) => Body::Content(entry.content()),
+        IncomingEntry::AgentOutput(entry) => Body::Content(entry.content()),
+        IncomingEntry::PartialAgentOutput(entry) => Body::Content(entry.content()),
         _ => Body::Bare,
     }
 }
@@ -58,16 +61,11 @@ pub(crate) fn turn_place() -> Place {
     }
 }
 
-pub(crate) fn entry_places(
-    kind: TurnEntryKind,
-    id: Uuid,
-    body: Body<'_>,
-    entry: usize,
-) -> Declared {
+pub(crate) fn entry_places(class: Class, id: Uuid, body: Body<'_>, entry: usize) -> Declared {
     let mut out = vec![(
         id,
         Place {
-            class: Class::Entry(kind),
+            class,
             entry,
             root: 0,
             child: None,
@@ -106,7 +104,7 @@ pub(crate) fn entry_places(
 
 pub(crate) fn places_of_turn_entry(entry: &TurnEntry, index: usize) -> Declared {
     entry_places(
-        entry.kind(),
+        Class::Entry(entry.kind()),
         entry.id().as_uuid(),
         body_of_entry(entry),
         index,
@@ -115,7 +113,7 @@ pub(crate) fn places_of_turn_entry(entry: &TurnEntry, index: usize) -> Declared 
 
 pub(crate) fn places_of_incoming(entry: &IncomingEntry, index: usize) -> Declared {
     entry_places(
-        entry.kind(),
+        entry.kind().map_or(Class::Output, Class::Entry),
         entry.id().as_uuid(),
         body_of_incoming(entry),
         index,

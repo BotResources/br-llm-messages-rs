@@ -131,6 +131,16 @@ impl EntryRecord {
         checked.map_err(|error| error.at("payload"))
     }
 
+    pub(super) fn check_reduced(&self) -> Result<(), Error> {
+        if self.kind != TurnEntryKind::ModelResponse {
+            return Err(Error::new(ErrorCode::DisallowedKind)
+                .with_id(self.id.as_uuid())
+                .at("kind"));
+        }
+        self.check_columns()
+            .map_err(|error| error.with_id(self.id.as_uuid()))
+    }
+
     fn check_columns(&self) -> Result<(), Error> {
         let sender_ok = match (self.kind, &self.sender) {
             (TurnEntryKind::HumanMessage, Some(ActorRef::Human { .. })) => true,

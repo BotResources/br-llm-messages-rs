@@ -45,6 +45,11 @@ fn from_data_message(message: &str) -> Error {
     if message.starts_with("duplicate field") {
         return Error::new(ErrorCode::MalformedJson);
     }
+    if message.starts_with("unknown variant `agent_output`")
+        || message.starts_with("unknown variant `partial_agent_output`")
+    {
+        return Error::new(ErrorCode::DisallowedKind);
+    }
     if message.starts_with("unknown variant") {
         return Error::new(ErrorCode::VariantMismatch);
     }

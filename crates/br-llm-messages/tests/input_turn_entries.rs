@@ -257,7 +257,7 @@ fn given_a_non_incoming_row_among_input_turn_rows_when_rebuilt_then_disallowed_k
 
 #[test]
 fn given_a_multi_entry_input_turn_when_projected_then_it_is_left_unchanged_with_no_new_identity() {
-    use br_llm_messages::{Perspective, ProjectedTurn};
+    use br_llm_messages::Perspective;
 
     let turn = mixed_turn();
     let mut conversation = Conversation::new(cvid(900));
@@ -266,5 +266,5 @@ fn given_a_multi_entry_input_turn_when_projected_then_it_is_left_unchanged_with_
     let projection = Perspective::of(aid(1)).project(&conversation);
 
     assert_eq!(projection.len(), 1);
-    assert_eq!(projection.turns()[0], ProjectedTurn::Input(turn));
+    assert_eq!(projection.turns()[0], Turn::from(turn));
 }

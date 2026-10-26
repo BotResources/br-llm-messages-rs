@@ -3,7 +3,7 @@ use serde::de::IgnoredAny;
 use serde_json::Value;
 
 use super::{AITurn, InputTurn, Turn, TurnKind};
-use crate::entry::{IncomingEntry, TurnEntry};
+use crate::entry::{AgentOutput, IncomingEntry, PartialAgentOutput, TurnEntry};
 use crate::error::{Error, ErrorCode};
 use crate::id::{AgentId, TurnId};
 use crate::value::{Author, ObservedAt};
@@ -58,6 +58,29 @@ pub(crate) fn turn_from_value(value: Value) -> Result<Turn, Error> {
 }
 
 pub(crate) fn input_from_value(value: Value) -> Result<InputTurn, Error> {
+    input_from_value_with(value, false)
+}
+
+pub(crate) fn projected_turn_from_value(value: Value) -> Result<Turn, Error> {
+    match kind_of(&value)? {
+        TurnKind::InputTurn => input_from_value_with(value, true).map(Turn::InputTurn),
+        TurnKind::AITurn => ai_from_value(value).map(Turn::AITurn),
+    }
+}
+
+fn entry_from_value(raw: Value, projected: bool) -> Result<IncomingEntry, Error> {
+    match (projected, raw.get("type").and_then(Value::as_str)) {
+        (true, Some("agent_output")) => {
+            AgentOutput::from_projected_value(raw).map(IncomingEntry::AgentOutput)
+        }
+        (true, Some("partial_agent_output")) => {
+            PartialAgentOutput::from_projected_value(raw).map(IncomingEntry::PartialAgentOutput)
+        }
+        _ => crate::json::decode_value::<IncomingEntry>(raw),
+    }
+}
+
+fn input_from_value_with(value: Value, projected: bool) -> Result<InputTurn, Error> {
     expect(&value, TurnKind::InputTurn)?;
     let wire: InputWire = crate::json::decode_value(value)?;
     if wire.author {
@@ -67,11 +90,15 @@ pub(crate) fn input_from_value(value: Value) -> Result<InputTurn, Error> {
     }
     let mut entries = Vec::with_capacity(wire.entries.len());
     for (index, raw) in wire.entries.into_iter().enumerate() {
-        let entry = crate::json::decode_value::<IncomingEntry>(raw)
+        let entry = entry_from_value(raw, projected)
             .map_err(|error| error.at(format!("entries[{index}]")))?;
         entries.push(entry);
     }
-    let turn = InputTurn::new(wire.id, entries)?;
+    let turn = if projected {
+        InputTurn::projected(wire.id, entries)?
+    } else {
+        InputTurn::new(wire.id, entries)?
+    };
     Ok(match wire.observed_at {
         Some(observed_at) => turn.with_observed_at(observed_at),
         None => turn,

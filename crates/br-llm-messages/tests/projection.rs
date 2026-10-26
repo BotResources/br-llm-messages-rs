@@ -1,15 +1,15 @@
 mod common;
+use common::Raw as _;
 
 use br_llm_messages::{
-    AITurn, Conversation, Perspective, ProjectedTurn, ProviderToolCall, ProviderToolResult,
-    ResponseEnding, RuntimeToolCall, StructuredBlock, TextBlock, ThinkingBlock, Turn, TurnEntry,
+    AITurn, Citation, CitationSource, Conversation, IncomingEntry, ItemRef, Perspective,
+    ProviderToolCall, ResponseEnding, RuntimeToolCall, StructuredBlock, TextBlock, TextRange,
+    ThinkingBlock, Turn, TurnEntry,
 };
 use common::conversations::rich;
 use common::turns::{human, incoming_batch, response, tid};
 use common::{aid, author, bid, cid, cvid, eid, plain_text, png, signature, tool};
 use serde_json::json;
-
-const SENTINEL: &str = "SENTINEL_PRIVATE_OUTPUT";
 
 fn turn_of(id: u64, agent: u64, label: &str, entries: Vec<TurnEntry>) -> Turn {
     AITurn::from_parts(tid(id), aid(agent), author(label), entries)
@@ -21,7 +21,7 @@ fn conversation(turns: Vec<Turn>) -> Conversation {
     Conversation::from_parts(cvid(900), turns).unwrap()
 }
 
-fn public_text(entry: u64, block: u64, text: &str) -> TurnEntry {
+fn said(entry: u64, block: u64, text: &str) -> TurnEntry {
     response(
         entry,
         vec![TextBlock::new(bid(block), text).unwrap().into()],
@@ -29,153 +29,141 @@ fn public_text(entry: u64, block: u64, text: &str) -> TurnEntry {
     )
 }
 
-#[test]
-fn given_same_label_for_two_agents_when_projected_then_only_the_target_agent_turn_is_own() {
-    let conversation = conversation(vec![
-        turn_of(1, 1, "Codex", vec![public_text(11, 12, "mine")]),
-        turn_of(2, 2, "Codex", vec![public_text(21, 22, "theirs")]),
-    ]);
-
-    let projection = Perspective::of(aid(1)).project(&conversation);
-
-    assert!(matches!(projection.turns()[0], ProjectedTurn::Own(_)));
-    assert!(matches!(projection.turns()[1], ProjectedTurn::Other(_)));
+fn outputs(turn: &Turn) -> Vec<&br_llm_messages::AgentOutput> {
+    let Turn::InputTurn(input) = turn else {
+        panic!("expected an input turn, got {turn:?}");
+    };
+    input
+        .entries()
+        .iter()
+        .map(|entry| match entry {
+            IncomingEntry::AgentOutput(output) => output,
+            other => panic!("expected an agent output, got {other:?}"),
+        })
+        .collect()
 }
 
 #[test]
-fn given_one_agent_with_two_labels_when_projected_then_both_turns_are_own() {
+fn given_same_label_for_two_agents_when_projected_then_only_the_target_agent_keeps_its_ai_turn() {
     let conversation = conversation(vec![
-        turn_of(1, 1, "Codex GPT-6 high", vec![public_text(11, 12, "a")]),
-        turn_of(2, 1, "Codex GPT-6 low", vec![public_text(21, 22, "b")]),
+        turn_of(1, 1, "Codex", vec![said(11, 12, "mine")]),
+        turn_of(2, 2, "Codex", vec![said(21, 22, "theirs")]),
     ]);
 
-    let projection = Perspective::of(aid(1)).project(&conversation);
+    let thread = Perspective::of(aid(1)).project(&conversation);
 
-    assert!(
-        projection
-            .turns()
-            .iter()
-            .all(|turn| matches!(turn, ProjectedTurn::Own(_)))
-    );
+    assert_eq!(thread.agent(), aid(1));
+    assert_eq!(thread.conversation(), cvid(900));
+    assert!(matches!(thread.turns()[0], Turn::AITurn(_)));
+    assert!(matches!(thread.turns()[1], Turn::InputTurn(_)));
+}
+
+#[test]
+fn given_one_agent_with_two_labels_when_projected_then_both_turns_stay_as_recorded() {
+    let conversation = conversation(vec![
+        turn_of(1, 1, "Codex GPT-6 high", vec![said(11, 12, "a")]),
+        turn_of(2, 1, "Codex GPT-6 low", vec![said(21, 22, "b")]),
+    ]);
+
+    let thread = Perspective::of(aid(1)).project(&conversation);
+
+    assert_eq!(thread.turns(), conversation.turns());
 }
 
 #[test]
 fn given_own_turn_with_private_content_when_projected_then_it_is_kept_whole_in_order() {
     let working = rich();
-    let original: Vec<Turn> = working.turns().to_vec();
 
-    let projection = Perspective::of(aid(1)).project(&working);
+    let thread = Perspective::of(aid(1)).project(&working);
 
-    let own: Vec<&AITurn> = projection
+    let own: Vec<&Turn> = thread
         .turns()
         .iter()
-        .filter_map(|turn| match turn {
-            ProjectedTurn::Own(turn) => Some(turn.turn()),
-            _ => None,
-        })
+        .filter(|t| t.as_ai().is_some())
         .collect();
     assert_eq!(own.len(), 1);
-    assert_eq!(&Turn::from(own[0].clone()), &original[1]);
-    let ids: Vec<_> = own[0].entries().iter().map(TurnEntry::id).collect();
-    let expected: Vec<_> = original[1]
-        .as_ai()
-        .unwrap()
-        .entries()
-        .iter()
-        .map(TurnEntry::id)
-        .collect();
-    assert_eq!(ids, expected);
+    assert_eq!(own[0], &working.turns()[1]);
 }
 
 #[test]
-fn given_other_agent_response_when_projected_then_only_public_content_remains() {
-    let cited = common::conversations::rich();
-    let projection = Perspective::of(aid(2)).project(&cited);
+fn given_input_turns_when_projected_then_they_pass_through_unchanged() {
+    let original = rich();
 
-    let other = projection
+    let thread = Perspective::of(aid(1)).project(&original);
+
+    let inputs: Vec<&Turn> = thread
         .turns()
         .iter()
-        .find_map(|turn| match turn {
-            ProjectedTurn::Other(turn) if turn.id() == tid(10) => Some(turn),
-            _ => None,
-        })
-        .expect("the working turn belongs to the other agent");
-    let responses = other.items();
-
-    assert_eq!(responses[0].entry(), eid(12));
-    assert_eq!(responses[0].texts().len(), 1);
-    assert_eq!(responses[0].texts()[0].id(), bid(14));
-    assert_eq!(responses[1].entry(), eid(28));
+        .filter(|turn| matches!(turn, Turn::InputTurn(i) if i.entries().iter().all(|e| e.kind().is_some())))
+        .collect();
+    let expected: Vec<&Turn> = original
+        .turns()
+        .iter()
+        .filter(|t| t.as_input().is_some())
+        .collect();
+    assert_eq!(inputs, expected);
 }
 
 #[test]
-fn given_text_with_replay_citation_and_item_ref_when_projected_then_only_identity_and_text_remain()
-{
-    let cite = br_llm_messages::Citation::new(
-        cid(70),
-        br_llm_messages::CitationSource::new("doc").unwrap(),
-    )
-    .with_range(br_llm_messages::TextRange::new(0, 3).unwrap());
-    let text = TextBlock::new(bid(71), "see it")
-        .unwrap()
-        .with_citations(vec![cite])
-        .unwrap()
-        .with_item_ref(br_llm_messages::ItemRef::new("msg_1").unwrap())
-        .with_replay(signature("sig"))
-        .with_observed_at(common::at(3));
+fn given_other_agent_response_when_projected_then_one_agent_output_with_the_same_turn_id() {
+    let thread = Perspective::of(aid(2)).project(&rich());
+
+    let translated = thread
+        .turns()
+        .iter()
+        .find(|turn| turn.id() == tid(10))
+        .expect("the working turn belongs to the other agent");
+    let found = outputs(translated);
+
+    assert_eq!(found.len(), 2);
+    assert_eq!(found[0].id(), eid(12));
+    assert_eq!(found[0].agent(), aid(1));
+    assert_eq!(found[0].content().len(), 1);
+    assert_eq!(found[0].content()[0].id(), bid(14));
+    assert_eq!(found[1].id(), eid(28));
+}
+
+#[test]
+fn given_two_responses_of_another_agent_when_projected_then_one_entry_each_with_agent_and_author() {
     let conversation = conversation(vec![turn_of(
         1,
         2,
-        "Claude",
-        vec![response(
-            11,
-            vec![text.into(), png(72).into()],
-            ResponseEnding::finished(),
-        )],
+        "Claude Sonnet",
+        vec![said(11, 12, "first"), human(20), said(13, 14, "second")],
     )]);
 
-    let projection = Perspective::of(aid(1)).project(&conversation);
+    let thread = Perspective::of(aid(1)).project(&conversation);
 
-    let ProjectedTurn::Other(other) = &projection.turns()[0] else {
-        panic!("expected an other-agent turn");
-    };
-    let kept = &other.items()[0].texts();
-    assert_eq!(kept, &[TextBlock::new(bid(71), "see it").unwrap()]);
+    let found = outputs(&thread.turns()[0]);
+    assert_eq!(found.len(), 2);
+    assert_eq!(found[0].id(), eid(11));
+    assert_eq!(found[1].id(), eid(13));
+    for output in found {
+        assert_eq!(output.agent(), aid(2));
+        assert_eq!(output.author(), &author("Claude Sonnet"));
+    }
 }
 
 #[test]
-fn given_private_blocks_only_when_projected_then_the_response_is_omitted() {
-    let private = response(
-        11,
-        vec![
-            ThinkingBlock::new(bid(12), "plan")
-                .unwrap()
-                .with_replay(signature("sig"))
-                .into(),
-            RuntimeToolCall::new(bid(13), tool("lookup"), common::oj(json!({})))
-                .unwrap()
-                .into(),
-            ProviderToolCall::new(bid(14)).into(),
-        ],
-        ResponseEnding::tool_use(),
-    );
-    let conversation = conversation(vec![turn_of(1, 2, "Claude", vec![private])]);
-
-    let projection = Perspective::of(aid(1)).project(&conversation);
-
-    let ProjectedTurn::Other(other) = &projection.turns()[0] else {
-        panic!("expected an other-agent turn");
-    };
-    assert!(other.items().is_empty());
-}
-
-#[test]
-fn given_nested_tool_output_when_projected_then_no_nested_content_leaks() {
-    let hosted = ProviderToolResult::new(bid(22), bid(21), vec![plain_text(23, SENTINEL)]).unwrap();
+fn given_a_response_with_mixed_blocks_when_projected_then_only_bare_text_blocks_remain_in_order() {
+    let cite = Citation::new(cid(70), CitationSource::new("doc").unwrap())
+        .with_range(TextRange::new(0, 3).unwrap());
+    let cited = TextBlock::new(bid(13), "cited")
+        .unwrap()
+        .with_citations(vec![cite])
+        .unwrap()
+        .with_item_ref(ItemRef::new("msg_1").unwrap())
+        .with_replay(signature("sig"))
+        .with_observed_at(common::at(3));
     let blocks = vec![
-        ProviderToolCall::new(bid(21)).into(),
-        hosted.into(),
-        StructuredBlock::new(bid(24), common::oj(json!({"public": true})))
+        TextBlock::new(bid(11), "one").unwrap().into(),
+        ThinkingBlock::new(bid(12), "secret plan").unwrap().into(),
+        cited.into(),
+        png(14).into(),
+        StructuredBlock::new(bid(15), common::oj(json!({"hidden": true})))
+            .unwrap()
+            .into(),
+        RuntimeToolCall::new(bid(16), tool("lookup"), common::oj(json!({})))
             .unwrap()
             .into(),
     ];
@@ -183,85 +171,110 @@ fn given_nested_tool_output_when_projected_then_no_nested_content_leaks() {
         1,
         2,
         "Claude",
-        vec![response(11, blocks, ResponseEnding::finished())],
+        vec![response(10, blocks, ResponseEnding::tool_use())],
     )]);
 
-    let projection = Perspective::of(aid(1)).project(&conversation);
+    let thread = Perspective::of(aid(1)).project(&conversation);
 
-    assert!(!format!("{projection:?}").contains(SENTINEL));
-    let ProjectedTurn::Other(other) = &projection.turns()[0] else {
-        panic!("expected an other-agent turn");
-    };
-    assert!(other.items().is_empty());
+    let content = outputs(&thread.turns()[0])[0].content();
+    let expected: Vec<_> = vec![plain_text(11, "one"), plain_text(13, "cited")];
+    assert_eq!(content, expected.as_slice());
+    let rendered = format!("{thread:?}");
+    assert!(!rendered.contains("secret plan") && !rendered.contains("hidden"));
+    assert!(!rendered.contains("lookup"));
 }
 
 #[test]
-fn given_incoming_entries_of_every_concrete_kind_in_an_own_turn_when_projected_then_kind_and_attribution_survive()
- {
+fn given_responses_without_text_when_projected_then_no_entry_and_no_input_turn_is_made() {
+    let private = response(
+        11,
+        vec![
+            ThinkingBlock::new(bid(12), "plan").unwrap().into(),
+            RuntimeToolCall::new(bid(13), tool("lookup"), common::oj(json!({})))
+                .unwrap()
+                .into(),
+            ProviderToolCall::new(bid(14)).into(),
+        ],
+        ResponseEnding::tool_use(),
+    );
+    let conversation = conversation(vec![
+        turn_of(1, 2, "Claude", vec![private]),
+        turn_of(2, 2, "Claude", vec![said(21, 22, "kept")]),
+    ]);
+
+    let thread = Perspective::of(aid(1)).project(&conversation);
+
+    assert_eq!(thread.len(), 1);
+    assert_eq!(thread.turns()[0].id(), tid(2));
+}
+
+#[test]
+fn given_incoming_entries_in_another_agents_turn_when_projected_then_none_is_contributed() {
     let mut entries = incoming_batch(100);
-    entries.push(public_text(200, 201, "hi"));
+    entries.push(said(200, 201, "answer"));
+    let conversation = conversation(vec![turn_of(1, 2, "Claude", entries)]);
+
+    let thread = Perspective::of(aid(1)).project(&conversation);
+
+    let found = outputs(&thread.turns()[0]);
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].id(), eid(200));
+}
+
+#[test]
+fn given_incoming_entries_of_every_kind_in_an_own_turn_when_projected_then_they_survive() {
+    let mut entries = incoming_batch(100);
+    entries.push(said(200, 201, "hi"));
     let conversation = conversation(vec![turn_of(1, 2, "Claude", entries.clone())]);
 
-    let projection = Perspective::of(aid(2)).project(&conversation);
+    let thread = Perspective::of(aid(2)).project(&conversation);
 
-    let ProjectedTurn::Own(own) = &projection.turns()[0] else {
-        panic!("expected an own turn");
-    };
-    assert_eq!(own.turn().entries(), entries.as_slice());
-    assert_eq!(own.turn().entries().len(), 9);
+    let own = thread.turns()[0].as_ai().expect("own turn");
+    assert_eq!(own.entries(), entries.as_slice());
 }
 
 #[test]
-fn given_input_turns_when_projected_then_they_pass_through_unchanged() {
+fn given_a_projection_when_inspected_then_every_identity_was_already_recorded() {
     let original = rich();
+    let thread = Perspective::of(aid(2)).project(&original);
+    let recorded = original.to_value().unwrap().raw().to_string();
 
-    let projection = Perspective::of(aid(1)).project(&original);
-
-    let inputs: Vec<_> = projection
-        .turns()
-        .iter()
-        .filter_map(|turn| match turn {
-            ProjectedTurn::Input(turn) => Some(Turn::from(turn.clone())),
-            _ => None,
-        })
-        .collect();
-    let expected: Vec<_> = original
-        .turns()
-        .iter()
-        .filter(|turn| turn.as_input().is_some())
-        .cloned()
-        .collect();
-    assert_eq!(inputs, expected);
+    for turn in thread.turns() {
+        assert!(recorded.contains(&turn.id().to_string()));
+        if let Turn::InputTurn(input) = turn {
+            for entry in input.entries() {
+                assert!(recorded.contains(&entry.id().to_string()));
+            }
+        }
+    }
 }
 
 #[test]
-fn given_a_conversation_when_projected_twice_then_it_is_unchanged_ordered_and_equal() {
+fn given_overlapping_turns_of_two_agents_when_projected_then_order_is_selection_order() {
+    let conversation = conversation(vec![
+        turn_of(1, 2, "A", vec![said(21, 22, "earlier in the list")]),
+        turn_of(2, 3, "B", vec![said(11, 12, "later")]),
+        turn_of(3, 2, "A", vec![said(31, 32, "again")]),
+    ]);
+
+    let thread = Perspective::of(aid(1)).project(&conversation);
+
+    let order: Vec<_> = thread.turns().iter().map(Turn::id).collect();
+    assert_eq!(order, [tid(1), tid(2), tid(3)]);
+    assert_eq!(outputs(&thread.turns()[1])[0].agent(), aid(3));
+}
+
+#[test]
+fn given_a_conversation_when_projected_twice_then_it_is_unchanged_and_both_results_are_equal() {
     let original = rich();
     let before = original.clone();
     let perspective = Perspective::of(aid(2));
 
     let first = perspective.project(&original);
-    let second = perspective.project_turns(original.turns());
+    let second = perspective
+        .project_turns(original.id(), original.turns())
+        .unwrap();
 
     assert_eq!(original, before);
     assert_eq!(first, second);
-    let order: Vec<_> = first.turns().iter().map(ProjectedTurn::id).collect();
-    let expected: Vec<_> = original.turns().iter().map(Turn::id).collect();
-    assert_eq!(order, expected);
-}
-
-#[test]
-fn given_a_human_input_and_no_response_when_projected_then_no_response_is_synthesized() {
-    let conversation = conversation(vec![
-        common::turns::input_turn(1, 2).into(),
-        turn_of(3, 1, "Codex", vec![human(31)]),
-    ]);
-
-    let projection = Perspective::of(aid(1)).project(&conversation);
-
-    assert_eq!(projection.len(), 2);
-    let ProjectedTurn::Own(own) = &projection.turns()[1] else {
-        panic!("expected an own turn");
-    };
-    assert_eq!(own.turn().entries().len(), 1);
 }

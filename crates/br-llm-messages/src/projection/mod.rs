@@ -1,75 +1,47 @@
-mod other;
-mod own;
+mod json;
+mod perspective;
+mod validate;
 
-pub use other::{OtherItem, OtherTurn};
-pub use own::OwnTurn;
+pub use json::PROJECTED_THREAD_SCHEMA;
+pub use perspective::Perspective;
 
-use crate::conversation::Conversation;
-use crate::id::{AgentId, TurnId};
-use crate::turn::{InputTurn, Turn};
+use crate::id::{AgentId, ConversationId};
+use crate::turn::Turn;
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
-pub struct Perspective {
+pub struct ProjectedThread {
+    conversation: ConversationId,
     agent: AgentId,
+    turns: Vec<Turn>,
 }
 
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq)]
-pub enum ProjectedTurn {
-    Input(InputTurn),
-    Own(OwnTurn),
-    Other(OtherTurn),
-}
+impl ProjectedThread {
+    pub(crate) fn unchecked(
+        conversation: ConversationId,
+        agent: AgentId,
+        turns: Vec<Turn>,
+    ) -> Self {
+        ProjectedThread {
+            conversation,
+            agent,
+            turns,
+        }
+    }
 
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq)]
-pub struct Projection {
-    turns: Vec<ProjectedTurn>,
-}
-
-impl Perspective {
-    pub fn of(agent: AgentId) -> Self {
-        Perspective { agent }
+    pub fn conversation(&self) -> ConversationId {
+        self.conversation
     }
 
     pub fn agent(&self) -> AgentId {
         self.agent
     }
 
-    pub fn project(&self, conversation: &Conversation) -> Projection {
-        self.project_turns(conversation.turns())
-    }
-
-    pub fn project_turns(&self, turns: &[Turn]) -> Projection {
-        let turns = turns
-            .iter()
-            .map(|turn| match turn {
-                Turn::InputTurn(input) => ProjectedTurn::Input(input.clone()),
-                Turn::AITurn(ai) if ai.agent() == self.agent => ProjectedTurn::Own(OwnTurn::of(ai)),
-                Turn::AITurn(ai) => ProjectedTurn::Other(OtherTurn::of(ai)),
-            })
-            .collect();
-        Projection { turns }
-    }
-}
-
-impl ProjectedTurn {
-    pub fn id(&self) -> TurnId {
-        match self {
-            ProjectedTurn::Input(turn) => turn.id(),
-            ProjectedTurn::Own(turn) => turn.id(),
-            ProjectedTurn::Other(turn) => turn.id(),
-        }
-    }
-}
-
-impl Projection {
-    pub fn turns(&self) -> &[ProjectedTurn] {
+    pub fn turns(&self) -> &[Turn] {
         &self.turns
     }
 
-    pub fn into_turns(self) -> Vec<ProjectedTurn> {
+    pub fn into_turns(self) -> Vec<Turn> {
         self.turns
     }
 

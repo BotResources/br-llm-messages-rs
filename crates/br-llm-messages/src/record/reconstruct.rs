@@ -35,7 +35,7 @@ fn citation_ids(row: &BlockRecord) -> Vec<Uuid> {
         .unwrap_or_default()
 }
 
-fn ensure_unique(set: &RecordSet) -> Result<(), Error> {
+pub(super) fn ensure_unique(set: &RecordSet) -> Result<(), Error> {
     let mut seen: HashSet<Uuid> = HashSet::new();
     let ids = set
         .turns()
@@ -52,7 +52,7 @@ fn ensure_unique(set: &RecordSet) -> Result<(), Error> {
     Ok(())
 }
 
-fn ensure_complete(set: &RecordSet) -> Result<(), Error> {
+pub(super) fn ensure_complete(set: &RecordSet) -> Result<(), Error> {
     let incomplete = |id: Uuid, location: &str| {
         Error::new(ErrorCode::DisallowedKind)
             .with_id(id)
@@ -71,7 +71,7 @@ fn ensure_complete(set: &RecordSet) -> Result<(), Error> {
     Ok(())
 }
 
-fn ensure_parents(set: &RecordSet) -> Result<(), Error> {
+pub(super) fn ensure_parents(set: &RecordSet) -> Result<(), Error> {
     let turns: HashSet<TurnId> = set.turns().iter().map(TurnRecord::id).collect();
     let entries: HashSet<EntryId> = set.entries().iter().map(EntryRecord::id).collect();
     for row in set.entries() {
@@ -100,7 +100,7 @@ fn build_entry(row: &EntryRecord, tree: &BlockTree<'_>) -> Result<TurnEntry, Err
     crate::json::decode_value(value)
 }
 
-fn build_turn(
+pub(super) fn build_turn(
     row: &TurnRecord,
     entries: Vec<&EntryRecord>,
     tree: &BlockTree<'_>,
@@ -143,16 +143,21 @@ fn build_turn(
     }
 }
 
+pub(super) fn entries_by_turn(set: &RecordSet) -> HashMap<TurnId, Vec<&EntryRecord>> {
+    let mut by_turn: HashMap<TurnId, Vec<&EntryRecord>> = HashMap::new();
+    for row in set.entries() {
+        by_turn.entry(row.turn()).or_default().push(row);
+    }
+    by_turn
+}
+
 pub(super) fn rebuild(set: &RecordSet) -> Result<Vec<Turn>, Error> {
     set.check_local()?;
     ensure_unique(set)?;
     ensure_parents(set)?;
     ensure_complete(set)?;
     let tree = BlockTree::build(set.blocks())?;
-    let mut by_turn: HashMap<TurnId, Vec<&EntryRecord>> = HashMap::new();
-    for row in set.entries() {
-        by_turn.entry(row.turn()).or_default().push(row);
-    }
+    let mut by_turn = entries_by_turn(set);
     let mut rebuilt = Vec::with_capacity(set.turns().len());
     for (index, row) in set.turns().iter().enumerate() {
         let entries = by_turn.remove(&row.id()).unwrap_or_default();

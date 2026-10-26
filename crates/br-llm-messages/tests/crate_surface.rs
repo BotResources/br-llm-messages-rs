@@ -5,10 +5,11 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use br_llm_messages::{
-    ActorRef, BlockRecord, BlockStart, CONVERSATION_SCHEMA, ContentBlockKind, DELTA_SCHEMA,
-    DRAFT_SCHEMA, DeltaStream, DraftSnapshot, EntryRecord, Error, ErrorCode, OtherItem, OtherTurn,
-    OwnTurn, Perspective, ProjectedTurn, Projection, RECORD_SCHEMA, RecordSet, RepresentationState,
-    ResponseDelta, ResponseDeltaKind, ResponseDraft, TurnEntryKind, TurnKind, TurnRecord,
+    ActorRef, AgentOutput, BlockRecord, BlockStart, CONVERSATION_SCHEMA, ContentBlockKind,
+    DELTA_SCHEMA, DRAFT_SCHEMA, DeltaStream, DraftSnapshot, EntryRecord, Error, ErrorCode,
+    PartialAgentOutput, Perspective, ProjectedThread, RECORD_SCHEMA, RecordSet,
+    RepresentationState, ResponseDelta, ResponseDeltaKind, ResponseDraft, TurnEntryKind, TurnKind,
+    TurnRecord,
 };
 
 const MAX_LINES: usize = 300;
@@ -45,13 +46,9 @@ const GROWTH_FAMILIES: &[&str] = &[
     "ResponseMetadata",
     "MediaType",
     "Turn",
-    "ProjectedTurn",
-    "OtherItem",
-    "OtherTurn",
-    "OwnTurn",
     "InterruptionKind",
     "DeltaStream",
-    "Projection",
+    "ProjectedThread",
     "Perspective",
 ];
 
@@ -113,11 +110,9 @@ fn given_the_value_types_when_checked_statically_then_snapshots_records_and_proj
     assert_all::<BlockRecord>();
     assert_all::<ActorRef>();
     assert_all::<RepresentationState>();
-    assert_all::<Projection>();
-    assert_all::<ProjectedTurn>();
-    assert_all::<OtherTurn>();
-    assert_all::<OtherItem>();
-    assert_all::<OwnTurn>();
+    assert_all::<ProjectedThread>();
+    assert_all::<AgentOutput>();
+    assert_all::<PartialAgentOutput>();
     assert_all::<DeltaStream>();
     assert_all::<Perspective>();
     assert_all::<ResponseDraft>();

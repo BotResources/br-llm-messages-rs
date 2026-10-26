@@ -9,27 +9,32 @@ form to decide whether a version ships.
 
 ## 2.0.0 - 2026-10-26
 
-Breaking: an input turn holds one or more incoming entries, in order, instead of exactly one.
-The stored conversation schema moves to `br-llm-messages/5`; documents of `br-llm-messages/4` (and earlier) do not load. The records, delta and draft schemas are unchanged.
-An input turn is complete when built and never changes afterwards; a caller that drains the contributions received while an agent was idle builds one input turn from all of them. The entries may be of mixed kinds and each keeps its own attribution. Perspective projection leaves input turns as they are recorded: all entries, no grouping, no new identity.
+Breaking: an input turn holds one or more incoming entries, in order, instead of exactly one; perspective projection returns a `ProjectedThread` of the same two turn kinds as a stored history.
+The stored conversation schema moves to `br-llm-messages/5`; documents of `br-llm-messages/4` (and earlier) do not load (`schema_mismatch`). The records, delta and draft schemas are unchanged. A new document, the projected thread, has the schema `br-llm-messages-projected-thread/1`.
 
-### Changed
+### Input turns
 
-- **Breaking:** `InputTurn::new(id, entries: Vec<IncomingEntry>)` replaces `InputTurn::new(id, entry)`; an empty list is refused with `invalid_record_structure` (location `entries`).
-- **Breaking:** `InputTurn::entries() -> &[IncomingEntry]` replaces `InputTurn::entry()`.
-- **Breaking:** the JSON field `entry` of an `input_turn` becomes `entries`, an array of incoming entries; a 1.x turn carrying `entry` is refused (`invalid_content`, unknown field), a 1.x conversation document is refused by its schema (`schema_mismatch`).
-- Entry, block and citation ids stay unique across the whole conversation, now also between the entries of one input turn; a clash is `reused_identity` located at `entries[i]`.
-- Record rebuild accepts several entry rows under one input turn, in row order, and refuses an input turn row with no entry row with `invalid_record_structure` (it was `invalid_content`); a record set that gave several entries to an input turn was refused in 1.x and now loads.
+- **Breaking:** `InputTurn::new(id, entries: Vec<IncomingEntry>)` replaces `InputTurn::new(id, entry)`; an empty list is refused with `invalid_record_structure` (location `entries`), at build, on JSON reload and when rebuilt from records. `InputTurn::single(id, entry)` is the one-entry convenience.
+- **Breaking:** `InputTurn::entries() -> &[IncomingEntry]` replaces `InputTurn::entry()`; the JSON field `entry` becomes `entries` (array). A 1.x turn carrying `entry` is refused (`invalid_content`).
+- Entry, block and citation ids stay unique across the whole conversation, now also between the entries of one input turn and between the turn id and its entries; a clash is `reused_identity` located at `entries[i]`.
+- Record rebuild accepts several entry rows under one input turn, in row order, and refuses an input turn row with no entry row (`invalid_record_structure`, it was `invalid_content`).
 - `Conversation::entry` and `Conversation::block` resolve every entry of a multi-entry input turn.
+- **Breaking:** `IncomingEntry::kind()` returns `Option<TurnEntryKind>` (`None` for the projected-only entries) and `TurnEntry: From<IncomingEntry>` becomes `TryFrom<IncomingEntry>`.
 
-### Added
+### Projected thread
 
-- `InputTurn::single(id, entry)`, the one-entry convenience.
+- **Breaking:** `Projection`, `ProjectedTurn`, `OwnTurn`, `OtherTurn` and `OtherItem` are replaced by `ProjectedThread`, which records the conversation identity and the target agent and holds `Turn::InputTurn` and `Turn::AITurn` only. The target agent's AI turns and all input turns stay as recorded; every other agent's AI turn becomes an input turn with the same turn identity, holding one `AgentOutput` entry per completed model response that has `Text` (entry identity of the response, agent, `Author`, `Text` blocks with identity and text only), or a `PartialAgentOutput` for a response still being produced. An interrupted response, a response without text and a turn without such response give nothing. No identity is minted.
+- `AgentOutput` and `PartialAgentOutput` (kinds `agent_output`, `partial_agent_output`) are new `IncomingEntry` variants that exist only in a projected thread: a stored history, an AI turn, a record row and `TurnEntryKind` refuse them (`disallowed_kind`); they have no public constructor.
+- A projected thread refuses an AI turn of another agent (`disallowed_kind`), an input turn mixing recorded and projected entries, and a `PartialAgentOutput` that is not the last entry or is not alone of its kind in the turn (`invalid_record_structure`), on every path including JSON reload.
+- `Perspective::project(&Conversation)` is infallible; `Perspective::project_turns(conversation, turns)` and `Perspective::project_live(conversation, turns, drafts)` validate identities across the thread and take the response drafts being produced.
+- `RecordSet::into_projected_thread(conversation, agent)` builds a thread from stored rows: full rows for input turns and the target agent's own AI turns, and for any other agent's AI turn only its turn row, its model-response entry rows (any representation state, payload not read) and their `Text` block rows. Any other row under another agent's turn is `disallowed_kind`; blank accumulated text in a producing `Text` row is `invalid_content`.
+- `ProjectedThread` serializes with `to_json`/`to_value`/serde and reloads with `from_json`/`from_value` under the same rules; a conversation and a projected thread cannot be loaded as each other (`schema_mismatch`).
 
 ### Migration from 1.x
 
 - `InputTurn::new(id, entry)` becomes `InputTurn::single(id, entry)`; `turn.entry()` becomes `&turn.entries()[0]` or an iteration over `turn.entries()`.
 - Stored `br-llm-messages/4` conversations are migrated by the consumer: wrap each input turn's `entry` in an `entries` array and set the schema to `br-llm-messages/5`. Record rows need no change.
+- Code reading `Projection` turns reads `ProjectedThread::turns()` as `Turn` values; another agent's text is read from the `AgentOutput` entries of the input turns that carry its turn identity.
 
 ## 1.0.0 - 2026-10-24
 

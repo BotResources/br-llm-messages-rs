@@ -5,6 +5,7 @@ mod kinds;
 mod partial;
 mod payload;
 mod reconstruct;
+mod reduced;
 mod schema;
 mod set;
 mod tree;

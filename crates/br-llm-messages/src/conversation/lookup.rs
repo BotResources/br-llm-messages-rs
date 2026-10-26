@@ -27,7 +27,9 @@ impl EntryRef<'_> {
 
     pub fn kind(&self) -> TurnEntryKind {
         match self {
-            EntryRef::Incoming(entry) => entry.kind(),
+            EntryRef::Incoming(entry) => entry
+                .kind()
+                .expect("a conversation refuses agent output entries"),
             EntryRef::Turn(entry) => entry.kind(),
         }
     }

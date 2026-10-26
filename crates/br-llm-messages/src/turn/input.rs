@@ -11,7 +11,7 @@ use super::declared::{places_of_incoming, turn_place};
 use super::kind::TurnKind;
 use crate::entry::IncomingEntry;
 use crate::error::{Error, ErrorCode};
-use crate::id::TurnId;
+use crate::id::{AgentId, EntryId, TurnId};
 use crate::value::ObservedAt;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -37,6 +37,11 @@ impl Serialize for InputTurn {
 
 impl InputTurn {
     pub fn new(id: TurnId, entries: Vec<IncomingEntry>) -> Result<Self, Error> {
+        refuse_agent_output(&entries)?;
+        InputTurn::projected(id, entries)
+    }
+
+    pub(crate) fn projected(id: TurnId, entries: Vec<IncomingEntry>) -> Result<Self, Error> {
         if entries.is_empty() {
             return Err(Error::new(ErrorCode::InvalidRecordStructure)
                 .with_id(id.as_uuid())
@@ -76,6 +81,17 @@ impl InputTurn {
         &self.entries
     }
 
+    pub(crate) fn outputs(&self) -> impl Iterator<Item = (usize, EntryId, AgentId)> {
+        self.entries
+            .iter()
+            .enumerate()
+            .filter_map(|(index, entry)| {
+                entry
+                    .projected_source()
+                    .map(|(id, agent)| (index, id, agent))
+            })
+    }
+
     pub(crate) fn declared(&self) -> Vec<(Uuid, super::Place)> {
         let mut declared = vec![(self.id.as_uuid(), turn_place())];
         for (index, entry) in self.entries.iter().enumerate() {
@@ -104,4 +120,15 @@ impl InputTurn {
         let value = value.into_inner();
         super::json::input_from_value(value)
     }
+}
+
+pub(crate) fn refuse_agent_output(entries: &[IncomingEntry]) -> Result<(), Error> {
+    for (index, entry) in entries.iter().enumerate() {
+        if entry.projected_source().is_some() {
+            return Err(Error::new(ErrorCode::DisallowedKind)
+                .with_id(entry.id().as_uuid())
+                .at(format!("entries[{index}]")));
+        }
+    }
+    Ok(())
 }

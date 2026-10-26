@@ -122,9 +122,9 @@ fn given_incoming_entries_when_converted_to_turn_entries_and_back_then_they_are_
     for entry in all_entries().into_iter().filter(|e| e.is_incoming()) {
         let incoming = IncomingEntry::try_from(entry.clone()).unwrap();
 
-        assert_eq!(incoming.kind(), entry.kind());
+        assert_eq!(incoming.kind(), Some(entry.kind()));
         assert_eq!(incoming.id(), entry.id());
-        assert_eq!(TurnEntry::from(incoming), entry);
+        assert_eq!(TurnEntry::try_from(incoming).unwrap(), entry);
     }
 }
 

@@ -14,6 +14,7 @@ pub use kind::TurnKind;
 pub use state::TurnState;
 
 pub(crate) use declared::{Body, Class, Declared, Place, body_of_entry, body_of_incoming};
+pub(crate) use json::projected_turn_from_value;
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -43,6 +44,13 @@ impl Turn {
         match self {
             Turn::InputTurn(turn) => turn.observed_at(),
             Turn::AITurn(turn) => turn.observed_at(),
+        }
+    }
+
+    pub(crate) fn declared(&self) -> Declared {
+        match self {
+            Turn::InputTurn(input) => input.declared(),
+            Turn::AITurn(ai) => ai.declared(),
         }
     }
 
