@@ -39,7 +39,7 @@ fn given_a_selection_when_projected_then_it_is_called_once_per_foreign_incoming_
     let thread = perspective.project_turns(cvid(900), &turns).unwrap();
 
     assert_eq!(calls.load(Ordering::SeqCst), 2);
-    assert_eq!(thread.len(), 3);
+    assert_eq!(thread.turns().len(), 3);
 }
 
 #[test]
@@ -68,7 +68,7 @@ fn given_observed_times_when_projected_then_translated_turns_and_outputs_carry_n
     )
     .unwrap()
     .with_observed_at(at(5));
-    let stored = InputTurn::single(tid(1), human_message(2))
+    let stored = InputTurn::new(tid(1), vec![human_message(2).into()])
         .unwrap()
         .with_observed_at(at(6));
     let turns: Vec<Turn> = vec![stored.into(), timed.into()];

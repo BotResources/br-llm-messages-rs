@@ -129,5 +129,5 @@ fn given_an_interrupted_foreign_row_with_any_payload_when_projected_then_it_is_i
     let thread = rows.into_projected_thread(cvid(900), aid(1)).unwrap();
 
     assert!(ignored);
-    assert!(thread.is_empty());
+    assert!(thread.turns().is_empty());
 }

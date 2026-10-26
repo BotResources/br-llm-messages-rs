@@ -56,7 +56,7 @@ fn given_a_foreign_output_identity_reused_by_another_agents_interrupted_row_when
 fn given_an_input_notification_identity_reused_by_an_interrupted_foreign_row_when_projected_then_reused_identity()
  {
     let note = RequestAccepted::new(eid(11), rid(5));
-    let input = InputTurn::single(tid(5), note).unwrap();
+    let input = InputTurn::new(tid(5), vec![note.into()]).unwrap();
     reused_entry(vec![Turn::InputTurn(input), waiting(20, 3)]);
 }
 

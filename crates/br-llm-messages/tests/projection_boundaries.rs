@@ -51,7 +51,7 @@ fn given_a_clash_after_a_foreign_turn_that_gives_nothing_when_projected_then_loc
     let input = HumanMessage::new(eid(31), hid(1), vec![plain_text(77, "hi")]).unwrap();
     let turns = vec![
         waiting(10, 2),
-        InputTurn::single(tid(30), input).unwrap().into(),
+        InputTurn::new(tid(30), vec![input.into()]).unwrap().into(),
         ai(40, 3, vec![said(41, 77, "clash")]),
     ];
 

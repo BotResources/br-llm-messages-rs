@@ -52,12 +52,4 @@ impl ProjectedThread {
     pub fn into_turns(self) -> Vec<Turn> {
         self.turns
     }
-
-    pub fn len(&self) -> usize {
-        self.turns.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.turns.is_empty()
-    }
 }

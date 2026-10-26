@@ -82,7 +82,7 @@ fn given_a_projected_entry_when_put_in_an_input_turn_or_an_ai_turn_then_disallow
     };
     let entry = input.entries()[0].clone();
 
-    let rebuilt = refused(br_llm_messages::InputTurn::single(tid(5), entry.clone()));
+    let rebuilt = refused(br_llm_messages::InputTurn::new(tid(5), vec![entry.clone()]));
     let pushed = refused(TurnEntry::try_from(entry));
 
     assert_eq!(rebuilt.code(), ErrorCode::DisallowedKind);

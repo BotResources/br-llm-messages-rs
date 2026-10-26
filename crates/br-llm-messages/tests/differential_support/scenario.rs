@@ -192,7 +192,7 @@ pub fn scenario(seed: u64, hostile: Hostile) -> Scenario {
             };
             let message = HumanMessage::new(e, hid(1), vec![plain_block(b)]).unwrap();
             turns.push(
-                InputTurn::single(tid(fresh.next()), message)
+                InputTurn::new(tid(fresh.next()), vec![message.into()])
                     .unwrap()
                     .into(),
             );

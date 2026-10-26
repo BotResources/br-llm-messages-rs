@@ -220,7 +220,7 @@ fn given_an_unstarted_or_interrupted_draft_when_projected_then_it_gives_nothing(
 
     let thread = both(&history(), 1, &pending).unwrap();
 
-    assert_eq!(thread.len(), 1);
+    assert_eq!(thread.turns().len(), 1);
 }
 
 #[test]

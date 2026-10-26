@@ -75,10 +75,6 @@ impl InputTurn {
         })
     }
 
-    pub fn single(id: TurnId, entry: impl Into<IncomingEntry>) -> Result<Self, Error> {
-        InputTurn::new(id, vec![entry.into()])
-    }
-
     pub fn with_observed_at(mut self, observed_at: ObservedAt) -> Self {
         self.observed_at = Some(observed_at);
         self

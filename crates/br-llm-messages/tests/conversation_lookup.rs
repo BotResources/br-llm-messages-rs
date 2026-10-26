@@ -199,7 +199,7 @@ fn given_references_equal_to_own_ids_when_pushed_then_they_are_accepted_and_not_
         vec![common::plain_text(71, "again")],
     )
     .unwrap();
-    let turn = br_llm_messages::InputTurn::single(tid(72), request).unwrap();
+    let turn = br_llm_messages::InputTurn::new(tid(72), vec![request.into()]).unwrap();
     let before = conversation.block(&bid(15)).unwrap().id();
 
     conversation.push_turn(turn.into()).unwrap();

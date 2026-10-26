@@ -98,7 +98,7 @@ fn given_a_draft_with_only_an_open_structured_block_when_projected_then_no_entry
 
     let thread = both_paths(&[draft]);
 
-    assert_eq!(thread.len(), 1);
+    assert_eq!(thread.turns().len(), 1);
 }
 
 #[test]

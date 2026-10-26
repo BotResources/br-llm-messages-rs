@@ -46,9 +46,9 @@ fn given_ids_of_every_object_kind_when_reused_for_another_kind_then_reused_ident
         let reuse_as_entry = refused(conversation.push_entry(&tid(10), probe.into()));
         let reuse_as_turn = refused(
             conversation.push_turn(
-                br_llm_messages::InputTurn::single(
+                br_llm_messages::InputTurn::new(
                     TurnId::from_uuid(id).unwrap(),
-                    human_message(800 + attempt as u64),
+                    vec![human_message(800 + attempt as u64).into()],
                 )
                 .unwrap()
                 .into(),
@@ -56,23 +56,26 @@ fn given_ids_of_every_object_kind_when_reused_for_another_kind_then_reused_ident
         );
         let reuse_as_block = refused(
             conversation.push_turn(
-                br_llm_messages::InputTurn::single(
+                br_llm_messages::InputTurn::new(
                     tid(900 + attempt as u64),
-                    HumanMessage::new(
-                        eid(950 + attempt as u64),
-                        HumanId::from_uuid(v7(1)).unwrap(),
-                        vec![
-                            PlainBlock::try_from(
-                                br_llm_messages::TextBlock::new(
-                                    BlockId::from_uuid(id).unwrap(),
-                                    "x",
+                    vec![
+                        HumanMessage::new(
+                            eid(950 + attempt as u64),
+                            HumanId::from_uuid(v7(1)).unwrap(),
+                            vec![
+                                PlainBlock::try_from(
+                                    br_llm_messages::TextBlock::new(
+                                        BlockId::from_uuid(id).unwrap(),
+                                        "x",
+                                    )
+                                    .unwrap(),
                                 )
                                 .unwrap(),
-                            )
-                            .unwrap(),
-                        ],
-                    )
-                    .unwrap(),
+                            ],
+                        )
+                        .unwrap()
+                        .into(),
+                    ],
                 )
                 .unwrap()
                 .into(),
@@ -127,14 +130,14 @@ fn given_human_and_agent_ids_when_repeated_or_equal_to_object_ids_then_accepted(
     };
     conversation
         .push_turn(
-            br_llm_messages::InputTurn::single(tid(10), message(11, 12))
+            br_llm_messages::InputTurn::new(tid(10), vec![message(11, 12).into()])
                 .unwrap()
                 .into(),
         )
         .unwrap();
     conversation
         .push_turn(
-            br_llm_messages::InputTurn::single(tid(20), message(21, 22))
+            br_llm_messages::InputTurn::new(tid(20), vec![message(21, 22).into()])
                 .unwrap()
                 .into(),
         )

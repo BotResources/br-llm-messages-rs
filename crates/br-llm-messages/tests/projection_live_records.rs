@@ -37,7 +37,7 @@ fn given_producing_text_that_is_still_blank_when_projected_then_it_is_skipped_on
         let stored = rows.into_projected_thread(cvid(900), aid(1)).unwrap();
 
         assert_eq!(live, stored, "{fragments:?}");
-        assert_eq!(live.len(), 1, "{fragments:?}");
+        assert_eq!(live.turns().len(), 1, "{fragments:?}");
         assert_eq!(live.turns()[0].id(), tid(10));
     }
 }

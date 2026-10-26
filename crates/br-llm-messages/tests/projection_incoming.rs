@@ -113,7 +113,7 @@ fn given_no_output_and_no_kept_incoming_entry_when_projected_then_there_is_no_in
 
     let thread = perspective.project(&turns_conversation(&turns));
 
-    assert_eq!(thread.len(), 1);
+    assert_eq!(thread.turns().len(), 1);
     assert_eq!(thread.turns()[0].id(), tid(2));
     assert_eq!(kinds(&thread.turns()[0]), ["recorded"]);
 }
@@ -180,7 +180,7 @@ fn given_a_turn_only_with_chosen_incoming_rows_when_door_used_then_an_input_turn
         .into_projected_thread(cvid(900), aid(1))
         .unwrap();
 
-    assert_eq!(actual.len(), 1);
+    assert_eq!(actual.turns().len(), 1);
     assert_eq!(kinds(&actual.turns()[0]), ["recorded"]);
 }
 

@@ -20,7 +20,7 @@ fn given_the_sum_types_when_asked_for_the_time_then_each_variant_answers_with_it
     let entry = TurnEntry::from(message.clone());
     let incoming = IncomingEntry::from(message.clone());
     let turn = Turn::from(
-        InputTurn::single(tid(5), message)
+        InputTurn::new(tid(5), vec![message.into()])
             .unwrap()
             .with_observed_at(at(4)),
     );
@@ -122,7 +122,7 @@ fn given_fraction_digits_when_an_input_turn_round_trips_then_the_text_is_not_nor
     for text in kept {
         let message =
             common::turns::human_message(10).with_observed_at(ObservedAt::new(text).unwrap());
-        let turn = InputTurn::single(tid(1), message).unwrap();
+        let turn = InputTurn::new(tid(1), vec![message.into()]).unwrap();
 
         let reloaded = InputTurn::from_json(&turn.to_json().unwrap()).unwrap();
 

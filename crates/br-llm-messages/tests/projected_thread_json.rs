@@ -3,7 +3,8 @@ mod projected_thread_support;
 use common::Raw as _;
 
 use br_llm_messages::{
-    AITurn, Conversation, ErrorCode, IncomingEntry, ProjectedThread, Turn, TurnEntry,
+    AITurn, Conversation, ErrorCode, IncomingEntry, PROJECTED_THREAD_SCHEMA, ProjectedThread, Turn,
+    TurnEntry,
 };
 use common::turns::tid;
 use common::{aid, cvid, oj, refused};
@@ -35,9 +36,10 @@ fn given_a_thread_with_both_projected_variants_when_round_tripped_then_nothing_i
         .collect();
     assert_eq!(kinds, ["agent_output", "human_message", "agent_output"]);
     assert_eq!(
-        ProjectedThread::schema(),
+        PROJECTED_THREAD_SCHEMA,
         "br-llm-messages-projected-thread/1"
     );
+    assert_eq!(document["schema"], PROJECTED_THREAD_SCHEMA);
 }
 
 #[test]

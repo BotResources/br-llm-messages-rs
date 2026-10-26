@@ -39,10 +39,6 @@ impl<'de> Deserialize<'de> for ProjectedThread {
 }
 
 impl ProjectedThread {
-    pub fn schema() -> &'static str {
-        PROJECTED_THREAD_SCHEMA
-    }
-
     pub fn to_json(&self) -> Result<String, Error> {
         crate::json::encode(self)
     }

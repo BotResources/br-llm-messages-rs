@@ -212,7 +212,7 @@ fn given_responses_without_text_when_projected_then_no_entry_and_no_input_turn_i
 
     let thread = Perspective::of(aid(1)).project(&conversation);
 
-    assert_eq!(thread.len(), 1);
+    assert_eq!(thread.turns().len(), 1);
     assert_eq!(thread.turns()[0].id(), tid(2));
 }
 

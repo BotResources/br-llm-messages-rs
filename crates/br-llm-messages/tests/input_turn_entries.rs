@@ -147,7 +147,7 @@ fn given_an_entry_id_already_used_by_another_turn_when_pushed_then_reused_identi
     let mut conversation = Conversation::new(cvid(900));
     conversation
         .push_turn(
-            InputTurn::single(tid(10), message(2, 3, "a"))
+            InputTurn::new(tid(10), vec![message(2, 3, "a")])
                 .unwrap()
                 .into(),
         )
@@ -193,7 +193,7 @@ fn given_a_conversation_with_a_multi_entry_input_turn_when_decomposed_and_rebuil
     conversation.push_turn(mixed_turn().into()).unwrap();
     conversation
         .push_turn(
-            InputTurn::single(tid(20), message(21, 22, "alone"))
+            InputTurn::new(tid(20), vec![message(21, 22, "alone")])
                 .unwrap()
                 .into(),
         )
@@ -265,6 +265,6 @@ fn given_a_multi_entry_input_turn_when_projected_then_it_is_left_unchanged_with_
 
     let projection = Perspective::of(aid(1)).project(&conversation);
 
-    assert_eq!(projection.len(), 1);
+    assert_eq!(projection.turns().len(), 1);
     assert_eq!(projection.turns()[0], Turn::from(turn));
 }

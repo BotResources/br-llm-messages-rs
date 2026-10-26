@@ -22,7 +22,7 @@ fn given_every_incoming_kind_when_input_turn_built_then_it_holds_exactly_that_en
     assert_eq!(incoming.len(), 8);
 
     for (index, entry) in incoming.into_iter().enumerate() {
-        let turn = InputTurn::single(tid(index as u64 + 900), entry.clone()).unwrap();
+        let turn = InputTurn::new(tid(index as u64 + 900), vec![entry.clone()]).unwrap();
 
         assert_eq!(turn.entries(), std::slice::from_ref(&entry));
         assert_eq!(Turn::from(turn).kind(), TurnKind::InputTurn);
@@ -71,7 +71,7 @@ fn given_an_input_turn_when_serialized_then_it_has_no_author_and_a_list_of_entri
 fn given_an_input_turn_id_equal_to_its_entry_id_when_built_then_reused_identity() {
     let entry = human_message(7);
 
-    let error = refused(InputTurn::single(tid(7), entry));
+    let error = refused(InputTurn::new(tid(7), vec![entry.into()]));
 
     assert_eq!(error.code(), ErrorCode::ReusedIdentity);
     assert_eq!(error.location(), Some("entries[0]"));

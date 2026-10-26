@@ -16,7 +16,7 @@ fn given_complete_producing_and_interrupted_responses_when_projected_then_output
         .project_pending(cvid(900), &history(), &pending_of(&drafts))
         .unwrap();
 
-    assert_eq!(thread.len(), 2);
+    assert_eq!(thread.turns().len(), 2);
     assert_eq!(kinds(&thread.turns()[0]), ["output"]);
     assert_eq!(thread.turns()[1].id(), tid(30));
     assert_eq!(kinds(&thread.turns()[1]), ["partial"]);
@@ -82,7 +82,7 @@ fn given_a_producing_response_without_text_yet_when_projected_then_no_entry_is_m
         .project_pending(cvid(900), &[waiting(30, 2)], &pending_of(&[draft]))
         .unwrap();
 
-    assert!(thread.is_empty());
+    assert!(thread.turns().is_empty());
 }
 
 #[test]
