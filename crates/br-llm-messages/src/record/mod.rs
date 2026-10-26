@@ -1,6 +1,7 @@
 mod block;
 mod decompose;
 mod entry;
+mod kept;
 mod kinds;
 mod partial;
 mod payload;

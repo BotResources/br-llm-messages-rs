@@ -10,7 +10,7 @@ use index::Index;
 use crate::entry::TurnEntry;
 use crate::error::{Error, ErrorCode};
 use crate::id::{ConversationId, TurnId};
-use crate::turn::{Class, Turn};
+use crate::turn::{Class, Turn, refuse_agent_output};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Conversation {
@@ -47,12 +47,8 @@ impl Conversation {
     }
 
     pub fn push_turn(&mut self, turn: Turn) -> Result<(), Error> {
-        if let Turn::InputTurn(input) = &turn
-            && let Some((index, id, _)) = input.outputs().next()
-        {
-            return Err(Error::new(ErrorCode::DisallowedKind)
-                .with_id(id.as_uuid())
-                .at(format!("entries[{index}]")));
+        if let Turn::InputTurn(input) = &turn {
+            refuse_agent_output(input.entries())?;
         }
         let declared = turn.declared();
         if let Some((id, place)) = self.index.clash(&declared) {

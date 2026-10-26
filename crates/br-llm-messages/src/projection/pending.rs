@@ -2,11 +2,12 @@ use std::collections::{HashMap, HashSet};
 
 use uuid::Uuid;
 
-use super::perspective::{accumulated_text, blocks_of, built, usable_block};
+use super::output::{output_entry, output_of};
+use super::perspective::{accumulated_text, usable_block};
 use crate::block::{ContentBlockKind, PlainBlock};
-use crate::entry::{AgentOutput, IncomingEntry, ModelResponse, PartialAgentOutput};
+use crate::entry::{IncomingEntry, ModelResponse};
 use crate::error::{Error, ErrorCode};
-use crate::id::{AgentId, EntryId, TurnId};
+use crate::id::{AgentId, ConversationId, EntryId, TurnId};
 use crate::stream::{DraftPhase, ResponseDraft};
 use crate::value::Author;
 
@@ -52,17 +53,6 @@ impl<'a> From<&'a ResponseDraft> for PendingResponse<'a> {
     }
 }
 
-pub(crate) fn output_of(
-    agent: AgentId,
-    author: &Author,
-    response: &ModelResponse,
-) -> Option<IncomingEntry> {
-    built(blocks_of(response.blocks()), |blocks| {
-        AgentOutput::from_content(response.id(), agent, author.clone(), blocks)
-    })
-    .map(IncomingEntry::AgentOutput)
-}
-
 fn producing_blocks(draft: &ResponseDraft) -> Vec<PlainBlock> {
     draft
         .view()
@@ -79,17 +69,17 @@ fn producing_blocks(draft: &ResponseDraft) -> Vec<PlainBlock> {
 }
 
 fn entry_of(pending: &PendingResponse<'_>, owner: &Owner) -> Option<IncomingEntry> {
-    let (agent, author) = owner;
     match pending {
-        PendingResponse::Response { response, .. } => output_of(*agent, author, response),
+        PendingResponse::Response { response, .. } => output_of(owner, response),
         PendingResponse::Draft(draft) => match draft.phase() {
             DraftPhase::Completed { .. } => draft
                 .response()
-                .and_then(|response| output_of(*agent, author, response)),
-            DraftPhase::Producing { .. } => built(producing_blocks(draft), |blocks| {
-                PartialAgentOutput::from_content(draft.entry(), *agent, author.clone(), blocks)
-            })
-            .map(IncomingEntry::PartialAgentOutput),
+                .and_then(|response| output_of(owner, response)),
+            DraftPhase::Producing { .. } => {
+                output_entry(draft.entry(), owner, false, producing_blocks(draft))
+                    .ok()
+                    .flatten()
+            }
             _ => None,
         },
     }
@@ -97,15 +87,19 @@ fn entry_of(pending: &PendingResponse<'_>, owner: &Owner) -> Option<IncomingEntr
 
 pub(crate) fn pending_entries(
     target: AgentId,
+    conversation: ConversationId,
     pending: &[PendingResponse<'_>],
-    owner_of: impl Fn(TurnId) -> Option<Owner>,
-    taken: &HashSet<Uuid>,
+    owners: impl IntoIterator<Item = (TurnId, Owner)>,
+    declared: impl IntoIterator<Item = Uuid>,
 ) -> Result<HashMap<TurnId, Vec<IncomingEntry>>, Error> {
+    let owners: HashMap<TurnId, Owner> = owners.into_iter().collect();
+    let mut taken: HashSet<Uuid> = HashSet::from([conversation.as_uuid()]);
+    taken.extend(declared);
     let mut entries: HashMap<TurnId, Vec<IncomingEntry>> = HashMap::new();
     let mut seen: HashSet<Uuid> = HashSet::new();
     for item in pending {
         let refused = |code| Error::new(code).with_id(item.entry().as_uuid());
-        let Some(owner) = owner_of(item.turn()) else {
+        let Some(owner) = owners.get(&item.turn()) else {
             return Err(refused(ErrorCode::UnknownReference));
         };
         if owner.0 == target {
@@ -114,7 +108,7 @@ pub(crate) fn pending_entries(
         if taken.contains(&item.entry().as_uuid()) || !seen.insert(item.entry().as_uuid()) {
             return Err(refused(ErrorCode::ReusedIdentity));
         }
-        if let Some(entry) = entry_of(item, &owner) {
+        if let Some(entry) = entry_of(item, owner) {
             entries.entry(item.turn()).or_default().push(entry);
         }
     }

@@ -1,9 +1,10 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
 
 use super::ProjectedThread;
-use super::pending::{Owner, PendingResponse, output_of, pending_entries};
+use super::output::output_of;
+use super::pending::{Owner, PendingResponse, pending_entries};
 use crate::block::{ContentBlock, PlainBlock, TextBlock};
 use crate::conversation::Conversation;
 use crate::entry::{IncomingEntry, TurnEntry};
@@ -11,7 +12,6 @@ use crate::error::Error;
 use crate::id::{AgentId, BlockId, ConversationId, TurnId};
 use crate::stream::ResponseDraft;
 use crate::turn::{AITurn, InputTurn, Turn};
-use uuid::Uuid;
 
 #[derive(Clone)]
 struct Selection(Arc<dyn Fn(&IncomingEntry) -> bool + Send + Sync>);
@@ -96,19 +96,10 @@ impl Perspective {
             Turn::AITurn(ai) => Some((ai.id(), (ai.agent(), ai.author().clone()))),
             Turn::InputTurn(_) => None,
         });
-        let owners: HashMap<TurnId, Owner> = owners.collect();
-        let mut taken: HashSet<Uuid> = HashSet::from([conversation.as_uuid()]);
-        taken.extend(
-            turns
-                .iter()
-                .flat_map(|turn| turn.declared().into_iter().map(|(id, _)| id)),
-        );
-        let pending = pending_entries(
-            self.agent,
-            pending,
-            |turn| owners.get(&turn).cloned(),
-            &taken,
-        )?;
+        let declared = turns
+            .iter()
+            .flat_map(|turn| turn.declared().into_iter().map(|(id, _)| id));
+        let pending = pending_entries(self.agent, conversation, pending, owners, declared)?;
         let translated = self.translate(turns, &pending)?;
         ProjectedThread::assemble(conversation, self.agent, translated)
     }
@@ -118,13 +109,12 @@ impl Perspective {
         turn: &AITurn,
         pending: &HashMap<TurnId, Vec<IncomingEntry>>,
     ) -> Result<Option<Turn>, Error> {
+        let owner: Owner = (turn.agent(), turn.author().clone());
         let mut entries: Vec<IncomingEntry> = turn
             .entries()
             .iter()
             .filter_map(|entry| match entry {
-                TurnEntry::ModelResponse(response) => {
-                    output_of(turn.agent(), turn.author(), response)
-                }
+                TurnEntry::ModelResponse(response) => output_of(&owner, response),
                 other => IncomingEntry::try_from(other)
                     .ok()
                     .filter(|incoming| self.keeps(incoming)),
@@ -173,16 +163,6 @@ pub(crate) fn usable_block(block: &ContentBlock) -> Option<PlainBlock> {
 
 pub(super) fn blocks_of(blocks: &[ContentBlock]) -> Vec<PlainBlock> {
     blocks.iter().filter_map(usable_block).collect()
-}
-
-pub(super) fn built<T>(
-    blocks: Vec<PlainBlock>,
-    build: impl FnOnce(Vec<PlainBlock>) -> Result<T, Error>,
-) -> Option<T> {
-    if blocks.is_empty() {
-        return None;
-    }
-    build(blocks).ok()
 }
 
 pub(crate) fn translated_turn(

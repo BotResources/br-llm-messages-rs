@@ -29,7 +29,7 @@ fn given_a_parent_missing_from_the_index_when_containment_is_checked_then_unknow
         OpaqueJson::empty_object(),
     )
     .with_parent(block_id(2));
-    let blocks = [orphan];
+    let blocks = [&orphan];
     let rows: HashMap<BlockId, &BlockRecord> = HashMap::new();
 
     let error = check_containment(&blocks, &rows).unwrap_err();

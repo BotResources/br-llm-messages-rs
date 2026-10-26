@@ -14,6 +14,7 @@ pub use kind::TurnKind;
 pub use state::TurnState;
 
 pub(crate) use declared::{Body, Class, Declared, Place, body_of_entry, body_of_incoming};
+pub(crate) use input::refuse_agent_output;
 pub(crate) use json::projected_turn_from_value;
 
 use serde::{Deserialize, Deserializer, Serialize};

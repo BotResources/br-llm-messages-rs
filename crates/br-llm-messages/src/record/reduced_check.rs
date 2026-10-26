@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use super::entry::EntryRecord;
+use super::kept::Kept;
 use super::kinds::RepresentationState;
 use super::set::RecordSet;
 use super::turn::TurnRecord;
@@ -21,12 +21,12 @@ pub(super) fn other_turns(set: &RecordSet, agent: AgentId) -> HashSet<TurnId> {
         .collect()
 }
 
-pub(super) fn check_rows(set: &RecordSet, others: &HashSet<TurnId>) -> Result<(), Error> {
-    for (index, row) in set.turns().iter().enumerate() {
+pub(super) fn check_rows(kept: &Kept<'_>, others: &HashSet<TurnId>) -> Result<(), Error> {
+    for (index, row) in kept.turns().iter().enumerate() {
         row.check_local()
             .map_err(|error| error.at(format!("turns[{index}]")))?;
     }
-    for (index, row) in set.entries().iter().enumerate() {
+    for (index, row) in kept.entries() {
         let checked = if others.contains(&row.turn()) {
             row.check_reduced()
         } else {
@@ -34,7 +34,7 @@ pub(super) fn check_rows(set: &RecordSet, others: &HashSet<TurnId>) -> Result<()
         };
         checked.map_err(|error| error.at(format!("entries[{index}]")))?;
     }
-    for (index, row) in set.blocks().iter().enumerate() {
+    for (index, row) in kept.blocks() {
         row.check_local()
             .map_err(|error| error.at(format!("blocks[{index}]")))?;
     }
@@ -48,11 +48,11 @@ fn refused(id: uuid::Uuid, location: String) -> Error {
 }
 
 pub(super) fn check_states(
-    set: &RecordSet,
+    kept: &Kept<'_>,
     others: &HashSet<TurnId>,
     owners: &Owners,
 ) -> Result<(), Error> {
-    for (index, row) in set.entries().iter().enumerate() {
+    for (index, row) in kept.entries() {
         let foreign_response =
             others.contains(&row.turn()) && row.kind() == TurnEntryKind::ModelResponse;
         if !foreign_response && row.state() != RepresentationState::Complete {
@@ -62,7 +62,7 @@ pub(super) fn check_states(
             ));
         }
     }
-    for (index, row) in set.blocks().iter().enumerate() {
+    for (index, row) in kept.blocks() {
         let reduced = owners
             .get(&row.entry())
             .filter(|(turn, _)| others.contains(turn));
@@ -86,31 +86,17 @@ pub(super) fn check_states(
     Ok(())
 }
 
-pub(super) fn without_interrupted(set: &RecordSet, others: &HashSet<TurnId>) -> RecordSet {
-    let dropped: HashSet<EntryId> = set
-        .entries()
+pub(super) fn interrupted_foreign_responses(
+    set: &RecordSet,
+    others: &HashSet<TurnId>,
+) -> HashSet<EntryId> {
+    set.entries()
         .iter()
         .filter(|row| {
             row.state() == RepresentationState::Interrupted
                 && row.kind() == TurnEntryKind::ModelResponse
                 && others.contains(&row.turn())
         })
-        .map(EntryRecord::id)
-        .collect();
-    RecordSet::new()
-        .with_turns(set.turns().to_vec())
-        .with_entries(
-            set.entries()
-                .iter()
-                .filter(|row| !dropped.contains(&row.id()))
-                .cloned()
-                .collect(),
-        )
-        .with_blocks(
-            set.blocks()
-                .iter()
-                .filter(|row| !dropped.contains(&row.entry()))
-                .cloned()
-                .collect(),
-        )
+        .map(|row| row.id())
+        .collect()
 }

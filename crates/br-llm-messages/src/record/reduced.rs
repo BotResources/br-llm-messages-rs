@@ -1,25 +1,26 @@
-use std::collections::{HashMap, HashSet};
-
-use uuid::Uuid;
+use std::collections::HashSet;
 
 use super::block::BlockRecord;
 use super::entry::EntryRecord;
+use super::kept::Kept;
 use super::kinds::RepresentationState;
 use super::partial::{TextPartial, decode as decode_partial};
 use super::reconstruct::{
     build_entry, build_turn, ensure_parents, ensure_unique, entries_by_turn, ids_of,
 };
-use super::reduced_check::{Owners, check_rows, check_states, other_turns, without_interrupted};
+use super::reduced_check::{
+    Owners, check_rows, check_states, interrupted_foreign_responses, other_turns,
+};
 use super::set::RecordSet;
 use super::tree::BlockTree;
 use super::turn::TurnRecord;
 use crate::block::{ContentBlock, ContentBlockKind, PlainBlock};
-use crate::entry::{AgentOutput, IncomingEntry, PartialAgentOutput, TurnEntryKind};
+use crate::entry::{IncomingEntry, TurnEntryKind};
 use crate::error::{Error, ErrorCode};
-use crate::id::{AgentId, ConversationId, TurnId};
+use crate::id::{AgentId, ConversationId, EntryId};
 use crate::projection::{
-    Owner, PendingResponse, ProjectedThread, accumulated_text, pending_entries, translated_turn,
-    usable_block,
+    Owner, PendingResponse, ProjectedThread, accumulated_text, output_entry, pending_entries,
+    translated_turn, usable_block,
 };
 use crate::turn::{Turn, TurnKind};
 
@@ -42,39 +43,37 @@ fn block_of(row: &BlockRecord, tree: &BlockTree<'_>) -> Result<Option<PlainBlock
 
 fn translate_entry(
     entry: &EntryRecord,
-    agent: AgentId,
-    author: &crate::value::Author,
+    owner: &Owner,
     tree: &BlockTree<'_>,
 ) -> Result<Option<IncomingEntry>, Error> {
     let mut blocks = Vec::new();
     for block in tree.roots_of(entry.id()) {
         blocks.extend(block_of(block, tree)?);
     }
-    if blocks.is_empty() {
-        return Ok(None);
-    }
-    let author = author.clone();
-    if entry.state() == RepresentationState::Complete {
-        AgentOutput::from_content(entry.id(), agent, author, blocks)
-            .map(|output| Some(IncomingEntry::AgentOutput(output)))
-    } else {
-        PartialAgentOutput::from_content(entry.id(), agent, author, blocks)
-            .map(|output| Some(IncomingEntry::PartialAgentOutput(output)))
-    }
+    output_entry(
+        entry.id(),
+        owner,
+        entry.state() == RepresentationState::Complete,
+        blocks,
+    )
 }
 
 fn translate(
     row: &TurnRecord,
     entries: &[&EntryRecord],
+    dropped: &HashSet<EntryId>,
     tree: &BlockTree<'_>,
     pending: Vec<IncomingEntry>,
 ) -> Result<Option<Turn>, Error> {
-    let (Some(agent), Some(author)) = (row.agent(), row.author()) else {
+    let Some(owner) = owner_of(row) else {
         return Err(Error::new(ErrorCode::InvalidContent).with_id(row.id().as_uuid()));
     };
     let mut kept = Vec::new();
     for (index, entry) in entries.iter().enumerate() {
-        let built = translate_row(entry, agent, author, tree)
+        if dropped.contains(&entry.id()) {
+            continue;
+        }
+        let built = translate_row(entry, &owner, tree)
             .map_err(|error| error.at(format!("entries[{index}]")))?;
         kept.extend(built);
     }
@@ -84,22 +83,17 @@ fn translate(
 
 fn translate_row(
     entry: &EntryRecord,
-    agent: AgentId,
-    author: &crate::value::Author,
+    owner: &Owner,
     tree: &BlockTree<'_>,
 ) -> Result<Option<IncomingEntry>, Error> {
     if entry.kind() == TurnEntryKind::ModelResponse {
-        return translate_entry(entry, agent, author, tree);
+        return translate_entry(entry, owner, tree);
     }
     IncomingEntry::try_from(build_entry(entry, tree)?).map(Some)
 }
 
-fn owners_of(set: &RecordSet) -> HashMap<TurnId, Owner> {
-    set.turns()
-        .iter()
-        .filter(|row| row.kind() == TurnKind::AITurn)
-        .filter_map(|row| Some((row.id(), (row.agent()?, row.author()?.clone()))))
-        .collect()
+fn owner_of(row: &TurnRecord) -> Option<Owner> {
+    Some((row.agent()?, row.author()?.clone()))
 }
 
 pub(super) fn rebuild_thread(
@@ -109,26 +103,23 @@ pub(super) fn rebuild_thread(
     pending: &[PendingResponse<'_>],
 ) -> Result<ProjectedThread, Error> {
     let others = other_turns(set, agent);
-    let set = &without_interrupted(set, &others);
-    check_rows(set, &others)?;
-    ensure_unique(set)?;
-    ensure_parents(set)?;
-    let owners: Owners = set
+    let dropped = interrupted_foreign_responses(set, &others);
+    let kept = Kept::without(set, &dropped);
+    check_rows(&kept, &others)?;
+    ensure_unique(&kept)?;
+    ensure_parents(&kept)?;
+    let owners: Owners = kept
         .entries()
-        .iter()
-        .map(|row| (row.id(), (row.turn(), row.state())))
+        .map(|(_, row)| (row.id(), (row.turn(), row.state())))
         .collect();
-    check_states(set, &others, &owners)?;
-    let mut taken: HashSet<Uuid> = ids_of(set).collect();
-    taken.insert(conversation.as_uuid());
-    let turn_owners = owners_of(set);
-    let mut pending = pending_entries(
-        agent,
-        pending,
-        |turn| turn_owners.get(&turn).cloned(),
-        &taken,
-    )?;
-    let tree = BlockTree::build(set.blocks())?;
+    check_states(&kept, &others, &owners)?;
+    let turn_owners = set
+        .turns()
+        .iter()
+        .filter(|row| row.kind() == TurnKind::AITurn)
+        .filter_map(|row| Some((row.id(), owner_of(row)?)));
+    let mut pending = pending_entries(agent, conversation, pending, turn_owners, ids_of(&kept))?;
+    let tree = BlockTree::build(kept.blocks().map(|(_, row)| row))?;
     let mut by_turn = entries_by_turn(set);
     let mut turns = Vec::with_capacity(set.turns().len());
     for (index, row) in set.turns().iter().enumerate() {
@@ -137,6 +128,7 @@ pub(super) fn rebuild_thread(
             translate(
                 row,
                 &entries,
+                &dropped,
                 &tree,
                 pending.remove(&row.id()).unwrap_or_default(),
             )
