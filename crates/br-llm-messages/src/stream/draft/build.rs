@@ -43,7 +43,7 @@ fn with_observed_at(block: ContentBlock, observed_at: ObservedAt) -> ContentBloc
         ContentBlock::ProviderToolExecutionRecord(block) => {
             block.with_observed_at(observed_at).into()
         }
-        other => other,
+        unopened @ (ContentBlock::Image(_) | ContentBlock::RuntimeToolResult(_)) => unopened,
     }
 }
 
