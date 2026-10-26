@@ -207,3 +207,15 @@ fn given_an_interrupted_incoming_row_under_a_foreign_turn_when_projected_then_di
 
     assert_eq!(error.code(), ErrorCode::DisallowedKind);
 }
+
+#[test]
+fn given_a_response_row_without_ending_in_the_targets_own_turn_when_projected_then_invalid_content()
+{
+    let turns = decorated_history();
+    let rows = foreign_only(&rows_with(&[], &turns, 1));
+    let reloaded = RecordSet::from_json(&rows.to_json().unwrap()).unwrap();
+
+    let error = refused(reloaded.into_projected_thread(cvid(900), aid(2)));
+
+    assert_eq!(error.code(), ErrorCode::InvalidContent);
+}
