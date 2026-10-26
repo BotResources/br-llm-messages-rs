@@ -55,15 +55,14 @@ pub(super) fn read(
 ) -> Result<(ResponseMetadata, Option<InterruptionReason>), Error> {
     let header: Header =
         crate::json::decode_ref(payload.inner()).map_err(|error| error.at("payload"))?;
-    let mut metadata = ResponseMetadata::new();
-    if let Some(usage) = header.usage {
-        metadata = metadata.with_usage(usage);
-    }
-    if let Some(model) = header.model {
-        metadata = metadata.with_model(model);
-    }
-    if let Some(id) = header.provider_response_id {
-        metadata = metadata.with_provider_response_id(id);
-    }
-    Ok((metadata, header.interruption))
+    let Header {
+        usage,
+        model,
+        provider_response_id,
+        interruption,
+    } = header;
+    Ok((
+        ResponseMetadata::from_header(usage, model, provider_response_id),
+        interruption,
+    ))
 }
