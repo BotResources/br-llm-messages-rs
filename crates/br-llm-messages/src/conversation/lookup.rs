@@ -82,7 +82,7 @@ impl Conversation {
     pub fn entry(&self, id: &EntryId) -> Result<EntryRef<'_>, Error> {
         let slot = self.resolve(id.as_uuid(), |class| matches!(class, Class::Entry(_)))?;
         let found = match self.turn_at(slot, id.as_uuid())? {
-            Turn::InputTurn(turn) => Some(EntryRef::Incoming(turn.entry())),
+            Turn::InputTurn(turn) => turn.entries().get(slot.place.entry).map(EntryRef::Incoming),
             Turn::AITurn(turn) => turn.entries().get(slot.place.entry).map(EntryRef::Turn),
         };
         found.ok_or_else(|| Error::new(ErrorCode::UnknownReference).with_id(id.as_uuid()))
@@ -91,7 +91,7 @@ impl Conversation {
     pub fn block(&self, id: &BlockId) -> Result<BlockRef<'_>, Error> {
         let slot = self.resolve(id.as_uuid(), |class| matches!(class, Class::Block(_)))?;
         let body = match self.turn_at(slot, id.as_uuid())? {
-            Turn::InputTurn(turn) => Some(body_of_incoming(turn.entry())),
+            Turn::InputTurn(turn) => turn.entries().get(slot.place.entry).map(body_of_incoming),
             Turn::AITurn(turn) => turn.entries().get(slot.place.entry).map(body_of_entry),
         };
         let (root, child) = (slot.place.root, slot.place.child);

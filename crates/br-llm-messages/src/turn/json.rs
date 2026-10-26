@@ -14,7 +14,7 @@ struct InputWire {
     #[serde(rename = "type")]
     _kind: IgnoredAny,
     id: TurnId,
-    entry: Value,
+    entries: Vec<Value>,
     #[serde(default, deserialize_with = "crate::entry::present")]
     author: bool,
     #[serde(default, deserialize_with = "crate::json::optional")]
@@ -65,9 +65,13 @@ pub(crate) fn input_from_value(value: Value) -> Result<InputTurn, Error> {
             .with_id(wire.id.as_uuid())
             .at("author"));
     }
-    let entry = crate::json::decode_value::<IncomingEntry>(wire.entry)
-        .map_err(|error| error.at("entry"))?;
-    let turn = InputTurn::new(wire.id, entry)?;
+    let mut entries = Vec::with_capacity(wire.entries.len());
+    for (index, raw) in wire.entries.into_iter().enumerate() {
+        let entry = crate::json::decode_value::<IncomingEntry>(raw)
+            .map_err(|error| error.at(format!("entries[{index}]")))?;
+        entries.push(entry);
+    }
+    let turn = InputTurn::new(wire.id, entries)?;
     Ok(match wire.observed_at {
         Some(observed_at) => turn.with_observed_at(observed_at),
         None => turn,

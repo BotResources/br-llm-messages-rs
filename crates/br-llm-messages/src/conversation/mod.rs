@@ -10,7 +10,7 @@ use index::Index;
 use crate::entry::TurnEntry;
 use crate::error::{Error, ErrorCode};
 use crate::id::{ConversationId, TurnId};
-use crate::turn::{Class, Declared, Turn, places_of_incoming, turn_place};
+use crate::turn::{Class, Declared, Turn};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Conversation {
@@ -52,8 +52,7 @@ impl Conversation {
             let clash = Error::new(ErrorCode::ReusedIdentity).with_id(id);
             return Err(match (&turn, place.class) {
                 (_, Class::Turn) => clash,
-                (Turn::InputTurn(_), _) => clash.at("entry"),
-                (Turn::AITurn(_), _) => clash.at(format!("entries[{}]", place.entry)),
+                _ => clash.at(format!("entries[{}]", place.entry)),
             });
         }
         let position = self.turns.len();
@@ -84,11 +83,7 @@ impl Conversation {
 
 fn declared_by(turn: &Turn) -> Declared {
     match turn {
-        Turn::InputTurn(input) => {
-            let mut declared = vec![(input.id().as_uuid(), turn_place())];
-            declared.extend(places_of_incoming(input.entry(), 0));
-            declared
-        }
+        Turn::InputTurn(input) => input.declared(),
         Turn::AITurn(ai) => ai.declared(),
     }
 }

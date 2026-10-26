@@ -13,7 +13,7 @@ use common::{aid, author, bid, cvid, eid, envelope, kid, plain_text, png, rid, s
 use serde_json::{Value, json};
 
 fn input(turn: u64, entry: impl Into<br_llm_messages::IncomingEntry>) -> Turn {
-    InputTurn::new(tid(turn), entry).unwrap().into()
+    InputTurn::single(tid(turn), entry).unwrap().into()
 }
 
 fn ai(turn: u64, entries: Vec<TurnEntry>) -> Turn {

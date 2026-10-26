@@ -131,7 +131,7 @@ fn given_cross_conversation_references_when_pushed_then_they_are_kept_and_never_
     let Turn::InputTurn(input) = conversation.turn(&tid(40)).unwrap() else {
         panic!("input turn expected");
     };
-    let br_llm_messages::IncomingEntry::AgentRequest(request) = input.entry() else {
+    let br_llm_messages::IncomingEntry::AgentRequest(request) = &input.entries()[0] else {
         panic!("request expected");
     };
     assert_eq!(request.source_conversation(), cvid(2));
@@ -199,7 +199,7 @@ fn given_references_equal_to_own_ids_when_pushed_then_they_are_accepted_and_not_
         vec![common::plain_text(71, "again")],
     )
     .unwrap();
-    let turn = br_llm_messages::InputTurn::new(tid(72), request).unwrap();
+    let turn = br_llm_messages::InputTurn::single(tid(72), request).unwrap();
     let before = conversation.block(&bid(15)).unwrap().id();
 
     conversation.push_turn(turn.into()).unwrap();

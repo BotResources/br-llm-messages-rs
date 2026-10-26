@@ -13,9 +13,7 @@ pub use input::InputTurn;
 pub use kind::TurnKind;
 pub use state::TurnState;
 
-pub(crate) use declared::{
-    Body, Class, Declared, Place, body_of_entry, body_of_incoming, places_of_incoming, turn_place,
-};
+pub(crate) use declared::{Body, Class, Declared, Place, body_of_entry, body_of_incoming};
 
 use serde::{Deserialize, Deserializer, Serialize};
 

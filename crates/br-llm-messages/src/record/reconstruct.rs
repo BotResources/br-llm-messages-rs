@@ -122,19 +122,19 @@ fn build_turn(
             }))
         }
         _ => {
-            let mut built = built.into_iter();
-            let Some(entry) = built.next() else {
-                return Err(Error::new(ErrorCode::InvalidContent)
-                    .with_id(row.id().as_uuid())
-                    .at("entries"));
-            };
-            if built.next().is_some() {
+            if built.is_empty() {
                 return Err(Error::new(ErrorCode::InvalidRecordStructure)
                     .with_id(row.id().as_uuid())
                     .at("entries"));
             }
-            let entry = IncomingEntry::try_from(entry).map_err(|error| error.at("entries[0]"))?;
-            let turn = InputTurn::new(row.id(), entry)?;
+            let mut incoming = Vec::with_capacity(built.len());
+            for (index, entry) in built.into_iter().enumerate() {
+                incoming.push(
+                    IncomingEntry::try_from(entry)
+                        .map_err(|error| error.at(format!("entries[{index}]")))?,
+                );
+            }
+            let turn = InputTurn::new(row.id(), incoming)?;
             Ok(Turn::InputTurn(match row.observed_at() {
                 Some(observed_at) => turn.with_observed_at(observed_at.clone()),
                 None => turn,

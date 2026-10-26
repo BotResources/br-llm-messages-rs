@@ -227,11 +227,7 @@ fn given_a_response_that_breaks_a_completed_invariant_when_reconstructed_then_it
 }
 
 #[test]
-fn given_input_turn_rows_that_break_its_shape_when_reconstructed_then_they_are_refused() {
-    let two_entries = failure(|d| {
-        let entry = row(d, "entries", uuid(26));
-        entry["turn"] = json!(text(1));
-    });
+fn given_a_non_incoming_row_in_an_input_turn_when_reconstructed_then_they_are_refused() {
     let not_incoming = failure(|d| {
         let entry = row(d, "entries", uuid(61));
         entry["kind"] = json!("turn_closure");
@@ -239,7 +235,6 @@ fn given_input_turn_rows_that_break_its_shape_when_reconstructed_then_they_are_r
         entry.as_object_mut().unwrap().remove("sender");
     });
 
-    assert_eq!(two_entries.code(), ErrorCode::InvalidRecordStructure);
     assert_eq!(not_incoming.code(), ErrorCode::DisallowedKind);
 }
 

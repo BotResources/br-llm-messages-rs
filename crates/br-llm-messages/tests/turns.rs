@@ -22,9 +22,9 @@ fn given_every_incoming_kind_when_input_turn_built_then_it_holds_exactly_that_en
     assert_eq!(incoming.len(), 8);
 
     for (index, entry) in incoming.into_iter().enumerate() {
-        let turn = InputTurn::new(tid(index as u64 + 900), entry.clone()).unwrap();
+        let turn = InputTurn::single(tid(index as u64 + 900), entry.clone()).unwrap();
 
-        assert_eq!(turn.entry(), &entry);
+        assert_eq!(turn.entries(), std::slice::from_ref(&entry));
         assert_eq!(Turn::from(turn).kind(), TurnKind::InputTurn);
     }
 }
@@ -35,13 +35,13 @@ fn given_a_non_incoming_entry_in_input_turn_json_when_loaded_then_disallowed_kin
         let json = json!({
             "type": "input_turn",
             "id": tid(1).to_string(),
-            "entry": entry.to_value().unwrap().raw(),
+            "entries": [entry.to_value().unwrap().raw()],
         });
 
         let error = refused(Turn::from_value(common::oj(json)));
 
         assert_eq!(error.code(), ErrorCode::DisallowedKind);
-        assert_eq!(error.location(), Some("entry"));
+        assert_eq!(error.location(), Some("entries[0]"));
     }
 }
 
@@ -57,22 +57,24 @@ fn given_an_author_key_on_an_input_turn_when_loaded_then_author_forbidden() {
 }
 
 #[test]
-fn given_an_input_turn_when_serialized_then_it_has_no_author_and_one_entry() {
+fn given_an_input_turn_when_serialized_then_it_has_no_author_and_a_list_of_entries() {
     let json = input_turn(1, 2).to_value().unwrap().raw();
 
     assert_eq!(json["type"], "input_turn");
     assert!(json.get("author").is_none());
-    assert!(json["entry"].is_object());
-    assert!(json.get("entries").is_none());
+    assert!(json["entries"][0].is_object());
+    assert_eq!(json["entries"].as_array().map(Vec::len), Some(1));
+    assert!(json.get("entry").is_none());
 }
 
 #[test]
 fn given_an_input_turn_id_equal_to_its_entry_id_when_built_then_reused_identity() {
     let entry = human_message(7);
 
-    let error = refused(InputTurn::new(tid(7), entry));
+    let error = refused(InputTurn::single(tid(7), entry));
 
     assert_eq!(error.code(), ErrorCode::ReusedIdentity);
+    assert_eq!(error.location(), Some("entries[0]"));
 }
 
 #[test]

@@ -97,8 +97,10 @@ pub(crate) fn turn_rows(turn: &Turn, set: &mut RecordSet) -> Result<(), Error> {
                 row = row.with_observed_at(observed_at.clone());
             }
             set.turns.push(row);
-            let entry = TurnEntry::from(input.entry().clone());
-            entry_rows(input.id(), &entry, set)
+            for entry in input.entries() {
+                entry_rows(input.id(), &TurnEntry::from(entry.clone()), set)?;
+            }
+            Ok(())
         }
         Turn::AITurn(ai) => {
             let mut row = TurnRecord::new(ai.id(), TurnKind::AITurn)

@@ -36,7 +36,7 @@ fn first_input() -> InputTurn {
     let message = HumanMessage::new(eid(2), hid(1), vec![cited_text(3, 4)])
         .unwrap()
         .with_observed_at(at(2));
-    InputTurn::new(tid(1), message)
+    InputTurn::single(tid(1), message)
         .unwrap()
         .with_observed_at(at(3))
 }
@@ -165,7 +165,7 @@ fn request_turn() -> InputTurn {
     )
     .unwrap()
     .with_observed_at(at(20));
-    InputTurn::new(tid(40), request)
+    InputTurn::single(tid(40), request)
         .unwrap()
         .with_observed_at(at(21))
 }
@@ -200,7 +200,7 @@ pub fn rich() -> Conversation {
             working_turn().into(),
             request_turn().into(),
             second_agent_turn().into(),
-            InputTurn::new(tid(60), queue)
+            InputTurn::single(tid(60), queue)
                 .unwrap()
                 .with_observed_at(at(26))
                 .into(),

@@ -1,9 +1,13 @@
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
+use uuid::Uuid;
+
 use crate::opaque_json::OpaqueJson;
 
-use super::declared::places_of_incoming;
+use std::collections::HashSet;
+
+use super::declared::{places_of_incoming, turn_place};
 use super::kind::TurnKind;
 use crate::entry::IncomingEntry;
 use crate::error::{Error, ErrorCode};
@@ -13,7 +17,7 @@ use crate::value::ObservedAt;
 #[derive(Debug, Clone, PartialEq)]
 pub struct InputTurn {
     id: TurnId,
-    entry: IncomingEntry,
+    entries: Vec<IncomingEntry>,
     observed_at: Option<ObservedAt>,
 }
 
@@ -23,7 +27,7 @@ impl Serialize for InputTurn {
             .serialize_struct("InputTurn", 3 + usize::from(self.observed_at.is_some()))?;
         turn.serialize_field("type", TurnKind::InputTurn.as_str())?;
         turn.serialize_field("id", &self.id)?;
-        turn.serialize_field("entry", &self.entry)?;
+        turn.serialize_field("entries", &self.entries)?;
         if let Some(observed_at) = &self.observed_at {
             turn.serialize_field("observed_at", observed_at)?;
         }
@@ -32,19 +36,31 @@ impl Serialize for InputTurn {
 }
 
 impl InputTurn {
-    pub fn new(id: TurnId, entry: impl Into<IncomingEntry>) -> Result<Self, Error> {
-        let entry = entry.into();
-        let clash = places_of_incoming(&entry, 0)
-            .into_iter()
-            .any(|(declared, _)| declared == id.as_uuid());
-        if clash {
-            return Err(Error::new(ErrorCode::ReusedIdentity).with_id(id.as_uuid()));
+    pub fn new(id: TurnId, entries: Vec<IncomingEntry>) -> Result<Self, Error> {
+        if entries.is_empty() {
+            return Err(Error::new(ErrorCode::InvalidRecordStructure)
+                .with_id(id.as_uuid())
+                .at("entries"));
+        }
+        let mut seen: HashSet<Uuid> = HashSet::from([id.as_uuid()]);
+        for (index, entry) in entries.iter().enumerate() {
+            for (declared, _) in places_of_incoming(entry, index) {
+                if !seen.insert(declared) {
+                    return Err(Error::new(ErrorCode::ReusedIdentity)
+                        .with_id(declared)
+                        .at(format!("entries[{index}]")));
+                }
+            }
         }
         Ok(InputTurn {
             id,
-            entry,
+            entries,
             observed_at: None,
         })
+    }
+
+    pub fn single(id: TurnId, entry: impl Into<IncomingEntry>) -> Result<Self, Error> {
+        InputTurn::new(id, vec![entry.into()])
     }
 
     pub fn with_observed_at(mut self, observed_at: ObservedAt) -> Self {
@@ -56,8 +72,16 @@ impl InputTurn {
         self.id
     }
 
-    pub fn entry(&self) -> &IncomingEntry {
-        &self.entry
+    pub fn entries(&self) -> &[IncomingEntry] {
+        &self.entries
+    }
+
+    pub(crate) fn declared(&self) -> Vec<(Uuid, super::Place)> {
+        let mut declared = vec![(self.id.as_uuid(), turn_place())];
+        for (index, entry) in self.entries.iter().enumerate() {
+            declared.extend(places_of_incoming(entry, index));
+        }
+        declared
     }
 
     pub fn observed_at(&self) -> Option<&ObservedAt> {

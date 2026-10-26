@@ -107,7 +107,7 @@ fn given_a_row_without_a_time_when_reconstructed_then_the_object_has_none() {
 
     let first = rebuilt.turns()[0].as_input().unwrap();
     assert_eq!(first.observed_at(), None);
-    assert_eq!(first.entry().observed_at(), None);
+    assert_eq!(first.entries()[0].observed_at(), None);
     assert_ne!(rebuilt, rich());
 }
 
