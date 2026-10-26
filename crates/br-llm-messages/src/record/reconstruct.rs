@@ -91,7 +91,7 @@ pub(super) fn ensure_parents(set: &RecordSet) -> Result<(), Error> {
     Ok(())
 }
 
-fn build_entry(row: &EntryRecord, tree: &BlockTree<'_>) -> Result<TurnEntry, Error> {
+pub(super) fn build_entry(row: &EntryRecord, tree: &BlockTree<'_>) -> Result<TurnEntry, Error> {
     let mut blocks = Vec::new();
     for block in tree.roots_of(row.id()) {
         blocks.push(tree.value_of(block)?);

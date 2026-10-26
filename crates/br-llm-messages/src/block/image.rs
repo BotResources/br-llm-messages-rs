@@ -33,6 +33,14 @@ impl ImageBlock {
         self
     }
 
+    pub(crate) fn bare(&self) -> ImageBlock {
+        ImageBlock {
+            id: self.id,
+            source: self.source.clone(),
+            observed_at: None,
+        }
+    }
+
     pub fn id(&self) -> BlockId {
         self.id
     }

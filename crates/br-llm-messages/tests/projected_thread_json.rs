@@ -1,62 +1,14 @@
 mod common;
+mod projected_thread_support;
 use common::Raw as _;
 
 use br_llm_messages::{
-    AITurn, BlockStart, Conversation, DeltaOp, ErrorCode, IncomingEntry, Perspective,
-    ProjectedThread, ResponseDelta, ResponseDraft, ResponseEnding, ResponseMetadata, TextBlock,
-    Turn, TurnEntry,
+    AITurn, Conversation, ErrorCode, IncomingEntry, ProjectedThread, Turn, TurnEntry,
 };
-use common::turns::{human, response, tid};
-use common::{aid, author, bid, cvid, eid, oj, refused};
-use serde_json::{Value, json};
-
-fn ai(id: u64, agent: u64, entries: Vec<TurnEntry>) -> Turn {
-    AITurn::from_parts(tid(id), aid(agent), author("Claude"), entries)
-        .unwrap()
-        .into()
-}
-
-fn said(entry: u64, block: u64, text: &str) -> TurnEntry {
-    response(
-        entry,
-        vec![TextBlock::new(bid(block), text).unwrap().into()],
-        ResponseEnding::finished(),
-    )
-}
-
-fn draft() -> ResponseDraft {
-    let mut draft = ResponseDraft::new(tid(30), eid(32));
-    for op in [
-        DeltaOp::response_started(ResponseMetadata::new()),
-        DeltaOp::block_started(bid(33), BlockStart::text()),
-        DeltaOp::text_appended(bid(33), "so far"),
-    ] {
-        draft
-            .apply(&ResponseDelta::new(tid(30), eid(32), op))
-            .unwrap();
-    }
-    draft
-}
-
-fn thread() -> ProjectedThread {
-    let turns = vec![
-        common::turns::input_turn(1, 2).into(),
-        ai(10, 1, vec![human(14), said(15, 16, "mine")]),
-        ai(20, 2, vec![said(21, 22, "complete")]),
-        ai(30, 3, vec![human(31)]),
-    ];
-    Perspective::of(aid(1))
-        .project_live(cvid(900), &turns, &[draft()])
-        .unwrap()
-}
-
-fn document() -> Value {
-    thread().to_value().unwrap().raw()
-}
-
-fn load(document: Value) -> Result<ProjectedThread, br_llm_messages::Error> {
-    ProjectedThread::from_value(oj(document))
-}
+use common::turns::tid;
+use common::{aid, cvid, oj, refused};
+use projected_thread_support::*;
+use serde_json::json;
 
 #[test]
 fn given_a_thread_with_both_projected_variants_when_round_tripped_then_nothing_is_lost() {
@@ -75,6 +27,13 @@ fn given_a_thread_with_both_projected_variants_when_round_tripped_then_nothing_i
         document["turns"][3]["entries"][0]["type"],
         "partial_agent_output"
     );
+    let kinds: Vec<&str> = document["turns"][4]["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|entry| entry["type"].as_str().unwrap())
+        .collect();
+    assert_eq!(kinds, ["agent_output", "human_message", "agent_output"]);
     assert_eq!(
         ProjectedThread::schema(),
         "br-llm-messages-projected-thread/1"
@@ -174,31 +133,6 @@ fn given_an_output_of_the_target_agent_itself_when_loaded_then_disallowed_kind()
 }
 
 #[test]
-fn given_non_text_or_decorated_or_empty_content_in_an_output_when_loaded_then_it_is_refused() {
-    let image = json!({"type": "image", "id": bid(900).to_string(),
-        "source": {"type": "inline", "media_type": "image/png", "data": "QUJD"}});
-    let cited = json!({"type": "text", "id": bid(901).to_string(), "text": "x",
-        "item_ref": "msg_1"});
-    let cases = [
-        (vec![image], ErrorCode::DisallowedKind),
-        (vec![cited], ErrorCode::DisallowedKind),
-        (vec![], ErrorCode::InvalidContent),
-        (
-            vec![json!({"type": "text", "id": bid(902).to_string(), "text": "  "})],
-            ErrorCode::InvalidContent,
-        ),
-    ];
-    for (content, code) in cases {
-        let mut document = document();
-        document["turns"][2]["entries"][0]["content"] = Value::Array(content);
-
-        let error = refused(load(document));
-
-        assert_eq!(error.code(), code);
-    }
-}
-
-#[test]
 fn given_a_repeated_identity_in_the_thread_when_loaded_then_reused_identity() {
     let mut document = document();
     let output = document["turns"][2]["entries"][0].clone();
@@ -207,32 +141,6 @@ fn given_a_repeated_identity_in_the_thread_when_loaded_then_reused_identity() {
     let error = refused(load(document));
 
     assert_eq!(error.code(), ErrorCode::ReusedIdentity);
-}
-
-#[test]
-fn given_a_mixed_or_misordered_or_doubled_partial_turn_when_loaded_then_invalid_record_structure() {
-    let recorded = IncomingEntry::from(common::turns::human_message(950))
-        .to_value()
-        .unwrap()
-        .raw();
-    let partial = document()["turns"][3]["entries"][0].clone();
-    let output = document()["turns"][2]["entries"][0].clone();
-    let mut second = partial.clone();
-    second["id"] = json!(eid(960).to_string());
-    second["content"][0]["id"] = json!(bid(961).to_string());
-    let cases = [
-        vec![output.clone(), recorded],
-        vec![partial.clone(), output],
-        vec![partial, second],
-    ];
-    for entries in cases {
-        let mut document = document();
-        document["turns"][3]["entries"] = Value::Array(entries);
-
-        let error = refused(load(document));
-
-        assert_eq!(error.code(), ErrorCode::InvalidRecordStructure);
-    }
 }
 
 #[test]

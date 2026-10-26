@@ -1,14 +1,14 @@
 use std::collections::{HashMap, HashSet};
 
 use br_llm_messages::{
-    AITurn, Citation, CitationSource, ContentBlockKind, Conversation, EntryRecord, InputTurn,
-    RecordSet, ResponseEnding, TextBlock, TextRange, ThinkingBlock, TurnEntryKind, TurnId,
-    TurnKind,
+    AITurn, AgentMail, Citation, CitationSource, Conversation, EntryId, EntryRecord, ImageBlock,
+    InputTurn, ItemRef, RecordSet, ResponseEnding, StructuredBlock, TextBlock, TextRange,
+    ThinkingBlock, TurnEntryKind, TurnId, TurnKind,
 };
 use serde_json::json;
 
 use super::turns::{calling, close, delivery, human_message, response, tid};
-use super::{aid, author, bid, cid, cvid, oj, png};
+use super::{aid, at, author, bid, cid, cvid, eid, oj, plain_text, png, signature};
 
 pub struct Lcg(u64);
 
@@ -27,24 +27,49 @@ impl Lcg {
 }
 
 fn text(rng: &mut Lcg, id: &mut impl FnMut() -> u64) -> TextBlock {
-    let block = TextBlock::new(bid(id()), "some text").unwrap();
+    let mut block = TextBlock::new(bid(id()), "some text").unwrap();
     if rng.next(3) == 0 {
         let citation = Citation::new(cid(id()), CitationSource::new("doc").unwrap())
             .with_range(TextRange::new(0, 4).unwrap());
-        return block.with_citations(vec![citation]).unwrap();
+        block = block.with_citations(vec![citation]).unwrap();
+    }
+    if rng.next(3) == 0 {
+        block = block
+            .with_item_ref(ItemRef::new("msg_1").unwrap())
+            .with_replay(signature("sig"))
+            .with_observed_at(at(3));
+    }
+    block
+}
+
+fn image(rng: &mut Lcg, id: &mut impl FnMut() -> u64) -> ImageBlock {
+    let block = png(id());
+    if rng.next(2) == 0 {
+        return block.with_observed_at(at(4));
+    }
+    block
+}
+
+fn structured(rng: &mut Lcg, id: &mut impl FnMut() -> u64) -> StructuredBlock {
+    let block = StructuredBlock::new(bid(id()), oj(json!({"k": [1, 2]}))).unwrap();
+    if rng.next(2) == 0 {
+        return block.with_observed_at(at(5));
     }
     block
 }
 
 fn blocks(rng: &mut Lcg, id: &mut impl FnMut() -> u64) -> Vec<br_llm_messages::ContentBlock> {
-    match rng.next(3) {
+    match rng.next(5) {
         0 => vec![text(rng, id).into()],
+        3 => vec![image(rng, id).into(), structured(rng, id).into()],
+        4 => vec![structured(rng, id).into()],
         1 => vec![
             ThinkingBlock::new(bid(id()), "private plan")
                 .unwrap()
                 .into(),
             text(rng, id).into(),
-            png(id()).into(),
+            image(rng, id).into(),
+            structured(rng, id).into(),
             text(rng, id).into(),
         ],
         _ => vec![
@@ -61,6 +86,17 @@ fn ai_turn(rng: &mut Lcg, id: &mut impl FnMut() -> u64) -> AITurn {
     for _ in 0..(1 + rng.next(3)) {
         let incoming = human_message(id());
         turn.push_entry(incoming.into()).unwrap();
+        if rng.next(3) == 0 {
+            let mail = AgentMail::new(
+                eid(id()),
+                aid(4),
+                author("Mailer"),
+                cvid(1),
+                vec![plain_text(id(), "mail")],
+            )
+            .unwrap();
+            turn.push_entry(mail.into()).unwrap();
+        }
         if rng.next(4) == 0 {
             let call = id();
             let result = id();
@@ -104,7 +140,12 @@ pub fn history(seed: u64) -> Conversation {
     conversation
 }
 
-pub fn reduced_rows(full: &RecordSet, agent: u64, seed: u64) -> RecordSet {
+pub fn reduced_rows(
+    full: &RecordSet,
+    agent: u64,
+    seed: u64,
+    keep: &dyn Fn(EntryId) -> bool,
+) -> RecordSet {
     let mut rng = Lcg::new(seed ^ 0xabcdef);
     let others: HashSet<TurnId> = full
         .turns()
@@ -124,14 +165,15 @@ pub fn reduced_rows(full: &RecordSet, agent: u64, seed: u64) -> RecordSet {
             continue;
         }
         if row.kind() != TurnEntryKind::ModelResponse {
+            if row.kind().is_incoming() && keep(row.id()) {
+                entries.push(row.clone());
+            }
             continue;
         }
-        let has_text = full.blocks().iter().any(|block| {
-            block.entry() == row.id()
-                && block.kind() == ContentBlockKind::Text
-                && block.parent().is_none()
+        let has_usable = full.blocks().iter().any(|block| {
+            block.entry() == row.id() && block.kind().is_plain() && block.parent().is_none()
         });
-        if !has_text && rng.next(2) == 0 {
+        if !has_usable && rng.next(2) == 0 {
             continue;
         }
         entries.push(if rng.next(2) == 0 {
@@ -147,9 +189,7 @@ pub fn reduced_rows(full: &RecordSet, agent: u64, seed: u64) -> RecordSet {
         .filter(|row| {
             let owner = owners[&row.entry()];
             !others.contains(&owner)
-                || (kept.contains(&row.entry())
-                    && row.kind() == ContentBlockKind::Text
-                    && row.parent().is_none())
+                || (kept.contains(&row.entry()) && row.kind().is_plain() && row.parent().is_none())
         })
         .cloned()
         .collect();

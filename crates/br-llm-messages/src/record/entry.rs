@@ -132,6 +132,9 @@ impl EntryRecord {
     }
 
     pub(super) fn check_reduced(&self) -> Result<(), Error> {
+        if self.kind.is_incoming() {
+            return self.check_local();
+        }
         if self.kind != TurnEntryKind::ModelResponse {
             return Err(Error::new(ErrorCode::DisallowedKind)
                 .with_id(self.id.as_uuid())

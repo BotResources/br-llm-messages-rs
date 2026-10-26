@@ -3,8 +3,8 @@ use common::Raw as _;
 
 use br_llm_messages::{
     AITurn, Citation, CitationSource, Conversation, IncomingEntry, ItemRef, Perspective,
-    ProviderToolCall, ResponseEnding, RuntimeToolCall, StructuredBlock, TextBlock, TextRange,
-    ThinkingBlock, Turn, TurnEntry,
+    PlainBlock, ProviderToolCall, ResponseEnding, RuntimeToolCall, StructuredBlock, TextBlock,
+    TextRange, ThinkingBlock, Turn, TurnEntry,
 };
 use common::conversations::rich;
 use common::turns::{human, incoming_batch, response, tid};
@@ -36,9 +36,9 @@ fn outputs(turn: &Turn) -> Vec<&br_llm_messages::AgentOutput> {
     input
         .entries()
         .iter()
-        .map(|entry| match entry {
-            IncomingEntry::AgentOutput(output) => output,
-            other => panic!("expected an agent output, got {other:?}"),
+        .filter_map(|entry| match entry {
+            IncomingEntry::AgentOutput(output) => Some(output),
+            _ => None,
         })
         .collect()
 }
@@ -91,15 +91,15 @@ fn given_input_turns_when_projected_then_they_pass_through_unchanged() {
 
     let thread = Perspective::of(aid(1)).project(&original);
 
-    let inputs: Vec<&Turn> = thread
-        .turns()
-        .iter()
-        .filter(|turn| matches!(turn, Turn::InputTurn(i) if i.entries().iter().all(|e| e.kind().is_some())))
-        .collect();
     let expected: Vec<&Turn> = original
         .turns()
         .iter()
         .filter(|t| t.as_input().is_some())
+        .collect();
+    let inputs: Vec<&Turn> = thread
+        .turns()
+        .iter()
+        .filter(|turn| expected.iter().any(|input| input.id() == turn.id()))
         .collect();
     assert_eq!(inputs, expected);
 }
@@ -145,7 +145,8 @@ fn given_two_responses_of_another_agent_when_projected_then_one_entry_each_with_
 }
 
 #[test]
-fn given_a_response_with_mixed_blocks_when_projected_then_only_bare_text_blocks_remain_in_order() {
+fn given_a_response_with_mixed_blocks_when_projected_then_only_bare_text_image_and_structured_blocks_remain_in_order()
+ {
     let cite = Citation::new(cid(70), CitationSource::new("doc").unwrap())
         .with_range(TextRange::new(0, 3).unwrap());
     let cited = TextBlock::new(bid(13), "cited")
@@ -159,9 +160,10 @@ fn given_a_response_with_mixed_blocks_when_projected_then_only_bare_text_blocks_
         TextBlock::new(bid(11), "one").unwrap().into(),
         ThinkingBlock::new(bid(12), "secret plan").unwrap().into(),
         cited.into(),
-        png(14).into(),
+        png(14).with_observed_at(common::at(4)).into(),
         StructuredBlock::new(bid(15), common::oj(json!({"hidden": true})))
             .unwrap()
+            .with_observed_at(common::at(5))
             .into(),
         RuntimeToolCall::new(bid(16), tool("lookup"), common::oj(json!({})))
             .unwrap()
@@ -177,11 +179,17 @@ fn given_a_response_with_mixed_blocks_when_projected_then_only_bare_text_blocks_
     let thread = Perspective::of(aid(1)).project(&conversation);
 
     let content = outputs(&thread.turns()[0])[0].content();
-    let expected: Vec<_> = vec![plain_text(11, "one"), plain_text(13, "cited")];
+    let expected: Vec<PlainBlock> = vec![
+        plain_text(11, "one"),
+        plain_text(13, "cited"),
+        png(14).into(),
+        StructuredBlock::new(bid(15), common::oj(json!({"hidden": true})))
+            .unwrap()
+            .into(),
+    ];
     assert_eq!(content, expected.as_slice());
     let rendered = format!("{thread:?}");
-    assert!(!rendered.contains("secret plan") && !rendered.contains("hidden"));
-    assert!(!rendered.contains("lookup"));
+    assert!(!rendered.contains("secret plan") && !rendered.contains("lookup"));
 }
 
 #[test]
@@ -206,19 +214,6 @@ fn given_responses_without_text_when_projected_then_no_entry_and_no_input_turn_i
 
     assert_eq!(thread.len(), 1);
     assert_eq!(thread.turns()[0].id(), tid(2));
-}
-
-#[test]
-fn given_incoming_entries_in_another_agents_turn_when_projected_then_none_is_contributed() {
-    let mut entries = incoming_batch(100);
-    entries.push(said(200, 201, "answer"));
-    let conversation = conversation(vec![turn_of(1, 2, "Claude", entries)]);
-
-    let thread = Perspective::of(aid(1)).project(&conversation);
-
-    let found = outputs(&thread.turns()[0]);
-    assert_eq!(found.len(), 1);
-    assert_eq!(found[0].id(), eid(200));
 }
 
 #[test]

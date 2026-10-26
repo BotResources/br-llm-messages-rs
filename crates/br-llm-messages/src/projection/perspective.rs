@@ -1,24 +1,58 @@
 use std::collections::HashMap;
+use std::fmt;
+use std::sync::Arc;
 
 use super::ProjectedThread;
-use crate::block::{ContentBlock, ContentBlockKind, TextBlock};
+use crate::block::{ContentBlock, ContentBlockKind, PlainBlock, TextBlock};
 use crate::conversation::Conversation;
 use crate::entry::{AgentOutput, IncomingEntry, ModelResponse, PartialAgentOutput, TurnEntry};
 use crate::error::{Error, ErrorCode};
 use crate::id::{AgentId, BlockId, ConversationId, TurnId};
 use crate::stream::{DraftPhase, ResponseDraft};
 use crate::turn::{AITurn, InputTurn, Turn};
-use crate::value::Author;
+
+#[derive(Clone)]
+struct Selection(Arc<dyn Fn(&IncomingEntry) -> bool + Send + Sync>);
+
+impl fmt::Debug for Selection {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("Selection")
+    }
+}
+
+impl PartialEq for Selection {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Perspective {
     agent: AgentId,
+    selection: Option<Selection>,
 }
 
 impl Perspective {
     pub fn of(agent: AgentId) -> Self {
-        Perspective { agent }
+        Perspective {
+            agent,
+            selection: None,
+        }
+    }
+
+    pub fn keeping(
+        mut self,
+        selection: impl Fn(&IncomingEntry) -> bool + Send + Sync + 'static,
+    ) -> Self {
+        self.selection = Some(Selection(Arc::new(selection)));
+        self
+    }
+
+    fn keeps(&self, entry: &IncomingEntry) -> bool {
+        self.selection
+            .as_ref()
+            .is_none_or(|selection| (selection.0)(entry))
     }
 
     pub fn agent(&self) -> AgentId {
@@ -80,6 +114,25 @@ impl Perspective {
         Ok(pending)
     }
 
+    fn translated(
+        &self,
+        turn: &AITurn,
+        pending: &HashMap<TurnId, Vec<IncomingEntry>>,
+    ) -> Option<Turn> {
+        let mut entries: Vec<IncomingEntry> = turn
+            .entries()
+            .iter()
+            .filter_map(|entry| match entry {
+                TurnEntry::ModelResponse(response) => output_of(turn, response),
+                other => IncomingEntry::try_from(other)
+                    .ok()
+                    .filter(|incoming| self.keeps(incoming)),
+            })
+            .collect();
+        entries.extend(pending.get(&turn.id()).cloned().unwrap_or_default());
+        translated_turn(turn.id(), entries)
+    }
+
     fn translate(
         &self,
         turns: &[Turn],
@@ -88,7 +141,7 @@ impl Perspective {
         turns
             .iter()
             .filter_map(|turn| match turn {
-                Turn::AITurn(ai) if ai.agent() != self.agent => translated(ai, pending),
+                Turn::AITurn(ai) if ai.agent() != self.agent => self.translated(ai, pending),
                 other => Some(other.clone()),
             })
             .collect()
@@ -99,25 +152,52 @@ pub(crate) fn accumulated_text(id: BlockId, text: &str) -> Option<TextBlock> {
     TextBlock::new(id, text).ok()
 }
 
-fn texts_of(blocks: &[ContentBlock]) -> Vec<TextBlock> {
-    blocks
-        .iter()
-        .filter_map(|block| match block {
-            ContentBlock::Text(text) => Some(text.text_only()),
-            _ => None,
-        })
-        .collect()
+pub(crate) fn usable_block(block: &ContentBlock) -> Option<PlainBlock> {
+    let plain = match block {
+        ContentBlock::Text(text) => PlainBlock::Text(text.clone()),
+        ContentBlock::Image(image) => PlainBlock::Image(image.clone()),
+        ContentBlock::StructuredContent(structured) => {
+            PlainBlock::StructuredContent(structured.clone())
+        }
+        _ => return None,
+    };
+    Some(plain.bare())
+}
+
+fn blocks_of(blocks: &[ContentBlock]) -> Vec<PlainBlock> {
+    blocks.iter().filter_map(usable_block).collect()
+}
+
+fn built<T>(
+    blocks: Vec<PlainBlock>,
+    build: impl FnOnce(Vec<PlainBlock>) -> Result<T, Error>,
+) -> Option<T> {
+    if blocks.is_empty() {
+        return None;
+    }
+    build(blocks).ok()
 }
 
 fn output_of(turn: &AITurn, response: &ModelResponse) -> Option<IncomingEntry> {
-    AgentOutput::from_texts(
-        response.id(),
-        turn.agent(),
-        turn.author().clone(),
-        texts_of(response.blocks()),
-    )
-    .ok()
+    built(blocks_of(response.blocks()), |blocks| {
+        AgentOutput::from_content(response.id(), turn.agent(), turn.author().clone(), blocks)
+    })
     .map(IncomingEntry::AgentOutput)
+}
+
+fn producing_blocks(draft: &ResponseDraft) -> Vec<PlainBlock> {
+    draft
+        .view()
+        .slots()
+        .iter()
+        .filter_map(|slot| match slot.finalized() {
+            Some(block) => usable_block(block),
+            None if slot.kind() == ContentBlockKind::Text => {
+                accumulated_text(slot.block(), slot.text()?).map(PlainBlock::Text)
+            }
+            None => None,
+        })
+        .collect()
 }
 
 fn draft_entry(draft: &ResponseDraft, turn: &AITurn) -> Option<IncomingEntry> {
@@ -125,34 +205,22 @@ fn draft_entry(draft: &ResponseDraft, turn: &AITurn) -> Option<IncomingEntry> {
         DraftPhase::Completed { .. } => draft
             .response()
             .and_then(|response| output_of(turn, response)),
-        DraftPhase::Producing { .. } => {
-            let texts: Vec<TextBlock> = draft
-                .view()
-                .slots()
-                .iter()
-                .filter(|slot| slot.kind() == ContentBlockKind::Text)
-                .filter_map(|slot| accumulated_text(slot.block(), slot.text()?))
-                .collect();
-            let author: Author = turn.author().clone();
-            PartialAgentOutput::from_texts(draft.entry(), turn.agent(), author, texts)
-                .ok()
-                .map(IncomingEntry::PartialAgentOutput)
-        }
+        DraftPhase::Producing { .. } => built(producing_blocks(draft), |blocks| {
+            PartialAgentOutput::from_content(
+                draft.entry(),
+                turn.agent(),
+                turn.author().clone(),
+                blocks,
+            )
+        })
+        .map(IncomingEntry::PartialAgentOutput),
         _ => None,
     }
 }
 
-fn translated(turn: &AITurn, pending: &HashMap<TurnId, Vec<IncomingEntry>>) -> Option<Turn> {
-    let mut entries: Vec<IncomingEntry> = turn
-        .entries()
-        .iter()
-        .filter_map(|entry| match entry {
-            TurnEntry::ModelResponse(response) => output_of(turn, response),
-            _ => None,
-        })
-        .collect();
-    entries.extend(pending.get(&turn.id()).cloned().unwrap_or_default());
-    InputTurn::projected(turn.id(), entries)
-        .ok()
-        .map(Turn::InputTurn)
+pub(crate) fn translated_turn(id: TurnId, entries: Vec<IncomingEntry>) -> Option<Turn> {
+    if entries.is_empty() {
+        return None;
+    }
+    InputTurn::projected(id, entries).ok().map(Turn::InputTurn)
 }

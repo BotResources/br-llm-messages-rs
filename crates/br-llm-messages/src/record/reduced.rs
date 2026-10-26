@@ -4,16 +4,16 @@ use super::block::BlockRecord;
 use super::entry::EntryRecord;
 use super::kinds::RepresentationState;
 use super::partial::{TextPartial, decode as decode_partial};
-use super::reconstruct::{build_turn, ensure_parents, ensure_unique, entries_by_turn};
+use super::reconstruct::{build_entry, build_turn, ensure_parents, ensure_unique, entries_by_turn};
 use super::set::RecordSet;
 use super::tree::BlockTree;
 use super::turn::TurnRecord;
-use crate::block::{ContentBlock, ContentBlockKind, TextBlock};
-use crate::entry::{AgentOutput, IncomingEntry, PartialAgentOutput};
+use crate::block::{ContentBlock, ContentBlockKind, PlainBlock};
+use crate::entry::{AgentOutput, IncomingEntry, PartialAgentOutput, TurnEntryKind};
 use crate::error::{Error, ErrorCode};
 use crate::id::{AgentId, ConversationId, EntryId, TurnId};
-use crate::projection::{ProjectedThread, accumulated_text};
-use crate::turn::{InputTurn, Turn, TurnKind};
+use crate::projection::{ProjectedThread, accumulated_text, translated_turn, usable_block};
+use crate::turn::{Turn, TurnKind};
 
 type Owners = HashMap<EntryId, (TurnId, RepresentationState)>;
 
@@ -55,7 +55,9 @@ fn refused(id: uuid::Uuid, location: String) -> Error {
 
 fn check_states(set: &RecordSet, others: &HashSet<TurnId>, owners: &Owners) -> Result<(), Error> {
     for (index, row) in set.entries().iter().enumerate() {
-        if !others.contains(&row.turn()) && row.state() != RepresentationState::Complete {
+        let foreign_response =
+            others.contains(&row.turn()) && row.kind() == TurnEntryKind::ModelResponse;
+        if !foreign_response && row.state() != RepresentationState::Complete {
             return Err(refused(
                 row.id().as_uuid(),
                 format!("entries[{index}].state"),
@@ -78,25 +80,29 @@ fn check_states(set: &RecordSet, others: &HashSet<TurnId>, owners: &Owners) -> R
                 format!("blocks[{index}].state"),
             ));
         }
-        let only_text = row.kind() == ContentBlockKind::Text && row.parent().is_none();
-        if reduced.is_some() && !only_text {
+        let usable_root = row.kind().is_plain() && row.parent().is_none();
+        if reduced.is_some() && !usable_root {
             return Err(refused(row.id().as_uuid(), format!("blocks[{index}]")));
         }
     }
     Ok(())
 }
 
-fn text_of(row: &BlockRecord, tree: &BlockTree<'_>) -> Result<Option<TextBlock>, Error> {
+fn block_of(row: &BlockRecord, tree: &BlockTree<'_>) -> Result<Option<PlainBlock>, Error> {
     let located = |error: Error| error.with_id(row.id().as_uuid());
     if row.state() != RepresentationState::Complete {
-        let partial: TextPartial = decode_partial(row.payload()).map_err(located)?;
-        return Ok(accumulated_text(row.id(), &partial.text));
+        return match row.kind() {
+            ContentBlockKind::Text => {
+                let partial: TextPartial = decode_partial(row.payload()).map_err(located)?;
+                Ok(accumulated_text(row.id(), &partial.text).map(PlainBlock::Text))
+            }
+            _ => Ok(None),
+        };
     }
     let block: ContentBlock = crate::json::decode_value(tree.value_of(row)?).map_err(located)?;
-    match block {
-        ContentBlock::Text(text) => Ok(Some(text.text_only())),
-        _ => Err(located(Error::new(ErrorCode::DisallowedKind))),
-    }
+    usable_block(&block)
+        .map(Some)
+        .ok_or_else(|| located(Error::new(ErrorCode::DisallowedKind)))
 }
 
 fn translate_entry(
@@ -105,19 +111,19 @@ fn translate_entry(
     author: &crate::value::Author,
     tree: &BlockTree<'_>,
 ) -> Result<Option<IncomingEntry>, Error> {
-    let mut texts = Vec::new();
+    let mut blocks = Vec::new();
     for block in tree.roots_of(entry.id()) {
-        texts.extend(text_of(block, tree)?);
+        blocks.extend(block_of(block, tree)?);
     }
-    if texts.is_empty() {
+    if blocks.is_empty() {
         return Ok(None);
     }
     let author = author.clone();
     if entry.state() == RepresentationState::Complete {
-        AgentOutput::from_texts(entry.id(), agent, author, texts)
+        AgentOutput::from_content(entry.id(), agent, author, blocks)
             .map(|output| Some(IncomingEntry::AgentOutput(output)))
     } else {
-        PartialAgentOutput::from_texts(entry.id(), agent, author, texts)
+        PartialAgentOutput::from_content(entry.id(), agent, author, blocks)
             .map(|output| Some(IncomingEntry::PartialAgentOutput(output)))
     }
 }
@@ -130,16 +136,25 @@ fn translate(
     let (Some(agent), Some(author)) = (row.agent(), row.author()) else {
         return Err(Error::new(ErrorCode::InvalidContent).with_id(row.id().as_uuid()));
     };
-    let mut outputs = Vec::new();
+    let mut kept = Vec::new();
     for (index, entry) in entries.iter().enumerate() {
-        let built = translate_entry(entry, agent, author, tree)
+        let built = translate_row(entry, agent, author, tree)
             .map_err(|error| error.at(format!("entries[{index}]")))?;
-        outputs.extend(built);
+        kept.extend(built);
     }
-    if outputs.is_empty() {
-        return Ok(None);
+    Ok(translated_turn(row.id(), kept))
+}
+
+fn translate_row(
+    entry: &EntryRecord,
+    agent: AgentId,
+    author: &crate::value::Author,
+    tree: &BlockTree<'_>,
+) -> Result<Option<IncomingEntry>, Error> {
+    if entry.kind() == TurnEntryKind::ModelResponse {
+        return translate_entry(entry, agent, author, tree);
     }
-    InputTurn::projected(row.id(), outputs).map(|turn| Some(Turn::InputTurn(turn)))
+    IncomingEntry::try_from(build_entry(entry, tree)?).map(Some)
 }
 
 fn without_interrupted(set: &RecordSet) -> RecordSet {

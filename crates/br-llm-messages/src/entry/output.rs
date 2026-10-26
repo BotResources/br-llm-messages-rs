@@ -4,7 +4,7 @@ use serde::de::IgnoredAny;
 use serde_json::Value;
 
 use super::check_content;
-use crate::block::{PlainBlock, TextBlock};
+use crate::block::PlainBlock;
 use crate::error::{Error, ErrorCode};
 use crate::id::{AgentId, EntryId};
 use crate::value::Author;
@@ -23,8 +23,7 @@ struct OutputWire {
 fn checked_content(id: EntryId, content: &[PlainBlock]) -> Result<(), Error> {
     check_content(id, content)?;
     for (index, block) in content.iter().enumerate() {
-        let text_only = matches!(block, PlainBlock::Text(text) if text.text_only() == *text);
-        if !text_only {
+        if *block != block.bare() {
             return Err(Error::new(ErrorCode::DisallowedKind)
                 .with_id(block.id().as_uuid())
                 .at(format!("content[{index}]")));
@@ -59,16 +58,6 @@ macro_rules! projected_output {
 
             pub fn content(&self) -> &[PlainBlock] {
                 &self.content
-            }
-
-            pub(crate) fn from_texts(
-                id: EntryId,
-                agent: AgentId,
-                author: Author,
-                texts: Vec<TextBlock>,
-            ) -> Result<Self, Error> {
-                let content = texts.into_iter().map(PlainBlock::Text).collect();
-                $name::from_content(id, agent, author, content)
             }
 
             pub(crate) fn from_content(

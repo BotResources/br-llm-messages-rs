@@ -4,12 +4,12 @@
 )]
 
 use br_llm_messages::{
-    AITurn, BlockStart, ContentBlockKind, Conversation, DeltaOp, Finalization, IncomingEntry,
+    AITurn, BlockStart, Conversation, DeltaOp, EntryId, Finalization, IncomingEntry,
     InterruptionReason, RecordSet, ResponseDelta, ResponseDraft, ResponseEnding, ResponseMetadata,
     TextBlock, Turn,
 };
 
-use crate::common::turns::{human, response, tid};
+use crate::common::turns::{response, tid};
 use crate::common::{aid, author, bid, cvid, eid};
 
 pub fn started(turn: u64, entry: u64) -> ResponseDraft {
@@ -90,11 +90,15 @@ pub fn kinds(turn: &Turn) -> Vec<&'static str> {
         .collect()
 }
 
+pub fn waiting(id: u64, agent: u64) -> Turn {
+    AITurn::open(tid(id), aid(agent), author("Claude")).into()
+}
+
 pub fn history() -> Vec<Turn> {
     vec![
         ai(10, 2, vec![said(11, 12, "complete")]),
-        ai(30, 2, vec![human(31)]),
-        ai(50, 2, vec![human(51)]),
+        waiting(30, 2),
+        waiting(50, 2),
     ]
 }
 
@@ -111,6 +115,15 @@ pub fn open_text(turn: u64, entry: u64, block: u64, fragments: &[&str]) -> Respo
 }
 
 pub fn rows_with(drafts: &[ResponseDraft], turns: &[Turn], agent: u64) -> RecordSet {
+    rows_selecting(drafts, turns, agent, &|_| false)
+}
+
+pub fn rows_selecting(
+    drafts: &[ResponseDraft],
+    turns: &[Turn],
+    agent: u64,
+    keep: &dyn Fn(EntryId) -> bool,
+) -> RecordSet {
     let conversation = Conversation::from_parts(cvid(900), turns.to_vec()).unwrap();
     let full = RecordSet::from_conversation(&conversation).unwrap();
     let mut entries = Vec::new();
@@ -119,7 +132,8 @@ pub fn rows_with(drafts: &[ResponseDraft], turns: &[Turn], agent: u64) -> Record
         let owner = full.turns().iter().find(|t| t.id() == row.turn()).unwrap();
         let kept = owner.agent() == Some(aid(agent))
             || owner.agent().is_none()
-            || row.kind() == br_llm_messages::TurnEntryKind::ModelResponse;
+            || row.kind() == br_llm_messages::TurnEntryKind::ModelResponse
+            || keep(row.id());
         if kept {
             entries.push(row.clone());
         }
@@ -138,7 +152,7 @@ pub fn rows_with(drafts: &[ResponseDraft], turns: &[Turn], agent: u64) -> Record
             .unwrap();
         owner.agent() == Some(aid(agent))
             || owner.agent().is_none()
-            || (row.kind() == ContentBlockKind::Text && row.parent().is_none())
+            || (row.kind().is_plain() && row.parent().is_none())
     };
     blocks.retain(blocks_of_owner);
     for draft in drafts {
@@ -148,7 +162,7 @@ pub fn rows_with(drafts: &[ResponseDraft], turns: &[Turn], agent: u64) -> Record
             snapshot
                 .blocks()
                 .iter()
-                .filter(|row| row.kind() == ContentBlockKind::Text && row.parent().is_none())
+                .filter(|row| row.kind().is_plain() && row.parent().is_none())
                 .cloned(),
         );
     }

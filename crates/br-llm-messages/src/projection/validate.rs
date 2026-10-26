@@ -47,44 +47,20 @@ fn check_turn(agent: AgentId, turn: &Turn) -> Result<(), Error> {
 }
 
 fn check_shape(entries: &[IncomingEntry]) -> Result<(), Error> {
-    let projected = entries
-        .iter()
-        .filter(|entry| entry.projected_source().is_some())
-        .count();
-    let structure = |index: usize| {
-        Error::new(ErrorCode::InvalidRecordStructure)
-            .with_id(entries[index].id().as_uuid())
-            .at(format!("entries[{index}]"))
+    let mut outputs = entries.iter().enumerate().filter_map(|(index, entry)| {
+        Some((
+            index,
+            entry.projected_source()?.1,
+            entry.projected_author()?,
+        ))
+    });
+    let Some((_, agent, author)) = outputs.next() else {
+        return Ok(());
     };
-    if projected != 0 && projected != entries.len() {
-        let first_recorded = entries
-            .iter()
-            .position(|entry| entry.projected_source().is_none())
-            .unwrap_or(0);
-        return Err(structure(first_recorded));
-    }
-    let source = entries
-        .first()
-        .and_then(|entry| Some((entry.projected_source()?.1, entry.projected_author()?)));
-    if let Some((agent, author)) = source {
-        let foreign = entries.iter().position(|entry| {
-            entry.projected_source().map(|(_, owner)| owner) != Some(agent)
-                || entry.projected_author() != Some(author)
-        });
-        if let Some(index) = foreign {
-            return Err(structure(index));
-        }
-    }
-    let partials: Vec<usize> = entries
-        .iter()
-        .enumerate()
-        .filter(|(_, entry)| matches!(entry, IncomingEntry::PartialAgentOutput(_)))
-        .map(|(index, _)| index)
-        .collect();
-    match partials.as_slice() {
-        [] => Ok(()),
-        [only] if *only + 1 == entries.len() => Ok(()),
-        [only] => Err(structure(*only)),
-        [_, second, ..] => Err(structure(*second)),
+    match outputs.find(|(_, other, label)| *other != agent || *label != author) {
+        Some((index, _, _)) => Err(Error::new(ErrorCode::InvalidRecordStructure)
+            .with_id(entries[index].id().as_uuid())
+            .at(format!("entries[{index}]"))),
+        None => Ok(()),
     }
 }

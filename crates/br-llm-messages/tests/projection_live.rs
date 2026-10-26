@@ -2,7 +2,7 @@ mod common;
 mod projection_support;
 
 use br_llm_messages::{BlockStart, DeltaOp, ErrorCode, IncomingEntry, Perspective, Turn};
-use common::turns::{human, tid};
+use common::turns::tid;
 use common::{aid, bid, cvid, eid, refused};
 use projection_support::*;
 
@@ -46,7 +46,7 @@ fn given_a_producing_response_after_a_completed_one_when_projected_then_the_part
 
 #[test]
 fn given_a_producing_response_when_text_arrives_afterwards_then_the_built_thread_is_unchanged() {
-    let turns = vec![ai(30, 2, vec![human(31)])];
+    let turns = vec![waiting(30, 2)];
     let mut draft = producing(30, 32, 33, "so far");
     let thread = Perspective::of(aid(1))
         .project_live(cvid(900), &turns, std::slice::from_ref(&draft))
@@ -78,7 +78,7 @@ fn given_a_producing_response_without_text_yet_when_projected_then_no_entry_is_m
     );
 
     let thread = Perspective::of(aid(1))
-        .project_live(cvid(900), &[ai(30, 2, vec![human(31)])], &[draft])
+        .project_live(cvid(900), &[waiting(30, 2)], &[draft])
         .unwrap();
 
     assert!(thread.is_empty());
@@ -104,10 +104,27 @@ fn given_a_draft_of_an_unknown_turn_or_of_the_target_agent_when_projected_then_i
 }
 
 #[test]
-fn given_two_producing_responses_in_one_turn_when_projected_then_invalid_record_structure() {
+fn given_two_producing_responses_in_one_turn_when_projected_then_both_partials_are_kept_in_order() {
     let drafts = [producing(30, 32, 33, "a"), producing(30, 42, 43, "b")];
 
-    let error = refused(Perspective::of(aid(1)).project_live(cvid(900), &history(), &drafts));
+    let thread = Perspective::of(aid(1))
+        .project_live(cvid(900), &history(), &drafts)
+        .unwrap();
 
-    assert_eq!(error.code(), ErrorCode::InvalidRecordStructure);
+    assert_eq!(kinds(&thread.turns()[1]), ["partial", "partial"]);
+}
+
+#[test]
+fn given_a_partial_followed_by_a_completed_response_when_projected_then_any_order_is_legal() {
+    let turns = vec![ai(10, 2, vec![said(11, 12, "complete")])];
+    let drafts = [
+        producing(10, 20, 21, "so far"),
+        producing(10, 30, 31, "next"),
+    ];
+
+    let thread = Perspective::of(aid(1))
+        .project_live(cvid(900), &turns, &drafts)
+        .unwrap();
+
+    assert_eq!(kinds(&thread.turns()[0]), ["output", "partial", "partial"]);
 }
