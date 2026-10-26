@@ -1,4 +1,5 @@
 mod common;
+use common::pending_of;
 mod projection_support;
 
 use br_llm_messages::{
@@ -35,7 +36,7 @@ fn content_of(turn: &Turn, entry: usize) -> Vec<PlainBlock> {
 fn both_paths(drafts: &[ResponseDraft]) -> br_llm_messages::ProjectedThread {
     let turns = history();
     let live = Perspective::of(aid(1))
-        .project_live(cvid(900), &turns, drafts)
+        .project_pending(cvid(900), &turns, &pending_of(drafts))
         .unwrap();
     let stored = rows_with(drafts, &turns, 1)
         .into_projected_thread(cvid(900), aid(1))
@@ -133,7 +134,7 @@ fn given_a_completed_draft_not_yet_recorded_when_projected_then_image_and_struct
     let turns = history();
 
     let live = Perspective::of(aid(1))
-        .project_live(cvid(900), &turns, std::slice::from_ref(&draft))
+        .project_pending(cvid(900), &turns, &pending_of(std::slice::from_ref(&draft)))
         .unwrap();
 
     assert_eq!(kinds(&live.turns()[1]), ["output"]);

@@ -1,28 +1,29 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 use super::block::BlockRecord;
 use super::entry::EntryRecord;
-use super::kept::Kept;
 use super::kinds::RepresentationState;
 use super::partial::{TextPartial, decode as decode_partial};
-use super::reconstruct::{
-    build_entry, build_turn, ensure_parents, ensure_unique, entries_by_turn, ids_of,
-};
-use super::reduced_check::{
-    Owners, check_rows, check_states, interrupted_foreign_responses, other_turns,
-};
+use super::reconstruct::{build_entry, build_turn};
+use super::reduced_rows::Rows;
 use super::set::RecordSet;
 use super::tree::BlockTree;
 use super::turn::TurnRecord;
 use crate::block::{ContentBlock, ContentBlockKind, PlainBlock};
 use crate::entry::{IncomingEntry, TurnEntryKind};
 use crate::error::{Error, ErrorCode};
-use crate::id::{AgentId, ConversationId, EntryId};
+use crate::id::{AgentId, ConversationId, TurnId};
 use crate::projection::{
-    Owner, PendingResponse, ProjectedThread, accumulated_text, output_entry, pending_entries,
-    translated_turn, usable_block,
+    Foreign, Item, Output, Owner, PendingResponse, Progress, ProjectedThread, Source, Sources,
+    accumulated_text, usable_block,
 };
-use crate::turn::{Turn, TurnKind};
+use crate::turn::{Class, Declared, places_of_incoming};
+
+struct Door<'a> {
+    rows: Rows<'a>,
+    tree: BlockTree<'a>,
+    sources: Sources,
+}
 
 fn block_of(row: &BlockRecord, tree: &BlockTree<'_>) -> Result<Option<PlainBlock>, Error> {
     let located = |error: Error| error.with_id(row.id().as_uuid());
@@ -41,59 +42,125 @@ fn block_of(row: &BlockRecord, tree: &BlockTree<'_>) -> Result<Option<PlainBlock
         .ok_or_else(|| located(Error::new(ErrorCode::DisallowedKind)))
 }
 
-fn translate_entry(
-    entry: &EntryRecord,
-    owner: &Owner,
-    tree: &BlockTree<'_>,
-) -> Result<Option<IncomingEntry>, Error> {
-    let mut blocks = Vec::new();
-    for block in tree.roots_of(entry.id()) {
-        blocks.extend(block_of(block, tree)?);
+impl Door<'_> {
+    fn block_at(&self, block: &BlockRecord) -> String {
+        self.rows
+            .block_rows
+            .get(&block.id().as_uuid())
+            .map_or_else(|| "blocks".to_owned(), |row| format!("blocks[{row}]"))
     }
-    output_entry(
-        entry.id(),
-        owner,
-        entry.state() == RepresentationState::Complete,
-        blocks,
-    )
-}
 
-fn translate(
-    row: &TurnRecord,
-    entries: &[&EntryRecord],
-    dropped: &HashSet<EntryId>,
-    tree: &BlockTree<'_>,
-    pending: Vec<IncomingEntry>,
-) -> Result<Option<Turn>, Error> {
-    let Some(owner) = owner_of(row) else {
-        return Err(Error::new(ErrorCode::InvalidContent).with_id(row.id().as_uuid()));
-    };
-    let mut kept = Vec::new();
-    for (index, entry) in entries.iter().enumerate() {
-        if dropped.contains(&entry.id()) {
-            continue;
+    fn declare_rows(&mut self, declared: Declared, turn: usize) {
+        let mut block = format!("turns[{turn}]");
+        for (id, place) in declared {
+            let at = match place.class {
+                Class::Turn => format!("turns[{turn}]"),
+                Class::Block(_) => {
+                    if let Some(row) = self.rows.block_rows.get(&id) {
+                        block = format!("blocks[{row}]");
+                    }
+                    block.clone()
+                }
+                Class::Citation => block.clone(),
+                _ => match self.rows.entry_rows.get(&id) {
+                    Some(row) => format!("entries[{row}]"),
+                    None => format!("turns[{turn}]"),
+                },
+            };
+            self.sources.declare(id, at);
         }
-        let built = translate_row(entry, &owner, tree)
-            .map_err(|error| error.at(format!("entries[{index}]")))?;
-        kept.extend(built);
     }
-    kept.extend(pending);
-    translated_turn(row.id(), kept)
-}
 
-fn translate_row(
-    entry: &EntryRecord,
-    owner: &Owner,
-    tree: &BlockTree<'_>,
-) -> Result<Option<IncomingEntry>, Error> {
-    if entry.kind() == TurnEntryKind::ModelResponse {
-        return translate_entry(entry, owner, tree);
+    fn output(
+        &mut self,
+        index: usize,
+        entry: &EntryRecord,
+        progress: Progress,
+    ) -> Result<Output, Error> {
+        self.sources
+            .declare(entry.id().as_uuid(), format!("entries[{index}]"));
+        let mut blocks = Vec::new();
+        for root in self.tree.roots_of(entry.id()) {
+            let at = self.block_at(root);
+            self.sources.declare(root.id().as_uuid(), at.clone());
+            blocks.extend(block_of(root, &self.tree).map_err(|error| error.at(&at))?);
+        }
+        Ok(Output::new(entry.id(), progress, blocks))
     }
-    IncomingEntry::try_from(build_entry(entry, tree)?).map(Some)
-}
 
-fn owner_of(row: &TurnRecord) -> Option<Owner> {
-    Some((row.agent()?, row.author()?.clone()))
+    fn ignored(&mut self, index: usize, entry: &EntryRecord) {
+        self.sources
+            .declare(entry.id().as_uuid(), format!("entries[{index}]"));
+        let blocks: Vec<(usize, &BlockRecord)> = self.rows.ignored_blocks(entry.id()).collect();
+        for (row, block) in blocks {
+            self.sources
+                .declare(block.id().as_uuid(), format!("blocks[{row}]"));
+        }
+    }
+
+    fn foreign(
+        &mut self,
+        position: usize,
+        turn: &TurnRecord,
+        entries: &[(usize, &EntryRecord)],
+    ) -> Result<Foreign, Error> {
+        let owner = match (turn.agent(), turn.author()) {
+            (Some(agent), Some(author)) => Owner {
+                agent,
+                author: author.clone(),
+            },
+            _ => {
+                return Err(Error::new(ErrorCode::InvalidContent)
+                    .with_id(turn.id().as_uuid())
+                    .at(format!("turns[{position}]")));
+            }
+        };
+        let mut items = Vec::new();
+        for (ordinal, (index, entry)) in entries.iter().enumerate() {
+            let progress = match (entry.kind(), entry.state()) {
+                (TurnEntryKind::ModelResponse, RepresentationState::Interrupted) => None,
+                (TurnEntryKind::ModelResponse, RepresentationState::Complete) => {
+                    Some(Progress::Completed)
+                }
+                (TurnEntryKind::ModelResponse, RepresentationState::Producing) => {
+                    Some(Progress::Producing)
+                }
+                _ => {
+                    items.push(Item::Incoming(
+                        self.incoming(position, ordinal, *index, entry)?,
+                    ));
+                    continue;
+                }
+            };
+            match progress {
+                None => self.ignored(*index, entry),
+                Some(progress) => items.push(Item::Output(self.output(*index, entry, progress)?)),
+            }
+        }
+        Ok(Foreign {
+            id: turn.id(),
+            owner,
+            items,
+        })
+    }
+
+    fn incoming(
+        &mut self,
+        position: usize,
+        ordinal: usize,
+        index: usize,
+        entry: &EntryRecord,
+    ) -> Result<IncomingEntry, Error> {
+        let located = |error: Error| error.at(format!("turns[{position}].entries[{ordinal}]"));
+        let built = build_entry(entry, &self.tree).map_err(located)?;
+        let incoming = IncomingEntry::recorded(&built).ok_or_else(|| {
+            Error::new(ErrorCode::DisallowedKind)
+                .with_id(entry.id().as_uuid())
+                .at(format!("entries[{index}].kind"))
+        })?;
+        self.declare_rows(places_of_incoming(&incoming, ordinal), position);
+        Ok(incoming)
+    }
 }
 
 pub(super) fn rebuild_thread(
@@ -102,42 +169,40 @@ pub(super) fn rebuild_thread(
     agent: AgentId,
     pending: &[PendingResponse<'_>],
 ) -> Result<ProjectedThread, Error> {
-    let others = other_turns(set, agent);
-    let dropped = interrupted_foreign_responses(set, &others);
-    let kept = Kept::without(set, &dropped);
-    check_rows(&kept, &others)?;
-    ensure_unique(&kept)?;
-    ensure_parents(&kept)?;
-    let owners: Owners = kept
-        .entries()
-        .map(|(_, row)| (row.id(), (row.turn(), row.state())))
-        .collect();
-    check_states(&kept, &others, &owners)?;
-    let turn_owners = set
-        .turns()
-        .iter()
-        .filter(|row| row.kind() == TurnKind::AITurn)
-        .filter_map(|row| Some((row.id(), owner_of(row)?)));
-    let mut pending = pending_entries(agent, conversation, pending, turn_owners, ids_of(&kept))?;
-    let tree = BlockTree::build(kept.blocks().map(|(_, row)| row))?;
-    let mut by_turn = entries_by_turn(set);
-    let mut turns = Vec::with_capacity(set.turns().len());
-    for (index, row) in set.turns().iter().enumerate() {
-        let entries = by_turn.remove(&row.id()).unwrap_or_default();
-        let built = if others.contains(&row.id()) {
-            translate(
-                row,
-                &entries,
-                &dropped,
-                &tree,
-                pending.remove(&row.id()).unwrap_or_default(),
-            )
+    let rows = Rows::read(set, agent)?;
+    let tree = BlockTree::build(rows.blocks().map(|(_, row)| row)).map_err(|error| match error
+        .object_id()
+        .and_then(|id| rows.block_rows.get(&id))
+    {
+        Some(row) => error.at(format!("blocks[{row}]")),
+        None => error,
+    })?;
+    let mut door = Door {
+        rows,
+        tree,
+        sources: Sources::default(),
+    };
+    let mut by_turn: HashMap<TurnId, Vec<(usize, &EntryRecord)>> = HashMap::new();
+    for (index, row) in set.entries().iter().enumerate() {
+        by_turn.entry(row.turn()).or_default().push((index, row));
+    }
+    for (position, turn) in set.turns().iter().enumerate() {
+        let entries = by_turn.remove(&turn.id()).unwrap_or_default();
+        if door.rows.foreign.contains(&turn.id()) {
+            door.sources
+                .declare(turn.id().as_uuid(), format!("turns[{position}]"));
+            let foreign = door.foreign(position, turn, &entries)?;
+            door.sources.push(Source::Foreign(foreign));
         } else {
-            build_turn(row, entries, &tree).map(Some)
-        };
-        if let Some(turn) = built.map_err(|error| error.at(format!("turns[{index}]")))? {
-            turns.push(turn);
+            let rows = entries.iter().map(|(_, row)| *row).collect();
+            let rebuilt = build_turn(turn, rows, &door.tree)
+                .map_err(|error| error.at(format!("turns[{position}]")))?;
+            door.declare_rows(rebuilt.declared(), position);
+            door.sources.push(Source::Kept(rebuilt));
         }
     }
-    ProjectedThread::assemble(conversation, agent, turns)
+    Ok(door
+        .sources
+        .check(conversation, pending)?
+        .project(conversation, agent))
 }

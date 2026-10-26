@@ -1,5 +1,6 @@
 mod common;
 use common::Raw as _;
+use common::pending_of;
 
 use br_llm_messages::{
     AITurn, BlockStart, DeltaOp, ErrorCode, Perspective, ProjectedThread, ResponseDelta,
@@ -70,10 +71,10 @@ fn thread() -> ProjectedThread {
         ai(30, 3, "Gemini", vec![]),
     ];
     Perspective::of(aid(1))
-        .project_live(
+        .project_pending(
             cvid(900),
             &turns,
-            &[producing(31, 32, "so far"), producing(33, 34, "then")],
+            &pending_of(&[producing(31, 32, "so far"), producing(33, 34, "then")]),
         )
         .unwrap()
 }

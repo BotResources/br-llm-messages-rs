@@ -64,6 +64,17 @@ impl InputTurn {
         })
     }
 
+    pub(crate) fn translated(id: TurnId, entries: Vec<IncomingEntry>) -> Option<Self> {
+        if entries.is_empty() {
+            return None;
+        }
+        Some(InputTurn {
+            id,
+            entries,
+            observed_at: None,
+        })
+    }
+
     pub fn single(id: TurnId, entry: impl Into<IncomingEntry>) -> Result<Self, Error> {
         InputTurn::new(id, vec![entry.into()])
     }

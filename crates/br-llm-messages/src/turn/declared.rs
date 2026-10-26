@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
 use crate::block::{ContentBlock, ContentBlockKind, PlainBlock};
-use crate::entry::{IncomingEntry, TurnEntry, TurnEntryKind};
+use crate::entry::{IncomingEntry, ModelResponse, TurnEntry, TurnEntryKind};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Class {
@@ -117,6 +117,15 @@ pub(crate) fn places_of_incoming(entry: &IncomingEntry, index: usize) -> Declare
         entry.id().as_uuid(),
         body_of_incoming(entry),
         index,
+    )
+}
+
+pub(crate) fn places_of_response(response: &ModelResponse) -> Declared {
+    entry_places(
+        Class::Entry(TurnEntryKind::ModelResponse),
+        response.id().as_uuid(),
+        Body::Response(response.blocks()),
+        0,
     )
 }
 

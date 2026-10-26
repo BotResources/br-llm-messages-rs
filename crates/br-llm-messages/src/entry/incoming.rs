@@ -53,6 +53,15 @@ macro_rules! incoming_variants {
                 }
             }
 
+            pub(crate) fn recorded(entry: &TurnEntry) -> Option<IncomingEntry> {
+                match entry {
+                    $(TurnEntry::$variant(entry) => Some(IncomingEntry::$variant(entry.clone())),)+
+                    TurnEntry::ModelResponse(_)
+                    | TurnEntry::RuntimeToolResults(_)
+                    | TurnEntry::TurnClosure(_) => None,
+                }
+            }
+
             pub(crate) fn projected_source(&self) -> Option<(EntryId, AgentId)> {
                 match self {
                     IncomingEntry::AgentOutput(entry) => Some((entry.id(), entry.agent())),

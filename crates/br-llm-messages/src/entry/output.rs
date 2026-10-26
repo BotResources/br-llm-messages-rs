@@ -62,7 +62,21 @@ macro_rules! projected_output {
                 &self.content
             }
 
-            pub(crate) fn from_content(
+            pub(crate) fn from_usable(
+                id: EntryId,
+                agent: AgentId,
+                author: Author,
+                content: Vec<PlainBlock>,
+            ) -> Self {
+                $name {
+                    id,
+                    agent,
+                    author,
+                    content,
+                }
+            }
+
+            fn from_content(
                 id: EntryId,
                 agent: AgentId,
                 author: Author,

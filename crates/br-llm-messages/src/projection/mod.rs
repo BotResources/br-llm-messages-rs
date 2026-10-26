@@ -1,17 +1,17 @@
+mod check;
 mod json;
 mod output;
 mod pending;
 mod perspective;
+mod source;
 mod validate;
 
 pub use json::PROJECTED_THREAD_SCHEMA;
 pub use pending::PendingResponse;
 pub use perspective::Perspective;
 
-pub(crate) use output::output_entry;
-pub(crate) use pending::{Owner, pending_entries};
-
-pub(crate) use perspective::{accumulated_text, translated_turn, usable_block};
+pub(crate) use output::{Output, Owner, Progress, accumulated_text, usable_block};
+pub(crate) use source::{Foreign, Item, Source, Sources};
 
 use crate::id::{AgentId, ConversationId};
 use crate::turn::Turn;

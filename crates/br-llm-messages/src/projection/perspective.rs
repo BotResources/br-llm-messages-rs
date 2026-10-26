@@ -1,17 +1,16 @@
-use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
 
 use super::ProjectedThread;
-use super::output::output_of;
-use super::pending::{Owner, PendingResponse, pending_entries};
-use crate::block::{ContentBlock, PlainBlock, TextBlock};
+use super::check::Checked;
+use super::output::{Output, Owner, usable_block};
+use super::pending::PendingResponse;
+use super::source::{Foreign, Item, Source, Sources};
 use crate::conversation::Conversation;
 use crate::entry::{IncomingEntry, TurnEntry};
 use crate::error::Error;
-use crate::id::{AgentId, BlockId, ConversationId, TurnId};
-use crate::stream::ResponseDraft;
-use crate::turn::{AITurn, InputTurn, Turn};
+use crate::id::{AgentId, ConversationId};
+use crate::turn::{AITurn, Class, Place, Turn, places_of_incoming, refuse_agent_output};
 
 #[derive(Clone)]
 struct Selection(Arc<dyn Fn(&IncomingEntry) -> bool + Send + Sync>);
@@ -33,6 +32,13 @@ impl PartialEq for Selection {
 pub struct Perspective {
     agent: AgentId,
     selection: Option<Selection>,
+}
+
+fn located(turn: usize, place: &Place) -> String {
+    match place.class {
+        Class::Turn => format!("turns[{turn}]"),
+        _ => format!("turns[{turn}].entries[{}]", place.entry),
+    }
 }
 
 impl Perspective {
@@ -62,10 +68,7 @@ impl Perspective {
     }
 
     pub fn project(&self, conversation: &Conversation) -> ProjectedThread {
-        let turns = self
-            .translate(conversation.turns(), &HashMap::new())
-            .expect("the identities of a conversation are unique, so a translation cannot clash");
-        ProjectedThread::unchecked(conversation.id(), self.agent, turns)
+        Checked::unique(self.sources(conversation.turns())).project(conversation.id(), self.agent)
     }
 
     pub fn project_turns(
@@ -73,17 +76,7 @@ impl Perspective {
         conversation: ConversationId,
         turns: &[Turn],
     ) -> Result<ProjectedThread, Error> {
-        self.project_live(conversation, turns, &[])
-    }
-
-    pub fn project_live(
-        &self,
-        conversation: ConversationId,
-        turns: &[Turn],
-        drafts: &[ResponseDraft],
-    ) -> Result<ProjectedThread, Error> {
-        let pending: Vec<PendingResponse<'_>> = drafts.iter().map(PendingResponse::Draft).collect();
-        self.project_pending(conversation, turns, &pending)
+        self.project_pending(conversation, turns, &[])
     }
 
     pub fn project_pending(
@@ -92,85 +85,71 @@ impl Perspective {
         turns: &[Turn],
         pending: &[PendingResponse<'_>],
     ) -> Result<ProjectedThread, Error> {
-        let owners = turns.iter().filter_map(|turn| match turn {
-            Turn::AITurn(ai) => Some((ai.id(), (ai.agent(), ai.author().clone()))),
-            Turn::InputTurn(_) => None,
-        });
-        let declared = turns
-            .iter()
-            .flat_map(|turn| turn.declared().into_iter().map(|(id, _)| id));
-        let pending = pending_entries(self.agent, conversation, pending, owners, declared)?;
-        let translated = self.translate(turns, &pending)?;
-        ProjectedThread::assemble(conversation, self.agent, translated)
+        for (position, turn) in turns.iter().enumerate() {
+            if let Turn::InputTurn(input) = turn {
+                refuse_agent_output(input.entries())
+                    .map_err(|error| error.at(format!("turns[{position}]")))?;
+            }
+        }
+        let checked = self.sources(turns).check(conversation, pending)?;
+        Ok(checked.project(conversation, self.agent))
     }
 
-    fn translated(
-        &self,
-        turn: &AITurn,
-        pending: &HashMap<TurnId, Vec<IncomingEntry>>,
-    ) -> Result<Option<Turn>, Error> {
-        let owner: Owner = (turn.agent(), turn.author().clone());
-        let mut entries: Vec<IncomingEntry> = turn
-            .entries()
-            .iter()
-            .filter_map(|entry| match entry {
-                TurnEntry::ModelResponse(response) => output_of(&owner, response),
-                other => IncomingEntry::try_from(other)
-                    .ok()
-                    .filter(|incoming| self.keeps(incoming)),
-            })
-            .collect();
-        entries.extend(pending.get(&turn.id()).cloned().unwrap_or_default());
-        translated_turn(turn.id(), entries)
-    }
-
-    fn translate(
-        &self,
-        turns: &[Turn],
-        pending: &HashMap<TurnId, Vec<IncomingEntry>>,
-    ) -> Result<Vec<Turn>, Error> {
-        let mut translated = Vec::with_capacity(turns.len());
+    fn sources(&self, turns: &[Turn]) -> Sources {
+        let mut sources = Sources::default();
         for (position, turn) in turns.iter().enumerate() {
             match turn {
                 Turn::AITurn(ai) if ai.agent() != self.agent => {
-                    let built = self
-                        .translated(ai, pending)
-                        .map_err(|error| error.at(format!("turns[{position}]")))?;
-                    translated.extend(built);
+                    let foreign = self.foreign(ai, position, &mut sources);
+                    sources.push(Source::Foreign(foreign));
                 }
-                other => translated.push(other.clone()),
+                kept => {
+                    for (id, place) in kept.declared() {
+                        sources.declare(id, located(position, &place));
+                    }
+                    sources.push(Source::Kept(kept.clone()));
+                }
             }
         }
-        Ok(translated)
+        sources
     }
-}
 
-pub(crate) fn accumulated_text(id: BlockId, text: &str) -> Option<TextBlock> {
-    TextBlock::new(id, text).ok()
-}
-
-pub(crate) fn usable_block(block: &ContentBlock) -> Option<PlainBlock> {
-    let plain = match block {
-        ContentBlock::Text(text) => PlainBlock::Text(text.clone()),
-        ContentBlock::Image(image) => PlainBlock::Image(image.clone()),
-        ContentBlock::StructuredContent(structured) => {
-            PlainBlock::StructuredContent(structured.clone())
+    fn foreign(&self, turn: &AITurn, position: usize, sources: &mut Sources) -> Foreign {
+        sources.declare(turn.id().as_uuid(), format!("turns[{position}]"));
+        let mut items = Vec::new();
+        for (index, entry) in turn.entries().iter().enumerate() {
+            let at = format!("turns[{position}].entries[{index}]");
+            match entry {
+                TurnEntry::ModelResponse(response) => {
+                    sources.declare(response.id().as_uuid(), at.clone());
+                    for block in response.blocks() {
+                        if usable_block(block).is_some() {
+                            sources.declare(block.id().as_uuid(), at.clone());
+                        }
+                    }
+                    items.push(Item::Output(Output::of_response(response)));
+                }
+                recorded => {
+                    let Some(incoming) = IncomingEntry::recorded(recorded) else {
+                        continue;
+                    };
+                    if !self.keeps(&incoming) {
+                        continue;
+                    }
+                    for (id, _) in places_of_incoming(&incoming, index) {
+                        sources.declare(id, at.clone());
+                    }
+                    items.push(Item::Incoming(incoming));
+                }
+            }
         }
-        _ => return None,
-    };
-    Some(plain.bare())
-}
-
-pub(super) fn blocks_of(blocks: &[ContentBlock]) -> Vec<PlainBlock> {
-    blocks.iter().filter_map(usable_block).collect()
-}
-
-pub(crate) fn translated_turn(
-    id: TurnId,
-    entries: Vec<IncomingEntry>,
-) -> Result<Option<Turn>, Error> {
-    if entries.is_empty() {
-        return Ok(None);
+        Foreign {
+            id: turn.id(),
+            owner: Owner {
+                agent: turn.agent(),
+                author: turn.author().clone(),
+            },
+            items,
+        }
     }
-    InputTurn::projected(id, entries).map(|turn| Some(Turn::InputTurn(turn)))
 }

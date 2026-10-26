@@ -4,6 +4,7 @@
 )]
 
 use crate::common::Raw as _;
+use crate::common::pending_of;
 use crate::common::turns::{human, response, tid};
 use crate::common::{aid, author, bid, cvid, eid, oj};
 use br_llm_messages::{
@@ -53,7 +54,7 @@ pub fn thread() -> ProjectedThread {
         ),
     ];
     Perspective::of(aid(1))
-        .project_live(cvid(900), &turns, &[draft()])
+        .project_pending(cvid(900), &turns, &pending_of(&[draft()]))
         .unwrap()
 }
 

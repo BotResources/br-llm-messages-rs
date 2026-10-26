@@ -1,13 +1,12 @@
 mod block;
 mod decompose;
 mod entry;
-mod kept;
 mod kinds;
 mod partial;
 mod payload;
 mod reconstruct;
 mod reduced;
-mod reduced_check;
+mod reduced_rows;
 mod schema;
 mod set;
 mod tree;

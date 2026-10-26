@@ -1,4 +1,5 @@
 mod common;
+use common::pending_of;
 mod projection_support;
 
 use br_llm_messages::{
@@ -136,7 +137,7 @@ fn given_a_producing_response_after_a_kept_incoming_entry_when_projected_live_th
     let drafts = [producing(1, 40, 41, "so far")];
 
     let live = Perspective::of(aid(1))
-        .project_live(cvid(900), &turns, &drafts)
+        .project_pending(cvid(900), &turns, &pending_of(&drafts))
         .unwrap();
     let stored = rows_selecting(&drafts, &turns, 1, &|_| true)
         .into_projected_thread(cvid(900), aid(1))
@@ -194,7 +195,7 @@ fn given_runtime_rows_under_another_agents_turn_when_door_used_then_disallowed_k
             delivery(13, &[(14, 12, "lookup")]),
         ],
     )];
-    let rows = rows_selecting(&[], &turns, 1, &|_| true);
+    let rows = rows_selecting(&[], &turns, 1, &|_| false);
     let results = br_llm_messages::EntryRecord::new(
         eid(13),
         tid(1),

@@ -1,32 +1,70 @@
-use super::pending::Owner;
-use super::perspective::blocks_of;
-use crate::block::PlainBlock;
+use crate::block::{ContentBlock, PlainBlock, TextBlock};
 use crate::entry::{AgentOutput, IncomingEntry, ModelResponse, PartialAgentOutput};
-use crate::error::Error;
-use crate::id::EntryId;
+use crate::id::{AgentId, BlockId, EntryId};
+use crate::value::Author;
 
-pub(crate) fn output_entry(
-    entry: EntryId,
-    owner: &Owner,
-    complete: bool,
-    blocks: Vec<PlainBlock>,
-) -> Result<Option<IncomingEntry>, Error> {
-    if blocks.is_empty() {
-        return Ok(None);
-    }
-    let (agent, author) = owner;
-    let author = author.clone();
-    if complete {
-        AgentOutput::from_content(entry, *agent, author, blocks).map(IncomingEntry::AgentOutput)
-    } else {
-        PartialAgentOutput::from_content(entry, *agent, author, blocks)
-            .map(IncomingEntry::PartialAgentOutput)
-    }
-    .map(Some)
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Owner {
+    pub(crate) agent: AgentId,
+    pub(crate) author: Author,
 }
 
-pub(crate) fn output_of(owner: &Owner, response: &ModelResponse) -> Option<IncomingEntry> {
-    output_entry(response.id(), owner, true, blocks_of(response.blocks()))
-        .ok()
-        .flatten()
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Progress {
+    Completed,
+    Producing,
+}
+
+pub(crate) struct Output {
+    entry: EntryId,
+    progress: Progress,
+    blocks: Vec<PlainBlock>,
+}
+
+impl Output {
+    pub(crate) fn new(entry: EntryId, progress: Progress, blocks: Vec<PlainBlock>) -> Self {
+        Output {
+            entry,
+            progress,
+            blocks: blocks.iter().map(PlainBlock::bare).collect(),
+        }
+    }
+
+    pub(crate) fn of_response(response: &ModelResponse) -> Self {
+        Output::new(
+            response.id(),
+            Progress::Completed,
+            response.blocks().iter().filter_map(usable_block).collect(),
+        )
+    }
+
+    pub(crate) fn entry_for(self, owner: &Owner) -> Option<IncomingEntry> {
+        if self.blocks.is_empty() {
+            return None;
+        }
+        let (agent, author) = (owner.agent, owner.author.clone());
+        Some(match self.progress {
+            Progress::Completed => {
+                AgentOutput::from_usable(self.entry, agent, author, self.blocks).into()
+            }
+            Progress::Producing => {
+                PartialAgentOutput::from_usable(self.entry, agent, author, self.blocks).into()
+            }
+        })
+    }
+}
+
+pub(crate) fn accumulated_text(id: BlockId, text: &str) -> Option<TextBlock> {
+    TextBlock::new(id, text).ok()
+}
+
+pub(crate) fn usable_block(block: &ContentBlock) -> Option<PlainBlock> {
+    match block {
+        ContentBlock::Text(text) => Some(PlainBlock::Text(text.clone())),
+        ContentBlock::Image(image) => Some(PlainBlock::Image(image.clone())),
+        ContentBlock::StructuredContent(structured) => {
+            Some(PlainBlock::StructuredContent(structured.clone()))
+        }
+        _ => None,
+    }
 }

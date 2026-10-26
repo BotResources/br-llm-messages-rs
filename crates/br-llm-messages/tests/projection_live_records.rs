@@ -1,4 +1,5 @@
 mod common;
+use common::pending_of;
 mod projection_support;
 
 use br_llm_messages::{
@@ -13,7 +14,7 @@ fn given_producing_and_interrupted_rows_when_projected_from_records_then_it_equa
     let turns = history();
     let drafts = [producing(30, 32, 33, "so far"), interrupted(50, 52, 53)];
     let expected = Perspective::of(aid(1))
-        .project_live(cvid(900), &turns, &drafts)
+        .project_pending(cvid(900), &turns, &pending_of(&drafts))
         .unwrap();
 
     let rows = rows_with(&drafts, &turns, 1);
@@ -30,7 +31,7 @@ fn given_producing_text_that_is_still_blank_when_projected_then_it_is_skipped_on
         let drafts = [open_text(30, 32, 33, &fragments)];
 
         let live = Perspective::of(aid(1))
-            .project_live(cvid(900), &turns, &drafts)
+            .project_pending(cvid(900), &turns, &pending_of(&drafts))
             .unwrap();
         let rows = rows_with(&drafts, &turns, 1);
         let stored = rows.into_projected_thread(cvid(900), aid(1)).unwrap();
@@ -59,7 +60,7 @@ fn given_a_blank_block_next_to_non_blank_text_when_projected_then_only_the_non_b
     let drafts = [draft];
 
     let live = Perspective::of(aid(1))
-        .project_live(cvid(900), &turns, &drafts)
+        .project_pending(cvid(900), &turns, &pending_of(&drafts))
         .unwrap();
     let stored = rows_with(&drafts, &turns, 1)
         .into_projected_thread(cvid(900), aid(1))
@@ -81,7 +82,7 @@ fn given_interrupted_rows_in_any_position_when_projected_from_records_then_they_
     let turns = history();
     let drafts = [interrupted(30, 32, 33), producing(50, 52, 53, "live")];
     let expected = Perspective::of(aid(1))
-        .project_live(cvid(900), &turns, &drafts)
+        .project_pending(cvid(900), &turns, &pending_of(&drafts))
         .unwrap();
 
     let rows = rows_with(&drafts, &turns, 1);

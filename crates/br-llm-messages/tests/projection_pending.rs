@@ -46,6 +46,7 @@ fn both(
         (Err(live), Err(stored)) => {
             assert_eq!(live.code(), stored.code());
             assert_eq!(live.object_id(), stored.object_id());
+            assert_eq!(live.location(), stored.location());
         }
         _ => panic!("the two paths disagree: {live:?} / {stored:?}"),
     }
@@ -79,7 +80,7 @@ fn given_a_completed_draft_for_a_closed_foreign_turn_when_projected_then_it_is_a
         ],
     );
 
-    let thread = both(&closed_history(), 1, &[PendingResponse::draft(&draft)]).unwrap();
+    let thread = both(&closed_history(), 1, &[PendingResponse::from(&draft)]).unwrap();
 
     assert_eq!(kinds(&thread.turns()[0]), ["output", "output"]);
 }
@@ -92,7 +93,7 @@ fn given_several_unrecorded_items_per_turn_when_projected_then_they_follow_the_r
     let last = unrecorded(20, 21, "three");
     let pending = [
         PendingResponse::response(tid(10), &first),
-        PendingResponse::draft(&draft),
+        PendingResponse::from(&draft),
         PendingResponse::response(tid(10), &last),
     ];
 
@@ -133,7 +134,7 @@ fn given_an_unrecorded_item_for_the_targets_own_turn_when_projected_then_disallo
  {
     let draft = producing(30, 32, 33, "x");
 
-    let error = refused(both(&history(), 2, &[PendingResponse::draft(&draft)]));
+    let error = refused(both(&history(), 2, &[PendingResponse::from(&draft)]));
 
     assert_eq!(error.code(), ErrorCode::DisallowedKind);
     assert_eq!(error.object_id(), Some(eid(32).as_uuid()));
@@ -201,7 +202,7 @@ fn given_a_draft_whose_producing_snapshot_rows_were_also_sent_when_projected_the
     let error = refused(rows.into_projected_thread_pending(
         cvid(900),
         aid(1),
-        &[PendingResponse::draft(&draft)],
+        &[PendingResponse::from(&draft)],
     ));
 
     assert_eq!(error.code(), ErrorCode::ReusedIdentity);
@@ -213,8 +214,8 @@ fn given_an_unstarted_or_interrupted_draft_when_projected_then_it_gives_nothing(
     let unstarted = br_llm_messages::ResponseDraft::new(tid(30), eid(32));
     let interrupted = interrupted(30, 42, 43);
     let pending = [
-        PendingResponse::draft(&unstarted),
-        PendingResponse::draft(&interrupted),
+        PendingResponse::from(&unstarted),
+        PendingResponse::from(&interrupted),
     ];
 
     let thread = both(&history(), 1, &pending).unwrap();
@@ -223,17 +224,18 @@ fn given_an_unstarted_or_interrupted_draft_when_projected_then_it_gives_nothing(
 }
 
 #[test]
-fn given_a_closure_entry_identity_when_an_item_is_added_on_the_history_path_then_reused_identity() {
+fn given_a_hidden_closure_identity_when_an_item_is_added_then_neither_path_sees_it_and_both_accept()
+{
     let response = unrecorded(13, 70, "again");
 
-    let error = refused(Perspective::of(aid(1)).project_pending(
-        cvid(900),
+    let thread = both(
         &closed_history(),
+        1,
         &[PendingResponse::response(tid(30), &response)],
-    ));
+    )
+    .unwrap();
 
-    assert_eq!(error.code(), ErrorCode::ReusedIdentity);
-    assert_eq!(error.object_id(), Some(eid(13).as_uuid()));
+    assert_eq!(kinds(&thread.turns()[1]), ["output"]);
 }
 
 #[test]
@@ -249,5 +251,5 @@ fn given_a_block_identity_already_in_the_translated_turn_when_an_item_is_added_t
 
     assert_eq!(error.code(), ErrorCode::ReusedIdentity);
     assert_eq!(error.object_id(), Some(bid(12).as_uuid()));
-    assert_eq!(error.location(), Some("turns[0].entries[1]"));
+    assert_eq!(error.location(), Some("pending[0]"));
 }

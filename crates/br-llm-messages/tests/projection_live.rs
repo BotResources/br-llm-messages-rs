@@ -1,4 +1,5 @@
 mod common;
+use common::pending_of;
 mod projection_support;
 
 use br_llm_messages::{BlockStart, DeltaOp, ErrorCode, IncomingEntry, Perspective, Turn};
@@ -12,7 +13,7 @@ fn given_complete_producing_and_interrupted_responses_when_projected_then_output
     let drafts = [producing(30, 32, 33, "so far"), interrupted(50, 52, 53)];
 
     let thread = Perspective::of(aid(1))
-        .project_live(cvid(900), &history(), &drafts)
+        .project_pending(cvid(900), &history(), &pending_of(&drafts))
         .unwrap();
 
     assert_eq!(thread.len(), 2);
@@ -27,7 +28,7 @@ fn given_a_producing_response_after_a_completed_one_when_projected_then_the_part
     let draft = producing(10, 20, 21, "so far");
 
     let thread = Perspective::of(aid(1))
-        .project_live(cvid(900), &turns, &[draft])
+        .project_pending(cvid(900), &turns, &pending_of(&[draft]))
         .unwrap();
 
     assert_eq!(kinds(&thread.turns()[0]), ["output", "partial"]);
@@ -49,7 +50,7 @@ fn given_a_producing_response_when_text_arrives_afterwards_then_the_built_thread
     let turns = vec![waiting(30, 2)];
     let mut draft = producing(30, 32, 33, "so far");
     let thread = Perspective::of(aid(1))
-        .project_live(cvid(900), &turns, std::slice::from_ref(&draft))
+        .project_pending(cvid(900), &turns, &pending_of(std::slice::from_ref(&draft)))
         .unwrap();
     let before = thread.clone();
 
@@ -62,7 +63,7 @@ fn given_a_producing_response_when_text_arrives_afterwards_then_the_built_thread
 
     assert_eq!(thread, before);
     let again = Perspective::of(aid(1))
-        .project_live(cvid(900), &turns, &[draft])
+        .project_pending(cvid(900), &turns, &pending_of(&[draft]))
         .unwrap();
     assert_ne!(again, thread);
 }
@@ -78,7 +79,7 @@ fn given_a_producing_response_without_text_yet_when_projected_then_no_entry_is_m
     );
 
     let thread = Perspective::of(aid(1))
-        .project_live(cvid(900), &[waiting(30, 2)], &[draft])
+        .project_pending(cvid(900), &[waiting(30, 2)], &pending_of(&[draft]))
         .unwrap();
 
     assert!(thread.is_empty());
@@ -88,15 +89,15 @@ fn given_a_producing_response_without_text_yet_when_projected_then_no_entry_is_m
 fn given_a_draft_of_an_unknown_turn_or_of_the_target_agent_when_projected_then_it_is_refused() {
     let turns = history();
 
-    let unknown = refused(Perspective::of(aid(1)).project_live(
+    let unknown = refused(Perspective::of(aid(1)).project_pending(
         cvid(900),
         &turns,
-        &[producing(99, 90, 91, "x")],
+        &pending_of(&[producing(99, 90, 91, "x")]),
     ));
-    let own = refused(Perspective::of(aid(2)).project_live(
+    let own = refused(Perspective::of(aid(2)).project_pending(
         cvid(900),
         &turns,
-        &[producing(30, 32, 33, "x")],
+        &pending_of(&[producing(30, 32, 33, "x")]),
     ));
 
     assert_eq!(unknown.code(), ErrorCode::UnknownReference);
@@ -110,7 +111,7 @@ fn given_two_producing_responses_in_one_turn_when_projected_then_both_partials_a
     let drafts = [producing(30, 32, 33, "a"), producing(30, 42, 43, "b")];
 
     let thread = Perspective::of(aid(1))
-        .project_live(cvid(900), &history(), &drafts)
+        .project_pending(cvid(900), &history(), &pending_of(&drafts))
         .unwrap();
 
     assert_eq!(kinds(&thread.turns()[1]), ["partial", "partial"]);
@@ -125,7 +126,7 @@ fn given_a_partial_followed_by_a_completed_response_when_projected_then_any_orde
     ];
 
     let thread = Perspective::of(aid(1))
-        .project_live(cvid(900), &turns, &drafts)
+        .project_pending(cvid(900), &turns, &pending_of(&drafts))
         .unwrap();
 
     assert_eq!(kinds(&thread.turns()[0]), ["output", "partial", "partial"]);

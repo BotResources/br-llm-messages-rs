@@ -5,7 +5,6 @@ use uuid::Uuid;
 
 use super::block::BlockRecord;
 use super::entry::EntryRecord;
-use super::kept::Kept;
 use super::kinds::RepresentationState;
 use super::payload::entry_value;
 use super::set::RecordSet;
@@ -36,18 +35,18 @@ fn citation_ids(row: &BlockRecord) -> Vec<Uuid> {
         .unwrap_or_default()
 }
 
-pub(super) fn ids_of<'a>(kept: &'a Kept<'a>) -> impl Iterator<Item = Uuid> + 'a {
-    kept.turns()
+fn ids_of(set: &RecordSet) -> impl Iterator<Item = Uuid> + '_ {
+    set.turns()
         .iter()
         .map(|row| row.id().as_uuid())
-        .chain(kept.entries().map(|(_, row)| row.id().as_uuid()))
-        .chain(kept.blocks().map(|(_, row)| row.id().as_uuid()))
-        .chain(kept.blocks().flat_map(|(_, row)| citation_ids(row)))
+        .chain(set.entries().iter().map(|row| row.id().as_uuid()))
+        .chain(set.blocks().iter().map(|row| row.id().as_uuid()))
+        .chain(set.blocks().iter().flat_map(citation_ids))
 }
 
-pub(super) fn ensure_unique(kept: &Kept<'_>) -> Result<(), Error> {
+fn ensure_unique(set: &RecordSet) -> Result<(), Error> {
     let mut seen: HashSet<Uuid> = HashSet::new();
-    for id in ids_of(kept) {
+    for id in ids_of(set) {
         if !seen.insert(id) {
             return Err(Error::new(ErrorCode::ReusedIdentity).with_id(id));
         }
@@ -55,7 +54,7 @@ pub(super) fn ensure_unique(kept: &Kept<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-pub(super) fn ensure_complete(set: &RecordSet) -> Result<(), Error> {
+fn ensure_complete(set: &RecordSet) -> Result<(), Error> {
     let incomplete = |id: Uuid, location: &str| {
         Error::new(ErrorCode::DisallowedKind)
             .with_id(id)
@@ -74,17 +73,17 @@ pub(super) fn ensure_complete(set: &RecordSet) -> Result<(), Error> {
     Ok(())
 }
 
-pub(super) fn ensure_parents(kept: &Kept<'_>) -> Result<(), Error> {
-    let turns: HashSet<TurnId> = kept.turns().iter().map(TurnRecord::id).collect();
-    let entries: HashSet<EntryId> = kept.entries().map(|(_, row)| row.id()).collect();
-    for (_, row) in kept.entries() {
+fn ensure_parents(set: &RecordSet) -> Result<(), Error> {
+    let turns: HashSet<TurnId> = set.turns().iter().map(TurnRecord::id).collect();
+    let entries: HashSet<EntryId> = set.entries().iter().map(EntryRecord::id).collect();
+    for row in set.entries() {
         if !turns.contains(&row.turn()) {
             return Err(Error::new(ErrorCode::InvalidRecordStructure)
                 .with_id(row.id().as_uuid())
                 .at("turn"));
         }
     }
-    for (_, row) in kept.blocks() {
+    for row in set.blocks() {
         if !entries.contains(&row.entry()) {
             return Err(Error::new(ErrorCode::InvalidRecordStructure)
                 .with_id(row.id().as_uuid())
@@ -146,7 +145,7 @@ pub(super) fn build_turn(
     }
 }
 
-pub(super) fn entries_by_turn(set: &RecordSet) -> HashMap<TurnId, Vec<&EntryRecord>> {
+fn entries_by_turn(set: &RecordSet) -> HashMap<TurnId, Vec<&EntryRecord>> {
     let mut by_turn: HashMap<TurnId, Vec<&EntryRecord>> = HashMap::new();
     for row in set.entries() {
         by_turn.entry(row.turn()).or_default().push(row);
@@ -156,9 +155,8 @@ pub(super) fn entries_by_turn(set: &RecordSet) -> HashMap<TurnId, Vec<&EntryReco
 
 pub(super) fn rebuild(set: &RecordSet) -> Result<Vec<Turn>, Error> {
     set.check_local()?;
-    let kept = Kept::all(set);
-    ensure_unique(&kept)?;
-    ensure_parents(&kept)?;
+    ensure_unique(set)?;
+    ensure_parents(set)?;
     ensure_complete(set)?;
     let tree = BlockTree::build(set.blocks())?;
     let mut by_turn = entries_by_turn(set);
