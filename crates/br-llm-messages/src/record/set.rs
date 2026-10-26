@@ -135,11 +135,13 @@ impl RecordSet {
     }
 
     pub fn to_json(&self) -> Result<String, Error> {
-        crate::json::encode(self)
+        self.check_local()?;
+        crate::json::encode(&Checked(self))
     }
 
     pub fn to_value(&self) -> Result<OpaqueJson, Error> {
-        crate::json::encode_value(self).map(OpaqueJson::from_inner)
+        self.check_local()?;
+        crate::json::encode_value(&Checked(self)).map(OpaqueJson::from_inner)
     }
 
     pub fn from_json(text: &str) -> Result<RecordSet, Error> {
@@ -170,14 +172,23 @@ fn rows<T: serde::de::DeserializeOwned>(raw: Vec<Value>, name: &str) -> Result<V
         .collect()
 }
 
-impl Serialize for RecordSet {
+struct Checked<'a>(&'a RecordSet);
+
+impl Serialize for Checked<'_> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut set = serializer.serialize_struct("RecordSet", 4)?;
         set.serialize_field("schema", RECORD_SCHEMA)?;
-        set.serialize_field("turns", &self.turns)?;
-        set.serialize_field("entries", &self.entries)?;
-        set.serialize_field("blocks", &self.blocks)?;
+        set.serialize_field("turns", &self.0.turns)?;
+        set.serialize_field("entries", &self.0.entries)?;
+        set.serialize_field("blocks", &self.0.blocks)?;
         set.end()
+    }
+}
+
+impl Serialize for RecordSet {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.check_local().map_err(serde::ser::Error::custom)?;
+        Checked(self).serialize(serializer)
     }
 }
 

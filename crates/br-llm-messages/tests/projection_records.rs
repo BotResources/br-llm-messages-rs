@@ -210,7 +210,7 @@ fn given_a_text_row_with_blank_text_when_door_used_then_invalid_content() {
 
 #[test]
 fn given_an_agent_output_kind_in_a_record_row_when_decoded_then_disallowed_kind() {
-    let (rows, _) = other_turn_set();
+    let rows = RecordSet::from_conversation(&history(3)).unwrap();
     let mut document = rows.to_value().unwrap().raw();
     document["entries"][0]["kind"] = json!("agent_output");
     let partial = {

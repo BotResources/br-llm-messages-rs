@@ -243,3 +243,37 @@ fn given_a_mail_payload_when_checked_locally_then_in_reply_to_is_a_plain_entry_i
         ErrorCode::InvalidContent
     );
 }
+
+#[test]
+fn given_a_record_set_with_a_row_that_fails_the_local_check_when_serialized_then_it_is_refused_like_the_reload()
+ {
+    let human = EntryRecord::new(
+        eid(2),
+        tid(1),
+        TurnEntryKind::HumanMessage,
+        RepresentationState::Complete,
+        common::oj(json!({"human": common::hid(1).to_string(), "content": []})),
+    );
+    let set = br_llm_messages::RecordSet::new().with_entries(vec![human]);
+
+    let checked = set.check_local().unwrap_err();
+    let json = set.to_json().unwrap_err();
+    let value = set.to_value().unwrap_err();
+    let serde = serde_json::to_string(&set);
+
+    assert_eq!(json.code(), checked.code());
+    assert_eq!(json.location(), checked.location());
+    assert_eq!(value.code(), checked.code());
+    assert!(serde.is_err());
+}
+
+#[test]
+fn given_a_record_set_that_passes_the_local_check_when_serialized_then_it_reloads_equal() {
+    let set = br_llm_messages::RecordSet::new().with_entries(vec![completed(
+        json!({"task": kid(1).to_string(), "summary": "done"}),
+    )]);
+
+    let reloaded = br_llm_messages::RecordSet::from_json(&set.to_json().unwrap()).unwrap();
+
+    assert_eq!(reloaded, set);
+}

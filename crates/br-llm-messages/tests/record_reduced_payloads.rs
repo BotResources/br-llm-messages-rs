@@ -86,7 +86,8 @@ fn given_a_foreign_response_row_built_in_memory_without_payload_when_projected_t
 }
 
 #[test]
-fn given_a_complete_response_row_without_ending_when_loaded_from_json_then_invalid_content() {
+fn given_a_complete_response_row_without_ending_when_serialized_or_loaded_from_json_then_invalid_content()
+ {
     let rows = with_payload(
         &rows_with(&[], &foreign(), 1),
         11,
@@ -95,7 +96,7 @@ fn given_a_complete_response_row_without_ending_when_loaded_from_json_then_inval
     );
     let row = json!({"id": eid(11), "turn": tid(10), "kind": "model_response", "state": "complete", "payload": {}});
 
-    let set = refused(RecordSet::from_json(&rows.to_json().unwrap()));
+    let set = refused(rows.to_json());
     let single = refused(serde_json::from_value::<EntryRecord>(row));
 
     assert_eq!(set.code(), ErrorCode::InvalidContent);
