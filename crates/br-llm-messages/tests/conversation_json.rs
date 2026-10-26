@@ -17,7 +17,7 @@ fn code_of(document: Value) -> ErrorCode {
 }
 
 #[test]
-fn given_the_current_schema_when_serialized_then_it_names_br_llm_messages_4_exactly() {
+fn given_the_current_schema_when_serialized_then_it_names_br_llm_messages_5_exactly() {
     let json = rich().to_value().unwrap().raw();
 
     assert_eq!(json["schema"], "br-llm-messages/5");

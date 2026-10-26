@@ -7,6 +7,30 @@ released under the tag `v{version}`. Format follows
 Release headings are plain `## X.Y.Z` — the release pipeline greps that exact
 form to decide whether a version ships.
 
+## 2.0.0 - 2026-10-26
+
+Breaking: an input turn holds one or more incoming entries, in order, instead of exactly one.
+The stored conversation schema moves to `br-llm-messages/5`; documents of `br-llm-messages/4` (and earlier) do not load. The records, delta and draft schemas are unchanged.
+An input turn is complete when built and never changes afterwards; a caller that drains the contributions received while an agent was idle builds one input turn from all of them. The entries may be of mixed kinds and each keeps its own attribution. Perspective projection leaves input turns as they are recorded: all entries, no grouping, no new identity.
+
+### Changed
+
+- **Breaking:** `InputTurn::new(id, entries: Vec<IncomingEntry>)` replaces `InputTurn::new(id, entry)`; an empty list is refused with `invalid_record_structure` (location `entries`).
+- **Breaking:** `InputTurn::entries() -> &[IncomingEntry]` replaces `InputTurn::entry()`.
+- **Breaking:** the JSON field `entry` of an `input_turn` becomes `entries`, an array of incoming entries; a 1.x turn carrying `entry` is refused (`invalid_content`, unknown field), a 1.x conversation document is refused by its schema (`schema_mismatch`).
+- Entry, block and citation ids stay unique across the whole conversation, now also between the entries of one input turn; a clash is `reused_identity` located at `entries[i]`.
+- Record rebuild accepts several entry rows under one input turn, in row order, and refuses an input turn row with no entry row with `invalid_record_structure` (it was `invalid_content`); a record set that gave several entries to an input turn was refused in 1.x and now loads.
+- `Conversation::entry` and `Conversation::block` resolve every entry of a multi-entry input turn.
+
+### Added
+
+- `InputTurn::single(id, entry)`, the one-entry convenience.
+
+### Migration from 1.x
+
+- `InputTurn::new(id, entry)` becomes `InputTurn::single(id, entry)`; `turn.entry()` becomes `&turn.entries()[0]` or an iteration over `turn.entries()`.
+- Stored `br-llm-messages/4` conversations are migrated by the consumer: wrap each input turn's `entry` in an `entries` array and set the schema to `br-llm-messages/5`. Record rows need no change.
+
 ## 1.0.0 - 2026-10-24
 
 Breaking rewrite of the model: turns of typed entries and content blocks, UUIDv7 ids, streaming drafts, storage records, perspective projection.
