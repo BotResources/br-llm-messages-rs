@@ -123,7 +123,7 @@ pub(super) fn build_turn(
                 None => turn,
             }))
         }
-        _ => {
+        TurnKind::InputTurn => {
             if built.is_empty() {
                 return Err(Error::new(ErrorCode::InvalidRecordStructure)
                     .with_id(row.id().as_uuid())

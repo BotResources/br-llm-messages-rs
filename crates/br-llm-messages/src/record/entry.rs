@@ -164,28 +164,35 @@ impl EntryRecord {
     }
 
     fn check_columns(&self) -> Result<(), Error> {
-        let sender_ok = match (self.kind, &self.sender) {
-            (TurnEntryKind::HumanMessage, Some(ActorRef::Human { .. })) => true,
-            (
-                TurnEntryKind::AgentRequest | TurnEntryKind::AgentMail,
-                Some(ActorRef::Agent { .. }),
-            ) => true,
-            (
-                TurnEntryKind::HumanMessage
-                | TurnEntryKind::AgentRequest
-                | TurnEntryKind::AgentMail,
-                None,
-            ) => return Err(Error::new(ErrorCode::InvalidContent).at("sender")),
-            (_, None) => true,
-            _ => false,
+        let (sender_ok, authored) = match self.kind {
+            TurnEntryKind::HumanMessage => (
+                match &self.sender {
+                    Some(ActorRef::Human { .. }) => true,
+                    Some(ActorRef::Agent { .. }) => false,
+                    None => return Err(Error::new(ErrorCode::InvalidContent).at("sender")),
+                },
+                false,
+            ),
+            TurnEntryKind::AgentRequest | TurnEntryKind::AgentMail => (
+                match &self.sender {
+                    Some(ActorRef::Agent { .. }) => true,
+                    Some(ActorRef::Human { .. }) => false,
+                    None => return Err(Error::new(ErrorCode::InvalidContent).at("sender")),
+                },
+                true,
+            ),
+            TurnEntryKind::RequestAccepted
+            | TurnEntryKind::QueuePosition
+            | TurnEntryKind::TaskStarted
+            | TurnEntryKind::TaskCompleted
+            | TurnEntryKind::TaskFailed
+            | TurnEntryKind::ModelResponse
+            | TurnEntryKind::RuntimeToolResults
+            | TurnEntryKind::TurnClosure => (self.sender.is_none(), false),
         };
         if !sender_ok {
             return Err(Error::new(ErrorCode::DisallowedKind).at("sender"));
         }
-        let authored = matches!(
-            self.kind,
-            TurnEntryKind::AgentRequest | TurnEntryKind::AgentMail
-        );
         match (&self.author, authored) {
             (None, true) => Err(Error::new(ErrorCode::InvalidContent).at("author")),
             (Some(_), false) => Err(Error::new(ErrorCode::AuthorForbidden).at("author")),

@@ -52,11 +52,8 @@ fn check_turn(agent: AgentId, turn: &Turn) -> Result<(), Error> {
 
 fn check_shape(entries: &[IncomingEntry]) -> Result<(), Error> {
     let mut outputs = entries.iter().enumerate().filter_map(|(index, entry)| {
-        Some((
-            index,
-            entry.projected_source()?.1,
-            entry.projected_author()?,
-        ))
+        let projected = entry.projected()?;
+        Some((index, projected.agent, projected.author))
     });
     let Some((_, agent, author)) = outputs.next() else {
         return Ok(());

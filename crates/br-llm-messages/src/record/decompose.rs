@@ -81,7 +81,12 @@ fn entry_rows(turn: TurnId, entry: &TurnEntry, set: &mut RecordSet) -> Result<()
             .cloned()
             .map(ContentBlock::RuntimeToolResult)
             .collect(),
-        _ => Vec::new(),
+        TurnEntry::RequestAccepted(_)
+        | TurnEntry::QueuePosition(_)
+        | TurnEntry::TaskStarted(_)
+        | TurnEntry::TaskCompleted(_)
+        | TurnEntry::TaskFailed(_)
+        | TurnEntry::TurnClosure(_) => Vec::new(),
     };
     for block in &blocks {
         block_rows(entry.id(), block, &mut set.blocks)?;

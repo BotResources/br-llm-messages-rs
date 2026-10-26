@@ -108,7 +108,14 @@ pub(crate) fn split_entry(entry: &TurnEntry) -> Result<EntryParts, Error> {
             Some(ActorRef::agent(mail.sender())),
             Some(mail.author().clone()),
         ),
-        _ => (None, None),
+        TurnEntry::RequestAccepted(_)
+        | TurnEntry::QueuePosition(_)
+        | TurnEntry::TaskStarted(_)
+        | TurnEntry::TaskCompleted(_)
+        | TurnEntry::TaskFailed(_)
+        | TurnEntry::ModelResponse(_)
+        | TurnEntry::RuntimeToolResults(_)
+        | TurnEntry::TurnClosure(_) => (None, None),
     };
     Ok(EntryParts {
         payload: OpaqueJson::from_inner(Value::Object(object)),
@@ -123,7 +130,14 @@ fn sender_key(kind: TurnEntryKind) -> Option<&'static str> {
         TurnEntryKind::HumanMessage => Some("human"),
         TurnEntryKind::AgentRequest => Some("requester"),
         TurnEntryKind::AgentMail => Some("sender"),
-        _ => None,
+        TurnEntryKind::RequestAccepted
+        | TurnEntryKind::QueuePosition
+        | TurnEntryKind::TaskStarted
+        | TurnEntryKind::TaskCompleted
+        | TurnEntryKind::TaskFailed
+        | TurnEntryKind::ModelResponse
+        | TurnEntryKind::RuntimeToolResults
+        | TurnEntryKind::TurnClosure => None,
     }
 }
 
@@ -134,7 +148,12 @@ fn block_key(kind: TurnEntryKind) -> Option<&'static str> {
         | TurnEntryKind::AgentMail
         | TurnEntryKind::ModelResponse => Some("content"),
         TurnEntryKind::RuntimeToolResults => Some("results"),
-        _ => None,
+        TurnEntryKind::RequestAccepted
+        | TurnEntryKind::QueuePosition
+        | TurnEntryKind::TaskStarted
+        | TurnEntryKind::TaskCompleted
+        | TurnEntryKind::TaskFailed
+        | TurnEntryKind::TurnClosure => None,
     }
 }
 

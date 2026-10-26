@@ -28,6 +28,12 @@ pub enum IncomingEntry {
     PartialAgentOutput(PartialAgentOutput),
 }
 
+pub(crate) struct Projected<'a> {
+    pub(crate) id: EntryId,
+    pub(crate) agent: AgentId,
+    pub(crate) author: &'a Author,
+}
+
 macro_rules! incoming_variants {
     ($($variant:ident($entry:ty)),+ $(,)?) => {
         impl IncomingEntry {
@@ -62,11 +68,19 @@ macro_rules! incoming_variants {
                 }
             }
 
-            pub(crate) fn projected_source(&self) -> Option<(EntryId, AgentId)> {
+            pub(crate) fn projected(&self) -> Option<Projected<'_>> {
                 match self {
-                    IncomingEntry::AgentOutput(entry) => Some((entry.id(), entry.agent())),
-                    IncomingEntry::PartialAgentOutput(entry) => Some((entry.id(), entry.agent())),
-                    _ => None,
+                    $(IncomingEntry::$variant(_) => None,)+
+                    IncomingEntry::AgentOutput(entry) => Some(Projected {
+                        id: entry.id(),
+                        agent: entry.agent(),
+                        author: entry.author(),
+                    }),
+                    IncomingEntry::PartialAgentOutput(entry) => Some(Projected {
+                        id: entry.id(),
+                        agent: entry.agent(),
+                        author: entry.author(),
+                    }),
                 }
             }
         }
@@ -85,7 +99,8 @@ macro_rules! incoming_variants {
             fn try_from(entry: IncomingEntry) -> Result<Self, Error> {
                 match entry {
                     $(IncomingEntry::$variant(entry) => Ok(TurnEntry::$variant(entry)),)+
-                    projected => Err(Error::new(ErrorCode::DisallowedKind)
+                    projected @ (IncomingEntry::AgentOutput(_)
+                    | IncomingEntry::PartialAgentOutput(_)) => Err(Error::new(ErrorCode::DisallowedKind)
                         .with_id(projected.id().as_uuid())),
                 }
             }
@@ -97,7 +112,9 @@ macro_rules! incoming_variants {
             fn try_from(entry: TurnEntry) -> Result<Self, Error> {
                 match entry {
                     $(TurnEntry::$variant(entry) => Ok(IncomingEntry::$variant(entry)),)+
-                    other => Err(Error::new(ErrorCode::DisallowedKind)
+                    other @ (TurnEntry::ModelResponse(_)
+                    | TurnEntry::RuntimeToolResults(_)
+                    | TurnEntry::TurnClosure(_)) => Err(Error::new(ErrorCode::DisallowedKind)
                         .with_id(other.id().as_uuid())),
                 }
             }
@@ -137,14 +154,6 @@ impl TryFrom<&TurnEntry> for IncomingEntry {
 }
 
 impl IncomingEntry {
-    pub(crate) fn projected_author(&self) -> Option<&Author> {
-        match self {
-            IncomingEntry::AgentOutput(entry) => Some(entry.author()),
-            IncomingEntry::PartialAgentOutput(entry) => Some(entry.author()),
-            _ => None,
-        }
-    }
-
     pub fn to_json(&self) -> Result<String, Error> {
         crate::json::encode(self)
     }

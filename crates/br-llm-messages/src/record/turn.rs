@@ -89,7 +89,7 @@ impl TurnRecord {
                     return Err(located(ErrorCode::InvalidContent).at("author"));
                 }
             }
-            _ => {
+            TurnKind::InputTurn => {
                 if self.author.is_some() {
                     return Err(located(ErrorCode::AuthorForbidden).at("author"));
                 }

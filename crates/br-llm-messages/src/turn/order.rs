@@ -19,9 +19,19 @@ impl Next {
             TurnEntry::RuntimeToolResults(_) => Next::Results,
             TurnEntry::TurnClosure(closure) => match closure.reason() {
                 ClosureReason::Completed { .. } => Next::CompletedClosure,
-                _ => Next::AbnormalClosure,
+                ClosureReason::Cancelled { .. }
+                | ClosureReason::Interrupted { .. }
+                | ClosureReason::BudgetExhausted { .. }
+                | ClosureReason::Failed { .. } => Next::AbnormalClosure,
             },
-            _ => Next::Incoming,
+            TurnEntry::HumanMessage(_)
+            | TurnEntry::AgentRequest(_)
+            | TurnEntry::AgentMail(_)
+            | TurnEntry::RequestAccepted(_)
+            | TurnEntry::QueuePosition(_)
+            | TurnEntry::TaskStarted(_)
+            | TurnEntry::TaskCompleted(_)
+            | TurnEntry::TaskFailed(_) => Next::Incoming,
         }
     }
 }

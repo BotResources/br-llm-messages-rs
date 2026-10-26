@@ -94,8 +94,8 @@ impl InputTurn {
             .enumerate()
             .filter_map(|(index, entry)| {
                 entry
-                    .projected_source()
-                    .map(|(id, agent)| (index, id, agent))
+                    .projected()
+                    .map(|projected| (index, projected.id, projected.agent))
             })
     }
 
@@ -131,7 +131,7 @@ impl InputTurn {
 
 pub(crate) fn refuse_agent_output(entries: &[IncomingEntry]) -> Result<(), Error> {
     for (index, entry) in entries.iter().enumerate() {
-        if entry.projected_source().is_some() {
+        if entry.projected().is_some() {
             return Err(Error::new(ErrorCode::DisallowedKind)
                 .with_id(entry.id().as_uuid())
                 .at(format!("entries[{index}]")));

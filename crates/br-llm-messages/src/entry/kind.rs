@@ -55,17 +55,19 @@ impl TurnEntryKind {
     }
 
     pub fn is_incoming(self) -> bool {
-        matches!(
-            self,
+        match self {
             TurnEntryKind::HumanMessage
-                | TurnEntryKind::AgentRequest
-                | TurnEntryKind::AgentMail
-                | TurnEntryKind::RequestAccepted
-                | TurnEntryKind::QueuePosition
-                | TurnEntryKind::TaskStarted
-                | TurnEntryKind::TaskCompleted
-                | TurnEntryKind::TaskFailed
-        )
+            | TurnEntryKind::AgentRequest
+            | TurnEntryKind::AgentMail
+            | TurnEntryKind::RequestAccepted
+            | TurnEntryKind::QueuePosition
+            | TurnEntryKind::TaskStarted
+            | TurnEntryKind::TaskCompleted
+            | TurnEntryKind::TaskFailed => true,
+            TurnEntryKind::ModelResponse
+            | TurnEntryKind::RuntimeToolResults
+            | TurnEntryKind::TurnClosure => false,
+        }
     }
 }
 

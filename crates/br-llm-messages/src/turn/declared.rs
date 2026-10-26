@@ -37,7 +37,12 @@ pub(crate) fn body_of_entry(entry: &TurnEntry) -> Body<'_> {
         TurnEntry::AgentMail(entry) => Body::Content(entry.content()),
         TurnEntry::ModelResponse(entry) => Body::Response(entry.blocks()),
         TurnEntry::RuntimeToolResults(entry) => Body::Results(entry.results()),
-        _ => Body::Bare,
+        TurnEntry::RequestAccepted(_)
+        | TurnEntry::QueuePosition(_)
+        | TurnEntry::TaskStarted(_)
+        | TurnEntry::TaskCompleted(_)
+        | TurnEntry::TaskFailed(_)
+        | TurnEntry::TurnClosure(_) => Body::Bare,
     }
 }
 
@@ -48,7 +53,11 @@ pub(crate) fn body_of_incoming(entry: &IncomingEntry) -> Body<'_> {
         IncomingEntry::AgentMail(entry) => Body::Content(entry.content()),
         IncomingEntry::AgentOutput(entry) => Body::Content(entry.content()),
         IncomingEntry::PartialAgentOutput(entry) => Body::Content(entry.content()),
-        _ => Body::Bare,
+        IncomingEntry::RequestAccepted(_)
+        | IncomingEntry::QueuePosition(_)
+        | IncomingEntry::TaskStarted(_)
+        | IncomingEntry::TaskCompleted(_)
+        | IncomingEntry::TaskFailed(_) => Body::Bare,
     }
 }
 
