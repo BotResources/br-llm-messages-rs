@@ -88,7 +88,7 @@ fn given_kept_block_rows_with_citations_replay_item_ref_and_observed_at_when_pro
 }
 
 #[test]
-fn given_kept_response_rows_without_any_payload_when_the_records_travel_as_json_then_they_load_and_project()
+fn given_kept_response_rows_without_any_payload_when_built_in_memory_then_they_project_but_never_load_from_json()
  {
     let turns = decorated_history();
     let rows = foreign_only(&rows_with(&[], &turns, 1));
@@ -96,9 +96,10 @@ fn given_kept_response_rows_without_any_payload_when_the_records_travel_as_json_
         .project_turns(cvid(900), &turns)
         .unwrap();
 
-    let reloaded = RecordSet::from_json(&rows.to_json().unwrap()).unwrap();
-    let actual = reloaded.into_projected_thread(cvid(900), aid(1)).unwrap();
+    let loaded = refused(RecordSet::from_json(&rows.to_json().unwrap()));
+    let actual = rows.into_projected_thread(cvid(900), aid(1)).unwrap();
 
+    assert_eq!(loaded.code(), ErrorCode::InvalidContent);
     assert_eq!(actual, expected);
 }
 
@@ -107,9 +108,8 @@ fn given_a_complete_response_row_without_ending_when_rebuilt_as_a_conversation_t
  {
     let turns = decorated_history();
     let rows = foreign_only(&rows_of(&turns));
-    let reloaded = RecordSet::from_json(&rows.to_json().unwrap()).unwrap();
 
-    let error = refused(reloaded.into_conversation(cvid(900)));
+    let error = refused(rows.into_conversation(cvid(900)));
 
     assert_eq!(error.code(), ErrorCode::InvalidContent);
 }
@@ -213,9 +213,8 @@ fn given_a_response_row_without_ending_in_the_targets_own_turn_when_projected_th
 {
     let turns = decorated_history();
     let rows = foreign_only(&rows_with(&[], &turns, 1));
-    let reloaded = RecordSet::from_json(&rows.to_json().unwrap()).unwrap();
 
-    let error = refused(reloaded.into_projected_thread(cvid(900), aid(2)));
+    let error = refused(rows.into_projected_thread(cvid(900), aid(2)));
 
     assert_eq!(error.code(), ErrorCode::InvalidContent);
 }

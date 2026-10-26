@@ -8,6 +8,12 @@ use crate::id::{EntryId, TurnId};
 use crate::opaque_json::OpaqueJson;
 use crate::value::{Author, ObservedAt};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Ending {
+    Required,
+    Optional,
+}
+
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "EntryRecordWire")]
@@ -109,24 +115,24 @@ impl EntryRecord {
     }
 
     pub fn check_local(&self) -> Result<(), Error> {
-        self.check_with(false)
+        self.check_with(Ending::Required)
     }
 
-    fn check_with(&self, loading: bool) -> Result<(), Error> {
-        self.check_inner(loading)
+    fn check_with(&self, ending: Ending) -> Result<(), Error> {
+        self.check_inner(ending)
             .map_err(|error| match error.object_id() {
                 Some(_) => error,
                 None => error.with_id(self.id.as_uuid()),
             })
     }
 
-    fn check_inner(&self, loading: bool) -> Result<(), Error> {
+    fn check_inner(&self, ending: Ending) -> Result<(), Error> {
         self.check_columns()?;
         let object = as_object(self.payload.inner())?;
         let checked = match (self.kind, self.state) {
             (_, RepresentationState::Complete) => {
                 let mut fields = entry_fields(self.kind);
-                if loading && self.kind == TurnEntryKind::ModelResponse {
+                if ending == Ending::Optional && self.kind == TurnEntryKind::ModelResponse {
                     fields
                         .iter_mut()
                         .filter(|field| field.key == "ending")
@@ -154,8 +160,7 @@ impl EntryRecord {
                 .with_id(self.id.as_uuid())
                 .at("kind"));
         }
-        self.check_columns()
-            .map_err(|error| error.with_id(self.id.as_uuid()))
+        self.check_with(Ending::Optional)
     }
 
     fn check_columns(&self) -> Result<(), Error> {
@@ -203,7 +208,7 @@ impl TryFrom<EntryRecordWire> for EntryRecord {
             observed_at: wire.observed_at,
             payload: wire.payload,
         };
-        record.check_with(true)?;
+        record.check_local()?;
         Ok(record)
     }
 }
