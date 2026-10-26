@@ -60,9 +60,7 @@ fn lookup_response() -> TurnEntry {
         .unwrap()
         .with_status(ExecutionStatus::Completed)
         .with_observed_at(at(9));
-    let usage = Usage::new()
-        .with_input_tokens(10)
-        .with_output_tokens(u64::MAX);
+    let usage = Usage::of_input_tokens(10).with_output_tokens(u64::MAX);
     let metadata = ResponseMetadata::new()
         .with_usage(usage)
         .with_model(ModelName::new("gpt-6.1").unwrap())

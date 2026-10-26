@@ -211,9 +211,6 @@ impl ModelResponse {
         }
         self.collect_ids(&mut IdSink::default())?;
         self.check_provider_links()?;
-        if let Some(usage) = &self.usage {
-            usage.ensure_observed()?;
-        }
         if self.ending == ResponseEnding::tool_use() && self.runtime_calls().next().is_none() {
             return Err(Error::new(ErrorCode::InvalidContent).at("content"));
         }

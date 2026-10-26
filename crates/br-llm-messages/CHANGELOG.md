@@ -42,8 +42,13 @@ Breaking: an input turn holds one or more incoming entries, in order, instead of
 - Error locations name the caller's own input. The in-memory path locates at `turns[i]` and `turns[i].entries[j]` of the turns it was given. The records door locates a fault of one row at that row (`turns[k]`, `entries[k]`, `blocks[k]`, followed by the path inside the row), a repeated identity at the row that repeats it, and a fault found when a turn or an entry is rebuilt from several rows at `turns[k].entries[j]`, where `k` is the turn row and `j` the position of the entry among the rows of that turn, as `RecordSet::into_conversation` does. A pending item is located at `pending[n]` on both paths. A projected thread loaded from JSON locates at the positions of that document; a repeated identity there is `reused_identity` located at `turns[i].entries[j]` (or `turns[i]` for a turn identity).
 - `ProjectedThread` serializes with `to_json`/`to_value`/serde and reloads with `from_json`/`from_value` under the same rules (the constant `PROJECTED_THREAD_SCHEMA` names its schema); a conversation and a projected thread cannot be loaded as each other (`schema_mismatch`).
 
+### Usage
+
+- **Breaking:** `Usage::new()` and `Usage::is_empty()` are removed: an empty usage is no longer a value, so a builder cannot accept what the model refuses later. A usage starts from one observed count: `Usage::of_input_tokens`, `of_output_tokens`, `of_cache_read_input_tokens`, `of_cache_creation_input_tokens`, `of_thinking_tokens`, then the `with_*` methods add the others. JSON with no count (`{}`) is still `invalid_content` located at `usage`.
+
 ### Migration from 1.x
 
+- `Usage::new().with_input_tokens(n)` becomes `Usage::of_input_tokens(n)` (same for the other counts).
 - `InputTurn::new(id, entry)` becomes `InputTurn::new(id, vec![entry.into()])`; `turn.entry()` becomes `&turn.entries()[0]` or an iteration over `turn.entries()`.
 - Stored `br-llm-messages/4` conversations are migrated by the consumer: wrap each input turn's `entry` in an `entries` array and set the schema to `br-llm-messages/5`. Record rows need no change.
 - Code reading `Projection` turns reads `ProjectedThread::turns()` as `Turn` values; another agent's text is read from the `AgentOutput` entries of the input turns that carry its turn identity.

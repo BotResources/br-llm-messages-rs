@@ -25,7 +25,7 @@ fn chunks(text: &str, size: usize) -> Vec<String> {
 }
 
 fn usage() -> Usage {
-    Usage::new().with_input_tokens(11).with_output_tokens(7)
+    Usage::of_input_tokens(11).with_output_tokens(7)
 }
 
 fn direct() -> ModelResponse {
@@ -155,7 +155,7 @@ fn round_robin(groups: Vec<Vec<DeltaOp>>) -> Vec<DeltaOp> {
 fn tail() -> Vec<DeltaOp> {
     vec![
         DeltaOp::response_metadata_updated(
-            ResponseMetadataUpdate::new().with_usage(Usage::new().with_input_tokens(1)),
+            ResponseMetadataUpdate::new().with_usage(Usage::of_input_tokens(1)),
         ),
         DeltaOp::response_metadata_updated(
             ResponseMetadataUpdate::new()

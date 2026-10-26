@@ -37,21 +37,28 @@ impl TryFrom<UsageWire> for Usage {
     type Error = Error;
 
     fn try_from(wire: UsageWire) -> Result<Self, Error> {
-        let usage = Usage {
+        let observed = [
+            wire.input_tokens,
+            wire.output_tokens,
+            wire.cache_read_input_tokens,
+            wire.cache_creation_input_tokens,
+            wire.thinking_tokens,
+        ];
+        if observed.iter().all(Option::is_none) {
+            return Err(Error::new(ErrorCode::InvalidContent).at("usage"));
+        }
+        Ok(Usage {
             input_tokens: wire.input_tokens,
             output_tokens: wire.output_tokens,
             cache_read_input_tokens: wire.cache_read_input_tokens,
             cache_creation_input_tokens: wire.cache_creation_input_tokens,
             thinking_tokens: wire.thinking_tokens,
-        };
-        usage.ensure_observed()?;
-        Ok(usage)
+        })
     }
 }
 
 impl Usage {
-    #[allow(clippy::new_without_default)] // an empty usage is refused, so Usage has no Default
-    pub fn new() -> Self {
+    fn unobserved() -> Self {
         Usage {
             input_tokens: None,
             output_tokens: None,
@@ -59,6 +66,26 @@ impl Usage {
             cache_creation_input_tokens: None,
             thinking_tokens: None,
         }
+    }
+
+    pub fn of_input_tokens(count: u64) -> Self {
+        Usage::unobserved().with_input_tokens(count)
+    }
+
+    pub fn of_output_tokens(count: u64) -> Self {
+        Usage::unobserved().with_output_tokens(count)
+    }
+
+    pub fn of_cache_read_input_tokens(count: u64) -> Self {
+        Usage::unobserved().with_cache_read_input_tokens(count)
+    }
+
+    pub fn of_cache_creation_input_tokens(count: u64) -> Self {
+        Usage::unobserved().with_cache_creation_input_tokens(count)
+    }
+
+    pub fn of_thinking_tokens(count: u64) -> Self {
+        Usage::unobserved().with_thinking_tokens(count)
     }
 
     pub fn with_input_tokens(mut self, count: u64) -> Self {
@@ -84,17 +111,6 @@ impl Usage {
     pub fn with_thinking_tokens(mut self, count: u64) -> Self {
         self.thinking_tokens = Some(count);
         self
-    }
-
-    pub fn is_empty(&self) -> bool {
-        *self == Usage::new()
-    }
-
-    pub(crate) fn ensure_observed(&self) -> Result<(), Error> {
-        if self.is_empty() {
-            return Err(Error::new(ErrorCode::InvalidContent).at("usage"));
-        }
-        Ok(())
     }
 
     pub fn input_tokens(&self) -> Option<u64> {

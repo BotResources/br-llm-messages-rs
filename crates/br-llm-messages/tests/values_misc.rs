@@ -5,14 +5,16 @@ use common::{code_of, refused};
 use serde_json::json;
 
 #[test]
-fn given_no_observation_when_usage_is_built_then_every_count_stays_absent_and_it_cannot_be_loaded()
-{
-    let usage = Usage::new();
+fn given_one_observed_count_when_usage_is_built_then_the_others_stay_absent_and_no_observation_cannot_be_loaded()
+ {
+    let usage = Usage::of_output_tokens(2);
 
-    assert_eq!(serde_json::to_value(&usage).unwrap(), json!({}));
+    assert_eq!(
+        serde_json::to_value(&usage).unwrap(),
+        json!({"output_tokens": 2})
+    );
     assert_eq!(usage.input_tokens(), None);
     assert_eq!(usage.thinking_tokens(), None);
-    assert!(usage.is_empty());
     for wire in ["{}", r#"{"input_tokens":null}"#] {
         assert_eq!(code_of::<Usage>(wire), ErrorCode::InvalidContent);
     }
@@ -20,7 +22,7 @@ fn given_no_observation_when_usage_is_built_then_every_count_stays_absent_and_it
 
 #[test]
 fn given_a_zero_count_when_usage_round_trips_then_zero_stays_distinct_from_absent() {
-    let usage = Usage::new().with_input_tokens(0);
+    let usage = Usage::of_input_tokens(0);
 
     let value = serde_json::to_value(&usage).unwrap();
 
@@ -28,13 +30,11 @@ fn given_a_zero_count_when_usage_round_trips_then_zero_stays_distinct_from_absen
     let back: Usage = serde_json::from_value(value).unwrap();
     assert_eq!(back.input_tokens(), Some(0));
     assert_eq!(back.output_tokens(), None);
-    assert_ne!(back, Usage::new());
 }
 
 #[test]
 fn given_u64_max_counts_when_usage_round_trips_then_nothing_is_lost() {
-    let usage = Usage::new()
-        .with_input_tokens(u64::MAX)
+    let usage = Usage::of_input_tokens(u64::MAX)
         .with_output_tokens(u64::MAX - 1)
         .with_cache_read_input_tokens(1)
         .with_cache_creation_input_tokens(2)
@@ -72,7 +72,7 @@ fn given_unknown_or_malformed_usage_fields_when_loaded_then_refused() {
     assert!(serde_json::from_str::<Usage>(r#"{"input_tokens":null,"output_tokens":4}"#).is_err());
     assert_eq!(
         serde_json::from_str::<Usage>(r#"{"output_tokens":4}"#).unwrap(),
-        Usage::new().with_output_tokens(4)
+        Usage::of_output_tokens(4)
     );
 }
 

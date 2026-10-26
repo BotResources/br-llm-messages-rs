@@ -193,7 +193,7 @@ fn given_no_usage_model_or_provider_id_when_built_then_absence_is_retained() {
 #[test]
 fn given_partial_usage_when_round_tripped_then_missing_counts_stay_absent_not_zero() {
     let metadata = ResponseMetadata::new()
-        .with_usage(Usage::new().with_output_tokens(u64::MAX))
+        .with_usage(Usage::of_output_tokens(u64::MAX))
         .with_model(ModelName::new("model-x").unwrap())
         .with_provider_response_id(ExternalId::new("resp_1").unwrap());
     let built = ModelResponse::new(eid(1), vec![], ResponseEnding::finished(), metadata).unwrap();

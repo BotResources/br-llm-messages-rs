@@ -179,7 +179,7 @@ fn given_a_metadata_update_when_applied_then_the_response_time_stays() {
     ok(
         &mut draft,
         DeltaOp::response_metadata_updated(
-            ResponseMetadataUpdate::new().with_usage(Usage::new().with_input_tokens(3)),
+            ResponseMetadataUpdate::new().with_usage(Usage::of_input_tokens(3)),
         ),
     );
 

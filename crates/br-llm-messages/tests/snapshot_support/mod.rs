@@ -53,7 +53,7 @@ pub fn script() -> Vec<DeltaOp> {
         ),
         json(12, "{\"query\":"),
         DeltaOp::response_metadata_updated(
-            ResponseMetadataUpdate::new().with_usage(Usage::new().with_input_tokens(3)),
+            ResponseMetadataUpdate::new().with_usage(Usage::of_input_tokens(3)),
         ),
         text(10, "w\u{f6}rld"),
         DeltaOp::block_metadata_updated(
@@ -89,7 +89,7 @@ pub fn script() -> Vec<DeltaOp> {
         DeltaOp::block_inserted(RedactedThinkingBlock::new(bid(19), signature("opaque"))),
         DeltaOp::response_metadata_updated(
             ResponseMetadataUpdate::new()
-                .with_usage(Usage::new().with_input_tokens(3).with_output_tokens(9)),
+                .with_usage(Usage::of_input_tokens(3).with_output_tokens(9)),
         ),
         DeltaOp::response_completed(ResponseEnding::tool_use()),
     ]

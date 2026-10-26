@@ -59,7 +59,7 @@ fn rich() -> Vec<(TurnEntry, Value)> {
         ],
         ResponseEnding::tool_use(),
         ResponseMetadata::new()
-            .with_usage(Usage::new().with_input_tokens(1).with_output_tokens(2))
+            .with_usage(Usage::of_input_tokens(1).with_output_tokens(2))
             .with_model(ModelName::new("m").unwrap())
             .with_provider_response_id(ExternalId::new("resp_1").unwrap()),
     )

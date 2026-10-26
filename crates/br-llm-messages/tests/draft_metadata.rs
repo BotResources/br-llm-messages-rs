@@ -18,8 +18,8 @@ fn update(update: ResponseMetadataUpdate) -> DeltaOp {
 #[test]
 fn given_two_usage_snapshots_when_applied_then_the_last_replaces_and_nothing_is_added() {
     let mut draft = draft();
-    let first = Usage::new().with_input_tokens(10).with_output_tokens(4);
-    let second = Usage::new().with_output_tokens(9);
+    let first = Usage::of_input_tokens(10).with_output_tokens(4);
+    let second = Usage::of_output_tokens(9);
 
     feed(
         &mut draft,
@@ -36,7 +36,7 @@ fn given_two_usage_snapshots_when_applied_then_the_last_replaces_and_nothing_is_
 #[test]
 fn given_model_and_provider_id_updates_when_applied_then_they_replace_and_untouched_fields_stay() {
     let mut draft = draft();
-    let usage = Usage::new().with_input_tokens(1);
+    let usage = Usage::of_input_tokens(1);
 
     feed(
         &mut draft,
@@ -62,7 +62,7 @@ fn given_model_and_provider_id_updates_when_applied_then_they_replace_and_untouc
 
 #[test]
 fn given_updated_metadata_when_completed_then_the_response_carries_it() {
-    let usage = Usage::new().with_input_tokens(3).with_output_tokens(2);
+    let usage = Usage::of_input_tokens(3).with_output_tokens(2);
     let draft = run(vec![
         update(ResponseMetadataUpdate::new().with_usage(usage.clone())),
         update(ResponseMetadataUpdate::new().with_model(ModelName::new("m").unwrap())),
