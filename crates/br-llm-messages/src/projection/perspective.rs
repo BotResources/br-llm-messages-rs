@@ -5,7 +5,7 @@ use crate::block::{ContentBlock, ContentBlockKind, TextBlock};
 use crate::conversation::Conversation;
 use crate::entry::{AgentOutput, IncomingEntry, ModelResponse, PartialAgentOutput, TurnEntry};
 use crate::error::{Error, ErrorCode};
-use crate::id::{AgentId, ConversationId, TurnId};
+use crate::id::{AgentId, BlockId, ConversationId, TurnId};
 use crate::stream::{DraftPhase, ResponseDraft};
 use crate::turn::{AITurn, InputTurn, Turn};
 use crate::value::Author;
@@ -95,6 +95,10 @@ impl Perspective {
     }
 }
 
+pub(crate) fn accumulated_text(id: BlockId, text: &str) -> Option<TextBlock> {
+    TextBlock::new(id, text).ok()
+}
+
 fn texts_of(blocks: &[ContentBlock]) -> Vec<TextBlock> {
     blocks
         .iter()
@@ -127,7 +131,7 @@ fn draft_entry(draft: &ResponseDraft, turn: &AITurn) -> Option<IncomingEntry> {
                 .slots()
                 .iter()
                 .filter(|slot| slot.kind() == ContentBlockKind::Text)
-                .filter_map(|slot| TextBlock::new(slot.block(), slot.text()?).ok())
+                .filter_map(|slot| accumulated_text(slot.block(), slot.text()?))
                 .collect();
             let author: Author = turn.author().clone();
             PartialAgentOutput::from_texts(draft.entry(), turn.agent(), author, texts)

@@ -12,7 +12,7 @@ use crate::block::{ContentBlock, ContentBlockKind, TextBlock};
 use crate::entry::{AgentOutput, IncomingEntry, PartialAgentOutput};
 use crate::error::{Error, ErrorCode};
 use crate::id::{AgentId, ConversationId, EntryId, TurnId};
-use crate::projection::ProjectedThread;
+use crate::projection::{ProjectedThread, accumulated_text};
 use crate::turn::{InputTurn, Turn, TurnKind};
 
 type Owners = HashMap<EntryId, (TurnId, RepresentationState)>;
@@ -90,9 +90,7 @@ fn text_of(row: &BlockRecord, tree: &BlockTree<'_>) -> Result<Option<TextBlock>,
     let located = |error: Error| error.with_id(row.id().as_uuid());
     if row.state() != RepresentationState::Complete {
         let partial: TextPartial = decode_partial(row.payload()).map_err(located)?;
-        return TextBlock::new(row.id(), partial.text)
-            .map(Some)
-            .map_err(|error| located(error.recoded(ErrorCode::InvalidContent)));
+        return Ok(accumulated_text(row.id(), &partial.text));
     }
     let block: ContentBlock = crate::json::decode_value(tree.value_of(row)?).map_err(located)?;
     match block {
@@ -107,9 +105,6 @@ fn translate_entry(
     author: &crate::value::Author,
     tree: &BlockTree<'_>,
 ) -> Result<Option<IncomingEntry>, Error> {
-    if entry.state() == RepresentationState::Interrupted {
-        return Ok(None);
-    }
     let mut texts = Vec::new();
     for block in tree.roots_of(entry.id()) {
         texts.extend(text_of(block, tree)?);
@@ -147,11 +142,40 @@ fn translate(
     InputTurn::projected(row.id(), outputs).map(|turn| Some(Turn::InputTurn(turn)))
 }
 
+fn without_interrupted(set: &RecordSet) -> RecordSet {
+    let dropped: HashSet<EntryId> = set
+        .entries()
+        .iter()
+        .filter(|row| row.state() == RepresentationState::Interrupted)
+        .map(EntryRecord::id)
+        .collect();
+    RecordSet::new()
+        .with_turns(set.turns().to_vec())
+        .with_entries(
+            set.entries()
+                .iter()
+                .filter(|row| !dropped.contains(&row.id()))
+                .cloned()
+                .collect(),
+        )
+        .with_blocks(
+            set.blocks()
+                .iter()
+                .filter(|row| {
+                    row.state() != RepresentationState::Interrupted
+                        && !dropped.contains(&row.entry())
+                })
+                .cloned()
+                .collect(),
+        )
+}
+
 pub(super) fn rebuild_thread(
     set: &RecordSet,
     conversation: ConversationId,
     agent: AgentId,
 ) -> Result<ProjectedThread, Error> {
+    let set = &without_interrupted(set);
     let others = other_turns(set, agent);
     check_rows(set, &others)?;
     ensure_unique(set)?;

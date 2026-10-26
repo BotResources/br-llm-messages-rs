@@ -5,6 +5,8 @@ mod validate;
 pub use json::PROJECTED_THREAD_SCHEMA;
 pub use perspective::Perspective;
 
+pub(crate) use perspective::accumulated_text;
+
 use crate::id::{AgentId, ConversationId};
 use crate::turn::Turn;
 
