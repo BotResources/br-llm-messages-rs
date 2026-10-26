@@ -77,7 +77,7 @@ pub(crate) fn check_content(entry: EntryId, content: &[PlainBlock]) -> Result<()
 tagged_enum! {
     #[non_exhaustive]
     #[derive(Debug, Clone, PartialEq)]
-    pub enum TurnEntry, TurnEntryWire, remote = "TurnEntry", [tag = "type", rename_all = "snake_case"] {
+    pub enum TurnEntry, TurnEntryWire, remote = "TurnEntry", check = crate::entry::kind::refuse_type, [tag = "type", rename_all = "snake_case"] {
         HumanMessage(HumanMessage),
         AgentRequest(AgentRequest),
         AgentMail(AgentMail),
