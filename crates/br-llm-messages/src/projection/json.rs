@@ -64,6 +64,6 @@ impl ProjectedThread {
                 .map_err(|error| error.at(format!("turns[{position}]")))?;
             turns.push(turn);
         }
-        ProjectedThread::assemble(wire.conversation, wire.agent, turns)
+        ProjectedThread::from_turns(wire.conversation, wire.agent, turns)
     }
 }

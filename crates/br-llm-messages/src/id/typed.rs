@@ -68,11 +68,27 @@ macro_rules! typed_id {
     };
 }
 
+macro_rules! mintable_id {
+    ($name:ident) => {
+        #[cfg(feature = "mint")]
+        impl $name {
+            pub fn mint() -> Self {
+                Self(Uuid::now_v7())
+            }
+        }
+    };
+}
+
 typed_id!(ConversationId);
 typed_id!(TurnId);
 typed_id!(EntryId);
 typed_id!(BlockId);
 typed_id!(CitationId);
+mintable_id!(ConversationId);
+mintable_id!(TurnId);
+mintable_id!(EntryId);
+mintable_id!(BlockId);
+mintable_id!(CitationId);
 typed_id!(HumanId);
 typed_id!(AgentId);
 typed_id!(RequestId);

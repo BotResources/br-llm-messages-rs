@@ -20,7 +20,9 @@ pub use block::{
     ProviderToolExecutionRecord, ProviderToolResult, RedactedThinkingBlock, ResultExposure,
     RuntimeToolCall, RuntimeToolResult, StructuredBlock, TextBlock, ThinkingBlock,
 };
-pub use conversation::{BlockRef, CONVERSATION_SCHEMA, Conversation, EntryRef};
+pub use conversation::{
+    BlockRef, CONVERSATION_SCHEMA, Conversation, EntryRef, EntryView, PlacedEntry, Position,
+};
 pub use entry::{
     AgentMail, AgentOutput, AgentRequest, ClosureReason, HumanMessage, IncomingEntry,
     ModelResponse, PartialAgentOutput, QueuePosition, RequestAccepted, RequestOrigin,
