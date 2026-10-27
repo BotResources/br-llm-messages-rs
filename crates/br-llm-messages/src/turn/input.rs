@@ -41,6 +41,10 @@ impl InputTurn {
         InputTurn::projected(id, entries)
     }
 
+    pub fn new_projected(id: TurnId, entries: Vec<IncomingEntry>) -> Result<Self, Error> {
+        InputTurn::projected(id, entries)
+    }
+
     pub(crate) fn projected(id: TurnId, entries: Vec<IncomingEntry>) -> Result<Self, Error> {
         if entries.is_empty() {
             return Err(Error::new(ErrorCode::InvalidRecordStructure)

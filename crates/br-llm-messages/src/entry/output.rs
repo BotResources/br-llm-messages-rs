@@ -76,7 +76,7 @@ macro_rules! projected_output {
                 }
             }
 
-            fn from_content(
+            pub fn new(
                 id: EntryId,
                 agent: AgentId,
                 author: Author,
@@ -98,7 +98,7 @@ macro_rules! projected_output {
                         .with_id(wire.id.as_uuid())
                         .at("observed_at"));
                 }
-                $name::from_content(wire.id, wire.agent, wire.author, wire.content)
+                $name::new(wire.id, wire.agent, wire.author, wire.content)
             }
         }
     };

@@ -1,7 +1,8 @@
 use uuid::Uuid;
 
 use super::Conversation;
-use super::index::Slot;
+use super::index::{Index, Slot};
+use super::view::EntryView;
 use crate::block::{
     ContentBlock, ContentBlockKind, PlainBlock, RuntimeToolCall, RuntimeToolResult,
 };
@@ -63,40 +64,50 @@ impl BlockRef<'_> {
     }
 }
 
-impl Conversation {
-    fn resolve(&self, id: Uuid, accepts: impl Fn(Class) -> bool) -> Result<&Slot, Error> {
+#[derive(Clone, Copy)]
+pub(crate) struct Lookup<'a> {
+    turns: &'a [Turn],
+    index: &'a Index,
+}
+
+impl<'a> Lookup<'a> {
+    pub(crate) fn new(turns: &'a [Turn], index: &'a Index) -> Self {
+        Lookup { turns, index }
+    }
+
+    fn resolve(&self, id: Uuid, accepts: impl Fn(Class) -> bool) -> Result<&'a Slot, Error> {
         match self.index.get(id) {
-            None => Err(Error::new(ErrorCode::UnknownReference).with_id(id)),
             Some(slot) if accepts(slot.place.class) => Ok(slot),
-            Some(_) => Err(Error::new(ErrorCode::UnknownReference).with_id(id)),
+            _ => Err(Error::new(ErrorCode::UnknownReference).with_id(id)),
         }
     }
 
-    fn turn_at(&self, slot: &Slot, id: Uuid) -> Result<&Turn, Error> {
+    fn turn_at(&self, slot: &Slot, id: Uuid) -> Result<&'a Turn, Error> {
         self.turns
             .get(slot.turn)
             .ok_or_else(|| Error::new(ErrorCode::UnknownReference).with_id(id))
     }
 
-    pub fn turn(&self, id: &TurnId) -> Result<&Turn, Error> {
+    pub(crate) fn turn(&self, id: &TurnId) -> Result<&'a Turn, Error> {
         let slot = self.resolve(id.as_uuid(), |class| class == Class::Turn)?;
         self.turn_at(slot, id.as_uuid())
     }
 
-    pub fn entry(&self, id: &EntryId) -> Result<EntryRef<'_>, Error> {
-        let slot = self.resolve(id.as_uuid(), |class| matches!(class, Class::Entry(_)))?;
-        let found = match (self.turn_at(slot, id.as_uuid())?, slot.place.class) {
-            (Turn::InputTurn(turn), Class::Entry(kind)) => turn
+    pub(crate) fn entry(&self, id: &EntryId) -> Result<EntryView<'a>, Error> {
+        let slot = self.resolve(id.as_uuid(), |class| {
+            matches!(class, Class::Entry(_) | Class::Output)
+        })?;
+        let found = match self.turn_at(slot, id.as_uuid())? {
+            Turn::InputTurn(turn) => turn
                 .entries()
                 .get(slot.place.entry)
-                .map(|entry| EntryRef::Incoming { entry, kind }),
-            (Turn::InputTurn(_), _) => None,
-            (Turn::AITurn(turn), _) => turn.entries().get(slot.place.entry).map(EntryRef::Turn),
+                .map(EntryView::Incoming),
+            Turn::AITurn(turn) => turn.entries().get(slot.place.entry).map(EntryView::Turn),
         };
         found.ok_or_else(|| Error::new(ErrorCode::UnknownReference).with_id(id.as_uuid()))
     }
 
-    pub fn block(&self, id: &BlockId) -> Result<BlockRef<'_>, Error> {
+    pub(crate) fn block(&self, id: &BlockId) -> Result<BlockRef<'a>, Error> {
         let slot = self.resolve(id.as_uuid(), |class| matches!(class, Class::Block(_)))?;
         let body = match self.turn_at(slot, id.as_uuid())? {
             Turn::InputTurn(turn) => turn.entries().get(slot.place.entry).map(body_of_incoming),
@@ -118,6 +129,30 @@ impl Conversation {
             _ => None,
         };
         found.ok_or_else(|| Error::new(ErrorCode::UnknownReference).with_id(id.as_uuid()))
+    }
+}
+
+impl Conversation {
+    fn lookup(&self) -> Lookup<'_> {
+        Lookup::new(&self.turns, &self.index)
+    }
+
+    pub fn turn(&self, id: &TurnId) -> Result<&Turn, Error> {
+        self.lookup().turn(id)
+    }
+
+    pub fn entry(&self, id: &EntryId) -> Result<EntryRef<'_>, Error> {
+        match self.lookup().entry(id)? {
+            EntryView::Incoming(entry) => match entry.kind() {
+                Some(kind) => Ok(EntryRef::Incoming { entry, kind }),
+                None => Err(Error::new(ErrorCode::UnknownReference).with_id(id.as_uuid())),
+            },
+            EntryView::Turn(entry) => Ok(EntryRef::Turn(entry)),
+        }
+    }
+
+    pub fn block(&self, id: &BlockId) -> Result<BlockRef<'_>, Error> {
+        self.lookup().block(id)
     }
 
     pub fn runtime_call(&self, id: &BlockId) -> Result<&RuntimeToolCall, Error> {
