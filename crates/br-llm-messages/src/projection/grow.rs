@@ -32,7 +32,7 @@ impl ProjectedThread {
         Ok(())
     }
 
-    pub fn push_incoming(
+    pub fn push_incoming_into(
         &mut self,
         turn: &TurnId,
         entry: impl Into<IncomingEntry>,
@@ -52,7 +52,11 @@ impl ProjectedThread {
         self.check_turn(turn).err()
     }
 
-    pub fn would_refuse_incoming(&self, turn: &TurnId, entry: &IncomingEntry) -> Option<Error> {
+    pub fn would_refuse_incoming_into(
+        &self,
+        turn: &TurnId,
+        entry: &IncomingEntry,
+    ) -> Option<Error> {
         self.prepare(turn, Addition::Incoming(entry.clone())).err()
     }
 

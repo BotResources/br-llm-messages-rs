@@ -209,14 +209,11 @@ fn given_a_dry_run_when_checking_entries_then_it_gives_the_refusal_push_would_gi
     ];
 
     for entry in entries {
-        let dry = turn.check_push(&entry);
+        let dry = turn.would_refuse(&entry);
         assert_eq!(turn, before);
         let mut attempt = turn.clone();
         let real = attempt.push_entry(entry.clone());
-        assert_eq!(dry.is_ok(), real.is_ok());
-        if let (Err(dry), Err(real)) = (dry, real) {
-            assert_eq!(dry, real);
-        }
+        assert_eq!(dry, real.err());
     }
 }
 
@@ -224,9 +221,9 @@ fn given_a_dry_run_when_checking_entries_then_it_gives_the_refusal_push_would_gi
 fn given_a_closed_turn_when_dry_running_then_late_results_pass_and_the_rest_is_closed_turn() {
     let turn = interrupted_with_two_calls();
 
-    assert!(turn.check_push(&delivery(30, &[(31, 11, "a")])).is_ok());
+    assert_eq!(turn.would_refuse(&delivery(30, &[(31, 11, "a")])), None);
     assert_eq!(
-        refused(turn.check_push(&human(32))).code(),
+        turn.would_refuse(&human(32)).unwrap().code(),
         ErrorCode::ClosedTurn
     );
 }

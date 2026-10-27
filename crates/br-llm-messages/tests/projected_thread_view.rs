@@ -26,12 +26,12 @@ fn given_any_addition_when_asked_as_a_dry_run_then_the_answer_is_the_refusal_of_
         ErrorCode::ReusedIdentity
     );
     assert_eq!(
-        thread.would_refuse_incoming(&tid(20), &accepted_entry),
+        thread.would_refuse_incoming_into(&tid(20), &accepted_entry),
         None
     );
     assert_eq!(
         thread
-            .would_refuse_incoming(&refused_entry_turn, &refused_entry)
+            .would_refuse_incoming_into(&refused_entry_turn, &refused_entry)
             .unwrap()
             .code(),
         ErrorCode::DisallowedKind
@@ -50,14 +50,16 @@ fn given_any_addition_when_asked_as_a_dry_run_then_the_answer_is_the_refusal_of_
     assert_eq!(thread, before);
     let mut grown = thread.clone();
     grown.push_turn(accepted_turn).unwrap();
-    grown.push_incoming(&tid(20), accepted_entry).unwrap();
+    grown.push_incoming_into(&tid(20), accepted_entry).unwrap();
     grown.push_entry(&tid(10), accepted_recorded).unwrap();
 }
 
 #[test]
 fn given_a_thread_when_checked_as_a_whole_then_it_passes_for_built_grown_and_projected_threads() {
     let mut grown = base();
-    grown.push_incoming(&tid(20), partial(43, 2, 44)).unwrap();
+    grown
+        .push_incoming_into(&tid(20), partial(43, 2, 44))
+        .unwrap();
 
     assert_eq!(base().check(), Ok(()));
     assert_eq!(grown.check(), Ok(()));
@@ -105,7 +107,9 @@ fn given_an_identity_of_another_kind_or_unknown_when_looked_up_then_unknown_refe
 #[test]
 fn given_a_grown_thread_when_looked_up_then_added_identities_resolve() {
     let mut thread = base();
-    thread.push_incoming(&tid(20), partial(43, 2, 44)).unwrap();
+    thread
+        .push_incoming_into(&tid(20), partial(43, 2, 44))
+        .unwrap();
     thread.push_entry(&tid(10), human(45)).unwrap();
 
     assert!(thread.entry(&eid(43)).is_ok());

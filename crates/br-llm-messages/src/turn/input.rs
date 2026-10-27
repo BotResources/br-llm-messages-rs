@@ -68,8 +68,8 @@ impl InputTurn {
         Ok(())
     }
 
-    pub fn check_push(&self, entry: &IncomingEntry) -> Result<(), Error> {
-        self.checked_push(entry).map(|_| ())
+    pub fn would_refuse(&self, entry: &IncomingEntry) -> Option<Error> {
+        self.checked_push(entry).err()
     }
 
     pub(crate) fn checked_push(&self, entry: &IncomingEntry) -> Result<Declared, Error> {

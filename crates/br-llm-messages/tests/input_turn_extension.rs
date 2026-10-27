@@ -107,8 +107,8 @@ fn given_a_dry_run_when_checking_an_addition_then_it_matches_the_real_addition_a
     let mut turn = base();
     let before = turn.clone();
 
-    assert!(turn.check_push(&message(4, 5)).is_ok());
-    let refusal = refused(turn.check_push(&message(2, 9)));
+    assert_eq!(turn.would_refuse(&message(4, 5)), None);
+    let refusal = turn.would_refuse(&message(2, 9)).unwrap();
     assert_eq!(turn, before);
 
     assert_eq!(refused(turn.push_entry(message(2, 9))), refusal);

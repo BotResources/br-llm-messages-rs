@@ -106,10 +106,18 @@ fn given_an_identity_used_twice_in_the_whole_thread_when_built_then_reused_ident
 fn given_a_thread_when_grown_by_turns_and_entries_then_it_equals_the_thread_built_at_once() {
     let mut thread = base();
     thread.push_turn(foreign_turn(40, 41, 42)).unwrap();
-    thread.push_incoming(&tid(40), partial(43, 2, 44)).unwrap();
-    thread.push_incoming(&tid(40), human_message(45)).unwrap();
-    thread.push_incoming(&tid(1), output(46, 5, 47)).unwrap();
-    thread.push_incoming(&tid(10), human_message(48)).unwrap();
+    thread
+        .push_incoming_into(&tid(40), partial(43, 2, 44))
+        .unwrap();
+    thread
+        .push_incoming_into(&tid(40), human_message(45))
+        .unwrap();
+    thread
+        .push_incoming_into(&tid(1), output(46, 5, 47))
+        .unwrap();
+    thread
+        .push_incoming_into(&tid(10), human_message(48))
+        .unwrap();
     thread.push_entry(&tid(10), said(49, 50, "again")).unwrap();
     thread.push_entry(&tid(1), human(51)).unwrap();
 
@@ -162,7 +170,9 @@ fn given_an_input_turn_with_an_observed_time_when_grown_then_the_time_is_kept() 
     let mut thread = base();
     thread.push_turn(observed.into()).unwrap();
 
-    thread.push_incoming(&tid(60), partial(63, 2, 64)).unwrap();
+    thread
+        .push_incoming_into(&tid(60), partial(63, 2, 64))
+        .unwrap();
 
     assert_eq!(thread.turn(&tid(60)).unwrap().observed_at(), Some(&at(3)));
 }
@@ -190,27 +200,27 @@ fn given_refused_additions_when_pushed_then_the_thread_is_unchanged_and_the_refu
             ErrorCode::DisallowedKind,
         ),
         (
-            thread.push_incoming(&tid(20), human_message(21)),
+            thread.push_incoming_into(&tid(20), human_message(21)),
             ErrorCode::ReusedIdentity,
         ),
         (
-            thread.push_incoming(&tid(1), output(73, 1, 74)),
+            thread.push_incoming_into(&tid(1), output(73, 1, 74)),
             ErrorCode::DisallowedKind,
         ),
         (
-            thread.push_incoming(&tid(20), output(73, 3, 74)),
+            thread.push_incoming_into(&tid(20), output(73, 3, 74)),
             ErrorCode::InvalidRecordStructure,
         ),
         (
-            thread.push_incoming(&tid(20), human_message(900)),
+            thread.push_incoming_into(&tid(20), human_message(900)),
             ErrorCode::ReusedIdentity,
         ),
         (
-            thread.push_incoming(&tid(404), human_message(75)),
+            thread.push_incoming_into(&tid(404), human_message(75)),
             ErrorCode::UnknownReference,
         ),
         (
-            thread.push_incoming(&tid(10), output(76, 2, 77)),
+            thread.push_incoming_into(&tid(10), output(76, 2, 77)),
             ErrorCode::DisallowedKind,
         ),
         (

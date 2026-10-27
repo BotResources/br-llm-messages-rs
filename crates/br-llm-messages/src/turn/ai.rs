@@ -103,8 +103,8 @@ impl AITurn {
         Ok(())
     }
 
-    pub fn check_push(&self, entry: &TurnEntry) -> Result<(), Error> {
-        self.checked_push(entry).map(|_| ())
+    pub fn would_refuse(&self, entry: &TurnEntry) -> Option<Error> {
+        self.checked_push(entry).err()
     }
 
     pub(crate) fn checked_push(&self, entry: &TurnEntry) -> Result<Declared, Error> {
