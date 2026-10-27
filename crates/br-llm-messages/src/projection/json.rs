@@ -7,6 +7,7 @@ use super::ProjectedThread;
 use crate::error::{Error, ErrorCode};
 use crate::id::{AgentId, ConversationId};
 use crate::opaque_json::OpaqueJson;
+use crate::turn::Turn;
 
 pub const PROJECTED_THREAD_SCHEMA: &str = "br-llm-messages-projected-thread/1";
 
@@ -26,8 +27,27 @@ impl Serialize for ProjectedThread {
         thread.serialize_field("schema", PROJECTED_THREAD_SCHEMA)?;
         thread.serialize_field("conversation", &self.conversation)?;
         thread.serialize_field("agent", &self.agent)?;
-        thread.serialize_field("turns", &self.turns)?;
+        thread.serialize_field("turns", &Turns(&self.turns))?;
         thread.end()
+    }
+}
+
+struct Turns<'a>(&'a [Turn]);
+
+struct Member<'a>(&'a Turn);
+
+impl Serialize for Turns<'_> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_seq(self.0.iter().map(Member))
+    }
+}
+
+impl Serialize for Member<'_> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self.0 {
+            Turn::InputTurn(input) => input.serialize_projected(serializer),
+            Turn::AITurn(ai) => ai.serialize(serializer),
+        }
     }
 }
 

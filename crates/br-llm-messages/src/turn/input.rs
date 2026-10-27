@@ -23,6 +23,20 @@ pub struct InputTurn {
 
 impl Serialize for InputTurn {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        if self.projected_entries().next().is_some() {
+            return Err(serde::ser::Error::custom(
+                ErrorCode::DisallowedKind.as_str(),
+            ));
+        }
+        self.serialize_projected(serializer)
+    }
+}
+
+impl InputTurn {
+    pub(crate) fn serialize_projected<S: Serializer>(
+        &self,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
         let mut turn = serializer
             .serialize_struct("InputTurn", 3 + usize::from(self.observed_at.is_some()))?;
         turn.serialize_field("type", TurnKind::InputTurn.as_str())?;
@@ -33,9 +47,13 @@ impl Serialize for InputTurn {
         }
         turn.end()
     }
-}
 
-impl InputTurn {
+    fn projected_entries(&self) -> impl Iterator<Item = &IncomingEntry> {
+        self.entries
+            .iter()
+            .filter(|entry| entry.projected().is_some())
+    }
+
     pub fn new(id: TurnId, entries: Vec<IncomingEntry>) -> Result<Self, Error> {
         refuse_agent_output(&entries)?;
         InputTurn::projected(id, entries)
@@ -145,6 +163,7 @@ impl InputTurn {
     }
 
     pub fn to_json(&self) -> Result<String, Error> {
+        refuse_agent_output(&self.entries)?;
         crate::json::encode(self)
     }
 
@@ -153,6 +172,7 @@ impl InputTurn {
     }
 
     pub fn to_value(&self) -> Result<OpaqueJson, Error> {
+        refuse_agent_output(&self.entries)?;
         crate::json::encode_value(self).map(OpaqueJson::from_inner)
     }
 
