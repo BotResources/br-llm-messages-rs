@@ -179,3 +179,15 @@ fn given_projected_entries_in_stored_shapes_when_loaded_then_disallowed_kind() {
         );
     }
 }
+
+#[test]
+fn given_an_empty_projected_thread_when_round_tripped_then_it_is_equal_and_stable() {
+    let empty = br_llm_messages::Perspective::of(aid(1)).project(&Conversation::new(cvid(900)));
+
+    let json = empty.to_json().unwrap();
+    let reloaded = ProjectedThread::from_json(&json).unwrap();
+
+    assert!(empty.turns().is_empty());
+    assert_eq!(reloaded, empty);
+    assert_eq!(reloaded.to_json().unwrap(), json);
+}
