@@ -19,7 +19,7 @@ fn incoming_entries() -> Vec<IncomingEntry> {
 #[test]
 fn given_every_incoming_kind_when_input_turn_built_then_it_holds_exactly_that_entry() {
     let incoming = incoming_entries();
-    assert_eq!(incoming.len(), 8);
+    assert_eq!(incoming.len(), 9);
 
     for (index, entry) in incoming.into_iter().enumerate() {
         let turn = InputTurn::new(tid(index as u64 + 900), vec![entry.clone()]).unwrap();

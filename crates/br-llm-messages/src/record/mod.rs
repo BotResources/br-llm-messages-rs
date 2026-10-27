@@ -5,6 +5,7 @@ mod kinds;
 mod partial;
 mod payload;
 mod reconstruct;
+mod recovery;
 mod reduced;
 mod reduced_rows;
 mod schema;
@@ -15,6 +16,7 @@ mod turn;
 pub use block::BlockRecord;
 pub use entry::EntryRecord;
 pub use kinds::{ActorRef, RepresentationState};
+pub use recovery::{Recovered, Unfinished};
 pub use set::{RECORD_SCHEMA, RecordSet};
 pub use turn::TurnRecord;
 

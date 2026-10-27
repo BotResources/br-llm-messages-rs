@@ -1,3 +1,4 @@
+mod identity;
 mod index;
 mod json;
 mod lookup;

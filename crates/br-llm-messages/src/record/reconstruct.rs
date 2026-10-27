@@ -54,18 +54,26 @@ fn ensure_unique(set: &RecordSet) -> Result<(), Error> {
     Ok(())
 }
 
-fn ensure_complete(set: &RecordSet) -> Result<(), Error> {
+fn ensure_complete(set: &RecordSet, skipped: &HashSet<EntryId>) -> Result<(), Error> {
     let incomplete = |id: Uuid, location: &str| {
         Error::new(ErrorCode::DisallowedKind)
             .with_id(id)
             .at(location)
     };
-    for row in set.entries() {
+    for row in set
+        .entries()
+        .iter()
+        .filter(|row| !skipped.contains(&row.id()))
+    {
         if row.state() != RepresentationState::Complete {
             return Err(incomplete(row.id().as_uuid(), "state"));
         }
     }
-    for row in set.blocks() {
+    for row in set
+        .blocks()
+        .iter()
+        .filter(|row| !skipped.contains(&row.entry()))
+    {
         if row.state() != RepresentationState::Complete {
             return Err(incomplete(row.id().as_uuid(), "state"));
         }
@@ -157,21 +165,39 @@ pub(super) fn build_turn(
     }
 }
 
-fn entries_by_turn(set: &RecordSet) -> HashMap<TurnId, Vec<&EntryRecord>> {
+fn entries_by_turn<'a>(
+    set: &'a RecordSet,
+    skipped: &HashSet<EntryId>,
+) -> HashMap<TurnId, Vec<&'a EntryRecord>> {
     let mut by_turn: HashMap<TurnId, Vec<&EntryRecord>> = HashMap::new();
-    for row in set.entries() {
+    for row in set
+        .entries()
+        .iter()
+        .filter(|row| !skipped.contains(&row.id()))
+    {
         by_turn.entry(row.turn()).or_default().push(row);
     }
     by_turn
 }
 
 pub(super) fn rebuild(set: &RecordSet) -> Result<Vec<Turn>, Error> {
+    rebuild_without(set, &HashSet::new())
+}
+
+pub(super) fn rebuild_without(
+    set: &RecordSet,
+    skipped: &HashSet<EntryId>,
+) -> Result<Vec<Turn>, Error> {
     set.check_local()?;
     ensure_unique(set)?;
     ensure_parents(set)?;
-    ensure_complete(set)?;
-    let tree = BlockTree::build(set.blocks())?;
-    let mut by_turn = entries_by_turn(set);
+    ensure_complete(set, skipped)?;
+    let tree = BlockTree::build(
+        set.blocks()
+            .iter()
+            .filter(|row| !skipped.contains(&row.entry())),
+    )?;
+    let mut by_turn = entries_by_turn(set, skipped);
     let mut rebuilt = Vec::with_capacity(set.turns().len());
     for (index, row) in set.turns().iter().enumerate() {
         let entries = by_turn.remove(&row.id()).unwrap_or_default();

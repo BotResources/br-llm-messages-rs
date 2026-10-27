@@ -31,7 +31,8 @@ impl Next {
             | TurnEntry::QueuePosition(_)
             | TurnEntry::TaskStarted(_)
             | TurnEntry::TaskCompleted(_)
-            | TurnEntry::TaskFailed(_) => Next::Incoming,
+            | TurnEntry::TaskFailed(_)
+            | TurnEntry::RuntimeNotice(_) => Next::Incoming,
         }
     }
 }

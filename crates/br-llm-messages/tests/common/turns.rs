@@ -1,7 +1,7 @@
 use br_llm_messages::{
     AITurn, AgentMail, AgentRequest, ClosureReason, ContentBlock, ExecutionStatus, HumanMessage,
     InputTurn, ModelResponse, ProviderToolCall, ProviderToolExecutionRecord, ProviderToolResult,
-    QueuePosition, RequestAccepted, RequestOrigin, ResponseEnding, ResponseMetadata,
+    QueuePosition, RequestAccepted, RequestOrigin, ResponseEnding, ResponseMetadata, RuntimeNotice,
     RuntimeToolResult, RuntimeToolResults, TaskCompleted, TaskFailed, TaskStarted, TurnClosure,
     TurnEntry, TurnId,
 };
@@ -106,6 +106,9 @@ pub fn incoming_batch(base: u64) -> Vec<TurnEntry> {
         TaskStarted::new(eid(base + 5), rid(1), kid(1)).into(),
         TaskCompleted::new(eid(base + 6), kid(1)).into(),
         TaskFailed::new(eid(base + 7), kid(1), "boom")
+            .unwrap()
+            .into(),
+        RuntimeNotice::new(eid(base + 8), "restart at noon")
             .unwrap()
             .into(),
     ]

@@ -86,6 +86,7 @@ fn entry_rows(turn: TurnId, entry: &TurnEntry, set: &mut RecordSet) -> Result<()
         | TurnEntry::TaskStarted(_)
         | TurnEntry::TaskCompleted(_)
         | TurnEntry::TaskFailed(_)
+        | TurnEntry::RuntimeNotice(_)
         | TurnEntry::TurnClosure(_) => Vec::new(),
     };
     for block in &blocks {

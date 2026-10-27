@@ -7,6 +7,7 @@ use super::entry::{EntryRecord, ReducedRole};
 use super::kinds::RepresentationState;
 use super::partial::{TextPartial, decode as decode_partial};
 use super::reconstruct::{build_incoming, build_turn, citation_ids};
+use super::recovery::Unfinished;
 use super::reduced_rows::Rows;
 use super::set::RecordSet;
 use super::tree::BlockTree;
@@ -128,6 +129,9 @@ impl Door<'_> {
                     let incoming = self.incoming(position, ordinal, entry)?;
                     items.push(Item::Incoming(incoming));
                 }
+                ReducedRole::Response(_) if self.rows.is_ignored(entry.id()) => {
+                    self.ignored(*index, entry);
+                }
                 ReducedRole::Response(RepresentationState::Interrupted) => {
                     self.ignored(*index, entry);
                 }
@@ -172,8 +176,9 @@ pub(super) fn rebuild_thread(
     conversation: ConversationId,
     agent: AgentId,
     pending: &[PendingResponse<'_>],
+    unfinished: Option<Unfinished>,
 ) -> Result<ProjectedThread, Error> {
-    let rows = Rows::read(set, agent)?;
+    let rows = Rows::read(set, agent, unfinished)?;
     let tree = BlockTree::build(rows.blocks().map(|(_, row)| row)).map_err(|error| match error
         .object_id()
         .and_then(|id| rows.block_rows.get(&id))
@@ -198,7 +203,14 @@ pub(super) fn rebuild_thread(
             let foreign = door.foreign(position, turn, owner, &entries)?;
             door.sources.push(Source::Foreign(foreign));
         } else {
-            let rows = entries.iter().map(|(_, row)| *row).collect();
+            let mut rows = Vec::with_capacity(entries.len());
+            for (index, row) in &entries {
+                if door.rows.is_ignored(row.id()) {
+                    door.ignored(*index, row);
+                } else {
+                    rows.push(*row);
+                }
+            }
             let rebuilt = build_turn(turn, rows, &door.tree)
                 .map_err(|error| error.at(format!("turns[{position}]")))?;
             door.declare_rows(rebuilt.declared(), position);
