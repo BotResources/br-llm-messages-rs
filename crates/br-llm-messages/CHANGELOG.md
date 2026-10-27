@@ -17,15 +17,16 @@ Additive: 2.1 changes no signature and removes nothing. Every 2.0 call keeps its
 
 ### ProjectedThread
 
-- `ProjectedThread::from_turns(conversation, agent, turns)` builds a view from its turns with the validation of a JSON reload; `push_turn`, `push_incoming` and `push_entry` grow it, each atomic.
+- `ProjectedThread::from_turns(conversation, agent, turns)` builds a view from its turns with the validation of a JSON reload; `push_turn`, `push_incoming_into` and `push_entry` grow it, each atomic.
 - `ProjectedThread::turn`, `entry`, `block` look up by identity; `entries()` is the flat read-only view (`PlacedEntry`, `EntryView`).
 - `AgentOutput::new`, `PartialAgentOutput::new` and `InputTurn::new_projected` are public.
+- A standalone `InputTurn` or `Turn` that holds an `AgentOutput` or `PartialAgentOutput` cannot be serialized (`disallowed_kind`), because its loader refuses it; a `ProjectedThread` serializes its own input turns as before.
 
 ### Conversation
 
 - `Conversation::push_incoming`, `project_for`, `entries`, `cut_before`, `fork_before` (`Position`).
 - `Conversation::push_entry` accepts an input turn as its target.
-- Opt-in cargo feature `mint`: `ConversationId`, `TurnId`, `EntryId`, `BlockId` and `CitationId` get `mint()`, a UUIDv7.
+- Opt-in cargo feature `mint` (`features = ["mint"]`, off by default; it enables the `uuid` v7 feature and pulls `getrandom`, `libc` and `r-efi` into the build): `ConversationId`, `TurnId`, `EntryId`, `BlockId` and `CitationId` get `mint()`, a UUIDv7. Human and agent identities stay owned outside the library.
 
 ### Turns
 
@@ -39,13 +40,13 @@ Additive: 2.1 changes no signature and removes nothing. Every 2.0 call keeps its
 
 ### Checks
 
-- Dry runs that change nothing: `AITurn::check_push` (now public), `InputTurn::check_push`, `Conversation::would_refuse_turn`, `would_refuse_entry`, `would_refuse_incoming`, and the same on `ProjectedThread`.
-- Whole checks: `Conversation::check`, `ProjectedThread::check`, `RecordSet::check`.
+- Dry runs that change nothing, each returning the refusal the real call would give, or none: `AITurn::would_refuse`, `InputTurn::would_refuse`, `Conversation::would_refuse_turn`, `would_refuse_entry`, `would_refuse_incoming`, and on `ProjectedThread` `would_refuse_turn`, `would_refuse_entry`, `would_refuse_incoming_into`.
+- Whole checks: `Conversation::check`, `ProjectedThread::check`, `RecordSet::check`. `RecordSet::check` is the strict rebuild: a set that holds producing or interrupted rows is refused, and goes through the recovery call.
 
 ### Records
 
 - `RecordSet::to_turns`, `to_conversation`, `to_projected_thread` and `to_projected_thread_pending` work by shared reference; the consuming `into_*` methods remain.
-- Crash recovery: `RecordSet::recover_conversation` and `recover_projected_thread` with `Unfinished::{Restore, Drop}` return a `Recovered` value: the history built from the complete rows, the draft snapshots of producing rows and the interrupted snapshots.
+- Crash recovery: `RecordSet::recover_conversation` and `recover_projected_thread` with `Unfinished::{Restore, Drop}` return a `Recovered` value: the history built from the complete rows, the draft snapshots of producing rows and the interrupted snapshots. For a projected thread only the target agent's own unfinished rows give snapshots; another agent's producing row becomes a `PartialAgentOutput` and its interrupted row is ignored, as in a strict projection.
 
 ## 2.0.0 - 2026-10-26
 
