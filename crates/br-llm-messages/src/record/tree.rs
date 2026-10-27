@@ -23,16 +23,17 @@ pub(crate) struct BlockTree<'a> {
 }
 
 impl<'a> BlockTree<'a> {
-    pub(crate) fn build(blocks: &'a [BlockRecord]) -> Result<Self, Error> {
+    pub(crate) fn build(blocks: impl IntoIterator<Item = &'a BlockRecord>) -> Result<Self, Error> {
+        let blocks: Vec<&'a BlockRecord> = blocks.into_iter().collect();
         let mut rows = HashMap::with_capacity(blocks.len());
-        for row in blocks {
+        for &row in &blocks {
             if rows.insert(row.id(), row).is_some() {
                 return Err(Error::new(ErrorCode::ReusedIdentity).with_id(row.id().as_uuid()));
             }
         }
-        check_references(blocks, &rows)?;
-        check_acyclic(blocks, &rows)?;
-        check_containment(blocks, &rows)?;
+        check_references(&blocks, &rows)?;
+        check_acyclic(&blocks, &rows)?;
+        check_containment(&blocks, &rows)?;
         let mut roots: HashMap<EntryId, Vec<&BlockRecord>> = HashMap::new();
         let mut children: HashMap<BlockId, Vec<&BlockRecord>> = HashMap::new();
         for row in blocks {
@@ -62,7 +63,7 @@ impl<'a> BlockTree<'a> {
 }
 
 fn check_references(
-    blocks: &[BlockRecord],
+    blocks: &[&BlockRecord],
     rows: &HashMap<BlockId, &BlockRecord>,
 ) -> Result<(), Error> {
     for row in blocks {
@@ -84,7 +85,7 @@ fn structure(row: &BlockRecord) -> Error {
 }
 
 fn check_acyclic(
-    blocks: &[BlockRecord],
+    blocks: &[&BlockRecord],
     rows: &HashMap<BlockId, &BlockRecord>,
 ) -> Result<(), Error> {
     let mut settled: HashSet<BlockId> = HashSet::new();
@@ -106,7 +107,7 @@ fn check_acyclic(
 }
 
 pub(super) fn check_containment(
-    blocks: &[BlockRecord],
+    blocks: &[&BlockRecord],
     rows: &HashMap<BlockId, &BlockRecord>,
 ) -> Result<(), Error> {
     for row in blocks {

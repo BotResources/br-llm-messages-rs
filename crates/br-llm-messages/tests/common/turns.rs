@@ -17,7 +17,7 @@ pub fn open_turn(n: u64) -> AITurn {
 }
 
 pub fn input_turn(turn: u64, entry: u64) -> InputTurn {
-    InputTurn::new(tid(turn), human_message(entry)).unwrap()
+    InputTurn::new(tid(turn), vec![human_message(entry).into()]).unwrap()
 }
 
 pub fn human_message(n: u64) -> HumanMessage {

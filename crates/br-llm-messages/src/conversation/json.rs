@@ -10,7 +10,7 @@ use crate::error::{Error, ErrorCode};
 use crate::id::ConversationId;
 use crate::turn::Turn;
 
-pub const CONVERSATION_SCHEMA: &str = "br-llm-messages/4";
+pub const CONVERSATION_SCHEMA: &str = "br-llm-messages/5";
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]

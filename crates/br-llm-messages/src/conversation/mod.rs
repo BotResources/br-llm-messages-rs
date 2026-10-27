@@ -10,7 +10,7 @@ use index::Index;
 use crate::entry::TurnEntry;
 use crate::error::{Error, ErrorCode};
 use crate::id::{ConversationId, TurnId};
-use crate::turn::{Class, Declared, Turn, places_of_incoming, turn_place};
+use crate::turn::{Class, Turn, refuse_agent_output};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Conversation {
@@ -47,13 +47,15 @@ impl Conversation {
     }
 
     pub fn push_turn(&mut self, turn: Turn) -> Result<(), Error> {
-        let declared = declared_by(&turn);
+        if let Turn::InputTurn(input) = &turn {
+            refuse_agent_output(input.entries())?;
+        }
+        let declared = turn.declared();
         if let Some((id, place)) = self.index.clash(&declared) {
             let clash = Error::new(ErrorCode::ReusedIdentity).with_id(id);
             return Err(match (&turn, place.class) {
                 (_, Class::Turn) => clash,
-                (Turn::InputTurn(_), _) => clash.at("entry"),
-                (Turn::AITurn(_), _) => clash.at(format!("entries[{}]", place.entry)),
+                _ => clash.at(format!("entries[{}]", place.entry)),
             });
         }
         let position = self.turns.len();
@@ -79,16 +81,5 @@ impl Conversation {
         target.commit_push(entry, declared.clone());
         self.index.insert(position, declared);
         Ok(())
-    }
-}
-
-fn declared_by(turn: &Turn) -> Declared {
-    match turn {
-        Turn::InputTurn(input) => {
-            let mut declared = vec![(input.id().as_uuid(), turn_place())];
-            declared.extend(places_of_incoming(input.entry(), 0));
-            declared
-        }
-        Turn::AITurn(ai) => ai.declared(),
     }
 }

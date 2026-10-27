@@ -16,7 +16,7 @@ use crate::error::{Error, ErrorCode};
 use crate::id::{CitationId, EntryId, TurnId};
 use crate::turn::{AITurn, InputTurn, Turn, TurnKind};
 
-fn citation_ids(row: &BlockRecord) -> Vec<Uuid> {
+pub(super) fn citation_ids(row: &BlockRecord) -> Vec<Uuid> {
     if row.kind() != ContentBlockKind::Text {
         return Vec::new();
     }
@@ -35,16 +35,18 @@ fn citation_ids(row: &BlockRecord) -> Vec<Uuid> {
         .unwrap_or_default()
 }
 
-fn ensure_unique(set: &RecordSet) -> Result<(), Error> {
-    let mut seen: HashSet<Uuid> = HashSet::new();
-    let ids = set
-        .turns()
+fn ids_of(set: &RecordSet) -> impl Iterator<Item = Uuid> + '_ {
+    set.turns()
         .iter()
         .map(|row| row.id().as_uuid())
         .chain(set.entries().iter().map(|row| row.id().as_uuid()))
         .chain(set.blocks().iter().map(|row| row.id().as_uuid()))
-        .chain(set.blocks().iter().flat_map(citation_ids));
-    for id in ids {
+        .chain(set.blocks().iter().flat_map(citation_ids))
+}
+
+fn ensure_unique(set: &RecordSet) -> Result<(), Error> {
+    let mut seen: HashSet<Uuid> = HashSet::new();
+    for id in ids_of(set) {
         if !seen.insert(id) {
             return Err(Error::new(ErrorCode::ReusedIdentity).with_id(id));
         }
@@ -91,7 +93,7 @@ fn ensure_parents(set: &RecordSet) -> Result<(), Error> {
     Ok(())
 }
 
-fn build_entry(row: &EntryRecord, tree: &BlockTree<'_>) -> Result<TurnEntry, Error> {
+pub(super) fn build_entry(row: &EntryRecord, tree: &BlockTree<'_>) -> Result<TurnEntry, Error> {
     let mut blocks = Vec::new();
     for block in tree.roots_of(row.id()) {
         blocks.push(tree.value_of(block)?);
@@ -100,7 +102,19 @@ fn build_entry(row: &EntryRecord, tree: &BlockTree<'_>) -> Result<TurnEntry, Err
     crate::json::decode_value(value)
 }
 
-fn build_turn(
+pub(super) fn build_incoming(
+    row: &EntryRecord,
+    tree: &BlockTree<'_>,
+) -> Result<IncomingEntry, Error> {
+    let built = build_entry(row, tree)?;
+    IncomingEntry::recorded(&built).ok_or_else(|| {
+        Error::new(ErrorCode::DisallowedKind)
+            .with_id(row.id().as_uuid())
+            .at("kind")
+    })
+}
+
+pub(super) fn build_turn(
     row: &TurnRecord,
     entries: Vec<&EntryRecord>,
     tree: &BlockTree<'_>,
@@ -121,20 +135,20 @@ fn build_turn(
                 None => turn,
             }))
         }
-        _ => {
-            let mut built = built.into_iter();
-            let Some(entry) = built.next() else {
-                return Err(Error::new(ErrorCode::InvalidContent)
-                    .with_id(row.id().as_uuid())
-                    .at("entries"));
-            };
-            if built.next().is_some() {
+        TurnKind::InputTurn => {
+            if built.is_empty() {
                 return Err(Error::new(ErrorCode::InvalidRecordStructure)
                     .with_id(row.id().as_uuid())
                     .at("entries"));
             }
-            let entry = IncomingEntry::try_from(entry).map_err(|error| error.at("entries[0]"))?;
-            let turn = InputTurn::new(row.id(), entry)?;
+            let mut incoming = Vec::with_capacity(built.len());
+            for (index, entry) in built.into_iter().enumerate() {
+                incoming.push(
+                    IncomingEntry::try_from(entry)
+                        .map_err(|error| error.at(format!("entries[{index}]")))?,
+                );
+            }
+            let turn = InputTurn::new(row.id(), incoming)?;
             Ok(Turn::InputTurn(match row.observed_at() {
                 Some(observed_at) => turn.with_observed_at(observed_at.clone()),
                 None => turn,
@@ -143,16 +157,21 @@ fn build_turn(
     }
 }
 
+fn entries_by_turn(set: &RecordSet) -> HashMap<TurnId, Vec<&EntryRecord>> {
+    let mut by_turn: HashMap<TurnId, Vec<&EntryRecord>> = HashMap::new();
+    for row in set.entries() {
+        by_turn.entry(row.turn()).or_default().push(row);
+    }
+    by_turn
+}
+
 pub(super) fn rebuild(set: &RecordSet) -> Result<Vec<Turn>, Error> {
     set.check_local()?;
     ensure_unique(set)?;
     ensure_parents(set)?;
     ensure_complete(set)?;
     let tree = BlockTree::build(set.blocks())?;
-    let mut by_turn: HashMap<TurnId, Vec<&EntryRecord>> = HashMap::new();
-    for row in set.entries() {
-        by_turn.entry(row.turn()).or_default().push(row);
-    }
+    let mut by_turn = entries_by_turn(set);
     let mut rebuilt = Vec::with_capacity(set.turns().len());
     for (index, row) in set.turns().iter().enumerate() {
         let entries = by_turn.remove(&row.id()).unwrap_or_default();

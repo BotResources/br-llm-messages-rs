@@ -64,7 +64,7 @@ fn every_op() -> Vec<DeltaOp> {
             Finalization::authoritative(text_block(11, "authoritative").into()),
         ),
         DeltaOp::response_metadata_updated(
-            ResponseMetadataUpdate::new().with_usage(Usage::new().with_output_tokens(u64::MAX)),
+            ResponseMetadataUpdate::new().with_usage(Usage::of_output_tokens(u64::MAX)),
         ),
         DeltaOp::response_completed(ResponseEnding::unclassified("vendor").unwrap()),
         DeltaOp::response_interrupted(InterruptionReason::failed().with_detail("busy").unwrap()),

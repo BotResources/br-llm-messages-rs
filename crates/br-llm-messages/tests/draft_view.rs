@@ -12,7 +12,7 @@ use stream_support::{
 };
 
 fn busy_draft() -> br_llm_messages::ResponseDraft {
-    let mut draft = started(metadata().with_usage(Usage::new().with_input_tokens(5)));
+    let mut draft = started(metadata().with_usage(Usage::of_input_tokens(5)));
     feed(
         &mut draft,
         vec![

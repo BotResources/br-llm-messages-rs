@@ -70,6 +70,13 @@ impl<'a> SlotView<'a> {
         self.slot.kind()
     }
 
+    pub(crate) fn finalized(&self) -> Option<&'a ContentBlock> {
+        match self.slot {
+            Slot::Final(block) => Some(block),
+            Slot::Open(_) => None,
+        }
+    }
+
     pub fn lifecycle(&self) -> SlotLifecycle {
         match self.slot {
             Slot::Open(_) => SlotLifecycle::Open,

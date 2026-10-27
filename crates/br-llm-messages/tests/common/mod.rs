@@ -136,6 +136,16 @@ pub fn result(n: u64, call: u64, name: &str) -> br_llm_messages::RuntimeToolResu
 
 pub mod conversations;
 pub mod entries;
+pub mod histories;
 pub mod order;
 pub mod records;
 pub mod turns;
+
+pub fn pending_of(
+    drafts: &[br_llm_messages::ResponseDraft],
+) -> Vec<br_llm_messages::PendingResponse<'_>> {
+    drafts
+        .iter()
+        .map(br_llm_messages::PendingResponse::from)
+        .collect()
+}

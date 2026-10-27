@@ -17,10 +17,10 @@ fn code_of(document: Value) -> ErrorCode {
 }
 
 #[test]
-fn given_the_current_schema_when_serialized_then_it_names_br_llm_messages_4_exactly() {
+fn given_the_current_schema_when_serialized_then_it_names_br_llm_messages_5_exactly() {
     let json = rich().to_value().unwrap().raw();
 
-    assert_eq!(json["schema"], "br-llm-messages/4");
+    assert_eq!(json["schema"], "br-llm-messages/5");
     assert_eq!(json["turns"][0]["type"], "input_turn");
     assert_eq!(json["turns"][1]["type"], "ai_turn");
 }
@@ -122,7 +122,7 @@ fn given_an_unknown_variant_anywhere_when_loaded_then_variant_mismatch() {
     let mut entry_kind = golden();
     entry_kind["turns"][1]["entries"][0]["type"] = json!("system_instruction");
     let mut block_kind = golden();
-    block_kind["turns"][0]["entry"]["content"][0]["type"] = json!("audio");
+    block_kind["turns"][0]["entries"][0]["content"][0]["type"] = json!("audio");
     let mut closure_kind = golden();
     closure_kind["turns"][1]["entries"][4]["reason"]["type"] = json!("paused");
 
@@ -138,7 +138,7 @@ fn given_an_unknown_field_anywhere_when_loaded_then_invalid_content() {
     let mut turn = golden();
     turn["turns"][1]["color"] = json!("red");
     let mut input_entry = golden();
-    input_entry["turns"][0]["entry"]["priority"] = json!(1);
+    input_entry["turns"][0]["entries"][0]["priority"] = json!(1);
     let mut ai_entry = golden();
     ai_entry["turns"][1]["entries"][0]["note"] = json!("x");
     let mut nested_block = golden();

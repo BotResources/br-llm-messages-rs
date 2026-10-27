@@ -54,22 +54,8 @@ fn given_a_provider_result_for_a_call_outside_the_response_when_built_then_the_l
 }
 
 #[test]
-fn given_an_empty_usage_when_a_response_is_built_then_invalid_content() {
-    let error = refused(ModelResponse::new(
-        eid(1),
-        vec![],
-        ResponseEnding::finished(),
-        ResponseMetadata::new().with_usage(Usage::new()),
-    ));
-
-    assert_eq!(error.code(), ErrorCode::InvalidContent);
-    assert_eq!(error.object_id(), Some(eid(1).as_uuid()));
-    assert_eq!(error.location(), Some("usage"));
-}
-
-#[test]
 fn given_a_single_observed_count_when_a_response_is_built_then_the_usage_is_accepted() {
-    let usage = Usage::new().with_thinking_tokens(0);
+    let usage = Usage::of_thinking_tokens(0);
 
     let response = ModelResponse::new(
         eid(1),
@@ -80,8 +66,6 @@ fn given_a_single_observed_count_when_a_response_is_built_then_the_usage_is_acce
     .unwrap();
 
     assert_eq!(response.usage(), Some(&usage));
-    assert!(!usage.is_empty());
-    assert!(Usage::new().is_empty());
 }
 
 #[test]

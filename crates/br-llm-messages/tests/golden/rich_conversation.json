@@ -1,35 +1,37 @@
 {
   "id": "ab000000-0000-7000-8000-0000000003e8",
-  "schema": "br-llm-messages/4",
+  "schema": "br-llm-messages/5",
   "turns": [
     {
-      "entry": {
-        "content": [
-          {
-            "citations": [
-              {
-                "id": "ab000000-0000-7000-8000-000000000004",
-                "range": {
-                  "end": 5,
-                  "start": 0
-                },
-                "source": {
-                  "reference": "doc-1",
-                  "title": "A document"
+      "entries": [
+        {
+          "content": [
+            {
+              "citations": [
+                {
+                  "id": "ab000000-0000-7000-8000-000000000004",
+                  "range": {
+                    "end": 5,
+                    "start": 0
+                  },
+                  "source": {
+                    "reference": "doc-1",
+                    "title": "A document"
+                  }
                 }
-              }
-            ],
-            "id": "ab000000-0000-7000-8000-000000000003",
-            "observed_at": "2026-10-23T08:00:01.12Z",
-            "text": "cited text",
-            "type": "text"
-          }
-        ],
-        "human": "ab000000-0000-7000-8000-000000000001",
-        "id": "ab000000-0000-7000-8000-000000000002",
-        "observed_at": "2026-10-23T08:00:02.123Z",
-        "type": "human_message"
-      },
+              ],
+              "id": "ab000000-0000-7000-8000-000000000003",
+              "observed_at": "2026-10-23T08:00:01.12Z",
+              "text": "cited text",
+              "type": "text"
+            }
+          ],
+          "human": "ab000000-0000-7000-8000-000000000001",
+          "id": "ab000000-0000-7000-8000-000000000002",
+          "observed_at": "2026-10-23T08:00:02.123Z",
+          "type": "human_message"
+        }
+      ],
       "id": "ab000000-0000-7000-8000-000000000001",
       "observed_at": "2026-10-23T08:00:03.1234Z",
       "type": "input_turn"
@@ -222,25 +224,27 @@
       "type": "ai_turn"
     },
     {
-      "entry": {
-        "author": "Claude",
-        "content": [
-          {
-            "id": "ab000000-0000-7000-8000-00000000002a",
-            "text": "please help",
-            "type": "text"
-          }
-        ],
-        "id": "ab000000-0000-7000-8000-000000000029",
-        "observed_at": "2026-10-23T08:00:20.123Z",
-        "origin": {
-          "block": "ab000000-0000-7000-8000-000000000384",
-          "type": "tool_call"
-        },
-        "requester": "ab000000-0000-7000-8000-000000000002",
-        "source_conversation": "ab000000-0000-7000-8000-000000000002",
-        "type": "agent_request"
-      },
+      "entries": [
+        {
+          "author": "Claude",
+          "content": [
+            {
+              "id": "ab000000-0000-7000-8000-00000000002a",
+              "text": "please help",
+              "type": "text"
+            }
+          ],
+          "id": "ab000000-0000-7000-8000-000000000029",
+          "observed_at": "2026-10-23T08:00:20.123Z",
+          "origin": {
+            "block": "ab000000-0000-7000-8000-000000000384",
+            "type": "tool_call"
+          },
+          "requester": "ab000000-0000-7000-8000-000000000002",
+          "source_conversation": "ab000000-0000-7000-8000-000000000002",
+          "type": "agent_request"
+        }
+      ],
       "id": "ab000000-0000-7000-8000-000000000028",
       "observed_at": "2026-10-23T08:00:21.1234Z",
       "type": "input_turn"
@@ -269,13 +273,15 @@
       "type": "ai_turn"
     },
     {
-      "entry": {
-        "id": "ab000000-0000-7000-8000-00000000003d",
-        "observed_at": "2026-10-23T08:00:25.12345678Z",
-        "position": 2,
-        "request": "ab000000-0000-7000-8000-000000000001",
-        "type": "queue_position"
-      },
+      "entries": [
+        {
+          "id": "ab000000-0000-7000-8000-00000000003d",
+          "observed_at": "2026-10-23T08:00:25.12345678Z",
+          "position": 2,
+          "request": "ab000000-0000-7000-8000-000000000001",
+          "type": "queue_position"
+        }
+      ],
       "id": "ab000000-0000-7000-8000-00000000003c",
       "observed_at": "2026-10-23T08:00:26.123456789Z",
       "type": "input_turn"

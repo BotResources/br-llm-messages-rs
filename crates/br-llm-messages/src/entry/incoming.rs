@@ -5,12 +5,12 @@ use crate::opaque_json::OpaqueJson;
 use uuid::Uuid;
 
 use super::{
-    AgentMail, AgentRequest, HumanMessage, QueuePosition, RequestAccepted, TaskCompleted,
-    TaskFailed, TaskStarted, TurnEntry, TurnEntryKind,
+    AgentMail, AgentOutput, AgentRequest, HumanMessage, PartialAgentOutput, QueuePosition,
+    RequestAccepted, TaskCompleted, TaskFailed, TaskStarted, TurnEntry, TurnEntryKind,
 };
 use crate::error::{Error, ErrorCode};
-use crate::id::EntryId;
-use crate::value::ObservedAt;
+use crate::id::{AgentId, EntryId};
+use crate::value::{Author, ObservedAt};
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -24,26 +24,63 @@ pub enum IncomingEntry {
     TaskStarted(TaskStarted),
     TaskCompleted(TaskCompleted),
     TaskFailed(TaskFailed),
+    AgentOutput(AgentOutput),
+    PartialAgentOutput(PartialAgentOutput),
+}
+
+pub(crate) struct Projected<'a> {
+    pub(crate) id: EntryId,
+    pub(crate) agent: AgentId,
+    pub(crate) author: &'a Author,
 }
 
 macro_rules! incoming_variants {
     ($($variant:ident($entry:ty)),+ $(,)?) => {
         impl IncomingEntry {
-            pub fn kind(&self) -> TurnEntryKind {
+            pub fn kind(&self) -> Option<TurnEntryKind> {
                 match self {
-                    $(IncomingEntry::$variant(_) => TurnEntryKind::$variant,)+
+                    $(IncomingEntry::$variant(_) => Some(TurnEntryKind::$variant),)+
+                    IncomingEntry::AgentOutput(_) | IncomingEntry::PartialAgentOutput(_) => None,
                 }
             }
 
             pub fn id(&self) -> EntryId {
                 match self {
                     $(IncomingEntry::$variant(entry) => entry.id(),)+
+                    IncomingEntry::AgentOutput(entry) => entry.id(),
+                    IncomingEntry::PartialAgentOutput(entry) => entry.id(),
                 }
             }
 
             pub fn observed_at(&self) -> Option<&ObservedAt> {
                 match self {
                     $(IncomingEntry::$variant(entry) => entry.observed_at(),)+
+                    IncomingEntry::AgentOutput(_) | IncomingEntry::PartialAgentOutput(_) => None,
+                }
+            }
+
+            pub(crate) fn recorded(entry: &TurnEntry) -> Option<IncomingEntry> {
+                match entry {
+                    $(TurnEntry::$variant(entry) => Some(IncomingEntry::$variant(entry.clone())),)+
+                    TurnEntry::ModelResponse(_)
+                    | TurnEntry::RuntimeToolResults(_)
+                    | TurnEntry::TurnClosure(_) => None,
+                }
+            }
+
+            pub(crate) fn projected(&self) -> Option<Projected<'_>> {
+                match self {
+                    $(IncomingEntry::$variant(_) => None,)+
+                    IncomingEntry::AgentOutput(entry) => Some(Projected {
+                        id: entry.id(),
+                        agent: entry.agent(),
+                        author: entry.author(),
+                    }),
+                    IncomingEntry::PartialAgentOutput(entry) => Some(Projected {
+                        id: entry.id(),
+                        agent: entry.agent(),
+                        author: entry.author(),
+                    }),
                 }
             }
         }
@@ -56,10 +93,15 @@ macro_rules! incoming_variants {
             }
         )+
 
-        impl From<IncomingEntry> for TurnEntry {
-            fn from(entry: IncomingEntry) -> Self {
+        impl TryFrom<IncomingEntry> for TurnEntry {
+            type Error = Error;
+
+            fn try_from(entry: IncomingEntry) -> Result<Self, Error> {
                 match entry {
-                    $(IncomingEntry::$variant(entry) => TurnEntry::$variant(entry),)+
+                    $(IncomingEntry::$variant(entry) => Ok(TurnEntry::$variant(entry)),)+
+                    projected @ (IncomingEntry::AgentOutput(_)
+                    | IncomingEntry::PartialAgentOutput(_)) => Err(Error::new(ErrorCode::DisallowedKind)
+                        .with_id(projected.id().as_uuid())),
                 }
             }
         }
@@ -70,12 +112,26 @@ macro_rules! incoming_variants {
             fn try_from(entry: TurnEntry) -> Result<Self, Error> {
                 match entry {
                     $(TurnEntry::$variant(entry) => Ok(IncomingEntry::$variant(entry)),)+
-                    other => Err(Error::new(ErrorCode::DisallowedKind)
+                    other @ (TurnEntry::ModelResponse(_)
+                    | TurnEntry::RuntimeToolResults(_)
+                    | TurnEntry::TurnClosure(_)) => Err(Error::new(ErrorCode::DisallowedKind)
                         .with_id(other.id().as_uuid())),
                 }
             }
         }
     };
+}
+
+impl From<AgentOutput> for IncomingEntry {
+    fn from(entry: AgentOutput) -> Self {
+        IncomingEntry::AgentOutput(entry)
+    }
+}
+
+impl From<PartialAgentOutput> for IncomingEntry {
+    fn from(entry: PartialAgentOutput) -> Self {
+        IncomingEntry::PartialAgentOutput(entry)
+    }
 }
 
 incoming_variants!(

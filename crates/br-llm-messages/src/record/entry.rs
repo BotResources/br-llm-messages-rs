@@ -8,6 +8,18 @@ use crate::id::{EntryId, TurnId};
 use crate::opaque_json::OpaqueJson;
 use crate::value::{Author, ObservedAt};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Ending {
+    Required,
+    Optional,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ReducedRole {
+    Incoming,
+    Response(RepresentationState),
+}
+
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "EntryRecordWire")]
@@ -109,17 +121,31 @@ impl EntryRecord {
     }
 
     pub fn check_local(&self) -> Result<(), Error> {
-        self.check_inner().map_err(|error| match error.object_id() {
-            Some(_) => error,
-            None => error.with_id(self.id.as_uuid()),
-        })
+        self.check_with(Ending::Required)
     }
 
-    fn check_inner(&self) -> Result<(), Error> {
+    fn check_with(&self, ending: Ending) -> Result<(), Error> {
+        self.check_inner(ending)
+            .map_err(|error| match error.object_id() {
+                Some(_) => error,
+                None => error.with_id(self.id.as_uuid()),
+            })
+    }
+
+    fn check_inner(&self, ending: Ending) -> Result<(), Error> {
         self.check_columns()?;
         let object = as_object(self.payload.inner())?;
         let checked = match (self.kind, self.state) {
-            (_, RepresentationState::Complete) => check_object(object, &entry_fields(self.kind)),
+            (_, RepresentationState::Complete) => {
+                let mut fields = entry_fields(self.kind);
+                if ending == Ending::Optional && self.kind == TurnEntryKind::ModelResponse {
+                    fields
+                        .iter_mut()
+                        .filter(|field| field.key == "ending")
+                        .for_each(|field| field.required = false);
+                }
+                check_object(object, &fields)
+            }
             (TurnEntryKind::ModelResponse, RepresentationState::Producing) => {
                 check_object(object, &header_fields(false))
             }
@@ -131,29 +157,55 @@ impl EntryRecord {
         checked.map_err(|error| error.at("payload"))
     }
 
+    pub(super) fn reduced_role(&self) -> Result<ReducedRole, Error> {
+        if self.kind.is_incoming() {
+            Ok(ReducedRole::Incoming)
+        } else if self.kind == TurnEntryKind::ModelResponse {
+            Ok(ReducedRole::Response(self.state))
+        } else {
+            Err(Error::new(ErrorCode::DisallowedKind)
+                .with_id(self.id.as_uuid())
+                .at("kind"))
+        }
+    }
+
+    pub(super) fn check_reduced(&self) -> Result<(), Error> {
+        match self.reduced_role()? {
+            ReducedRole::Incoming => self.check_local(),
+            ReducedRole::Response(_) => self.check_with(Ending::Optional),
+        }
+    }
+
     fn check_columns(&self) -> Result<(), Error> {
-        let sender_ok = match (self.kind, &self.sender) {
-            (TurnEntryKind::HumanMessage, Some(ActorRef::Human { .. })) => true,
-            (
-                TurnEntryKind::AgentRequest | TurnEntryKind::AgentMail,
-                Some(ActorRef::Agent { .. }),
-            ) => true,
-            (
-                TurnEntryKind::HumanMessage
-                | TurnEntryKind::AgentRequest
-                | TurnEntryKind::AgentMail,
-                None,
-            ) => return Err(Error::new(ErrorCode::InvalidContent).at("sender")),
-            (_, None) => true,
-            _ => false,
+        let (sender_ok, authored) = match self.kind {
+            TurnEntryKind::HumanMessage => (
+                match &self.sender {
+                    Some(ActorRef::Human { .. }) => true,
+                    Some(ActorRef::Agent { .. }) => false,
+                    None => return Err(Error::new(ErrorCode::InvalidContent).at("sender")),
+                },
+                false,
+            ),
+            TurnEntryKind::AgentRequest | TurnEntryKind::AgentMail => (
+                match &self.sender {
+                    Some(ActorRef::Agent { .. }) => true,
+                    Some(ActorRef::Human { .. }) => false,
+                    None => return Err(Error::new(ErrorCode::InvalidContent).at("sender")),
+                },
+                true,
+            ),
+            TurnEntryKind::RequestAccepted
+            | TurnEntryKind::QueuePosition
+            | TurnEntryKind::TaskStarted
+            | TurnEntryKind::TaskCompleted
+            | TurnEntryKind::TaskFailed
+            | TurnEntryKind::ModelResponse
+            | TurnEntryKind::RuntimeToolResults
+            | TurnEntryKind::TurnClosure => (self.sender.is_none(), false),
         };
         if !sender_ok {
             return Err(Error::new(ErrorCode::DisallowedKind).at("sender"));
         }
-        let authored = matches!(
-            self.kind,
-            TurnEntryKind::AgentRequest | TurnEntryKind::AgentMail
-        );
         match (&self.author, authored) {
             (None, true) => Err(Error::new(ErrorCode::InvalidContent).at("author")),
             (Some(_), false) => Err(Error::new(ErrorCode::AuthorForbidden).at("author")),

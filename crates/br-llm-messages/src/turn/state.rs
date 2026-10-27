@@ -118,7 +118,14 @@ impl Tracker {
             TurnEntry::TurnClosure(closure) => {
                 self.closure = Some(closure.reason().clone());
             }
-            _ => {}
+            TurnEntry::HumanMessage(_)
+            | TurnEntry::AgentRequest(_)
+            | TurnEntry::AgentMail(_)
+            | TurnEntry::RequestAccepted(_)
+            | TurnEntry::QueuePosition(_)
+            | TurnEntry::TaskStarted(_)
+            | TurnEntry::TaskCompleted(_)
+            | TurnEntry::TaskFailed(_) => {}
         }
         self.last_entry = Some(entry.kind());
     }

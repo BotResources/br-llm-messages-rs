@@ -144,7 +144,7 @@ fn cases() -> Vec<Case> {
 
 fn document(turn_values: Vec<Value>) -> Value {
     json!({
-        "schema": "br-llm-messages/4",
+        "schema": "br-llm-messages/5",
         "id": cvid(1000).to_string(),
         "turns": turn_values,
     })

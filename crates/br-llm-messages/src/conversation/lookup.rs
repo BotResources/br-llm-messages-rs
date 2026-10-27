@@ -13,21 +13,25 @@ use crate::turn::{Body, Class, Turn, body_of_entry, body_of_incoming};
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
 pub enum EntryRef<'a> {
-    Incoming(&'a IncomingEntry),
+    #[non_exhaustive]
+    Incoming {
+        entry: &'a IncomingEntry,
+        kind: TurnEntryKind,
+    },
     Turn(&'a TurnEntry),
 }
 
 impl EntryRef<'_> {
     pub fn id(&self) -> EntryId {
         match self {
-            EntryRef::Incoming(entry) => entry.id(),
+            EntryRef::Incoming { entry, .. } => entry.id(),
             EntryRef::Turn(entry) => entry.id(),
         }
     }
 
     pub fn kind(&self) -> TurnEntryKind {
         match self {
-            EntryRef::Incoming(entry) => entry.kind(),
+            EntryRef::Incoming { kind, .. } => *kind,
             EntryRef::Turn(entry) => entry.kind(),
         }
     }
@@ -81,9 +85,13 @@ impl Conversation {
 
     pub fn entry(&self, id: &EntryId) -> Result<EntryRef<'_>, Error> {
         let slot = self.resolve(id.as_uuid(), |class| matches!(class, Class::Entry(_)))?;
-        let found = match self.turn_at(slot, id.as_uuid())? {
-            Turn::InputTurn(turn) => Some(EntryRef::Incoming(turn.entry())),
-            Turn::AITurn(turn) => turn.entries().get(slot.place.entry).map(EntryRef::Turn),
+        let found = match (self.turn_at(slot, id.as_uuid())?, slot.place.class) {
+            (Turn::InputTurn(turn), Class::Entry(kind)) => turn
+                .entries()
+                .get(slot.place.entry)
+                .map(|entry| EntryRef::Incoming { entry, kind }),
+            (Turn::InputTurn(_), _) => None,
+            (Turn::AITurn(turn), _) => turn.entries().get(slot.place.entry).map(EntryRef::Turn),
         };
         found.ok_or_else(|| Error::new(ErrorCode::UnknownReference).with_id(id.as_uuid()))
     }
@@ -91,7 +99,7 @@ impl Conversation {
     pub fn block(&self, id: &BlockId) -> Result<BlockRef<'_>, Error> {
         let slot = self.resolve(id.as_uuid(), |class| matches!(class, Class::Block(_)))?;
         let body = match self.turn_at(slot, id.as_uuid())? {
-            Turn::InputTurn(turn) => Some(body_of_incoming(turn.entry())),
+            Turn::InputTurn(turn) => turn.entries().get(slot.place.entry).map(body_of_incoming),
             Turn::AITurn(turn) => turn.entries().get(slot.place.entry).map(body_of_entry),
         };
         let (root, child) = (slot.place.root, slot.place.child);

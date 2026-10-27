@@ -81,7 +81,12 @@ fn entry_rows(turn: TurnId, entry: &TurnEntry, set: &mut RecordSet) -> Result<()
             .cloned()
             .map(ContentBlock::RuntimeToolResult)
             .collect(),
-        _ => Vec::new(),
+        TurnEntry::RequestAccepted(_)
+        | TurnEntry::QueuePosition(_)
+        | TurnEntry::TaskStarted(_)
+        | TurnEntry::TaskCompleted(_)
+        | TurnEntry::TaskFailed(_)
+        | TurnEntry::TurnClosure(_) => Vec::new(),
     };
     for block in &blocks {
         block_rows(entry.id(), block, &mut set.blocks)?;
@@ -97,8 +102,12 @@ pub(crate) fn turn_rows(turn: &Turn, set: &mut RecordSet) -> Result<(), Error> {
                 row = row.with_observed_at(observed_at.clone());
             }
             set.turns.push(row);
-            let entry = TurnEntry::from(input.entry().clone());
-            entry_rows(input.id(), &entry, set)
+            for (index, entry) in input.entries().iter().enumerate() {
+                let entry = TurnEntry::try_from(entry.clone())
+                    .map_err(|error| error.at(format!("entries[{index}]")))?;
+                entry_rows(input.id(), &entry, set)?;
+            }
+            Ok(())
         }
         Turn::AITurn(ai) => {
             let mut row = TurnRecord::new(ai.id(), TurnKind::AITurn)

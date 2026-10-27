@@ -238,7 +238,7 @@ fn given_both_turn_kinds_when_stamped_then_they_serialize_load_back_and_refuse_b
         "input_turn",
         |s| {
             stamp!(
-                InputTurn::new(tid(1), common::turns::human_message(2)).unwrap(),
+                InputTurn::new(tid(1), vec![common::turns::human_message(2).into()]).unwrap(),
                 s
             )
         },

@@ -20,7 +20,6 @@ use super::ops::InterruptionReason;
 use crate::entry::{ModelResponse, ResponseMetadata};
 use crate::error::{Error, ErrorCode};
 use crate::id::{BlockId, EntryId, TurnId};
-use crate::value::Usage;
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
@@ -62,10 +61,6 @@ pub struct ResponseDraft {
 
 fn target_error() -> Error {
     Error::new(ErrorCode::StreamTargetError)
-}
-
-fn ensure_usage(usage: Option<&Usage>) -> Result<(), Error> {
-    usage.map_or(Ok(()), Usage::ensure_observed)
 }
 
 fn phase_error() -> Error {
@@ -122,13 +117,18 @@ impl ResponseDraft {
         DraftView::new(self)
     }
 
+    pub(crate) fn identities(&self) -> Vec<Uuid> {
+        let mut ids: Vec<Uuid> = self.ids.iter().copied().collect();
+        ids.sort_unstable();
+        ids
+    }
+
     fn dispatch(&mut self, delta: &ResponseDelta) -> Result<DeltaOutcome, Error> {
         if delta.turn() != self.turn || delta.entry() != self.entry {
             return Err(target_error());
         }
         match (&self.phase, delta.op()) {
             (DraftPhase::Unstarted { .. }, DeltaOp::ResponseStarted { metadata }) => {
-                ensure_usage(metadata.usage())?;
                 self.metadata = metadata.clone();
                 self.phase = DraftPhase::Producing {};
                 return Ok(DeltaOutcome::Applied {});
@@ -176,7 +176,6 @@ impl ResponseDraft {
                 .finalize_block(*block, finalization)
                 .map(|replaced| DeltaOutcome::Finalized { replaced }),
             DeltaOp::ResponseMetadataUpdated { update } => {
-                ensure_usage(update.usage())?;
                 self.metadata = update.replacing(&self.metadata);
                 Ok(DeltaOutcome::Applied {})
             }

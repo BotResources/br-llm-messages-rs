@@ -102,7 +102,7 @@ pub(super) fn entry_fields(kind: TurnEntryKind) -> Vec<Field> {
             optional("provider_response_id", typed::<ExternalId>),
         ],
         TurnEntryKind::TurnClosure => vec![required("reason", typed::<ClosureReason>)],
-        _ => Vec::new(),
+        TurnEntryKind::HumanMessage | TurnEntryKind::RuntimeToolResults => Vec::new(),
     }
 }
 

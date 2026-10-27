@@ -1,15 +1,16 @@
 use uuid::Uuid;
 
 use crate::block::{ContentBlock, ContentBlockKind, PlainBlock};
-use crate::entry::{IncomingEntry, TurnEntry, TurnEntryKind};
+use crate::entry::{IncomingEntry, ModelResponse, TurnEntry, TurnEntryKind};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Class {
     Conversation,
     Turn,
     Entry(TurnEntryKind),
+    Output,
     Block(ContentBlockKind),
-    Citation,
+    Citation(Uuid),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,7 +37,12 @@ pub(crate) fn body_of_entry(entry: &TurnEntry) -> Body<'_> {
         TurnEntry::AgentMail(entry) => Body::Content(entry.content()),
         TurnEntry::ModelResponse(entry) => Body::Response(entry.blocks()),
         TurnEntry::RuntimeToolResults(entry) => Body::Results(entry.results()),
-        _ => Body::Bare,
+        TurnEntry::RequestAccepted(_)
+        | TurnEntry::QueuePosition(_)
+        | TurnEntry::TaskStarted(_)
+        | TurnEntry::TaskCompleted(_)
+        | TurnEntry::TaskFailed(_)
+        | TurnEntry::TurnClosure(_) => Body::Bare,
     }
 }
 
@@ -45,7 +51,13 @@ pub(crate) fn body_of_incoming(entry: &IncomingEntry) -> Body<'_> {
         IncomingEntry::HumanMessage(entry) => Body::Content(entry.content()),
         IncomingEntry::AgentRequest(entry) => Body::Content(entry.content()),
         IncomingEntry::AgentMail(entry) => Body::Content(entry.content()),
-        _ => Body::Bare,
+        IncomingEntry::AgentOutput(entry) => Body::Content(entry.content()),
+        IncomingEntry::PartialAgentOutput(entry) => Body::Content(entry.content()),
+        IncomingEntry::RequestAccepted(_)
+        | IncomingEntry::QueuePosition(_)
+        | IncomingEntry::TaskStarted(_)
+        | IncomingEntry::TaskCompleted(_)
+        | IncomingEntry::TaskFailed(_) => Body::Bare,
     }
 }
 
@@ -58,16 +70,11 @@ pub(crate) fn turn_place() -> Place {
     }
 }
 
-pub(crate) fn entry_places(
-    kind: TurnEntryKind,
-    id: Uuid,
-    body: Body<'_>,
-    entry: usize,
-) -> Declared {
+pub(crate) fn entry_places(class: Class, id: Uuid, body: Body<'_>, entry: usize) -> Declared {
     let mut out = vec![(
         id,
         Place {
-            class: Class::Entry(kind),
+            class,
             entry,
             root: 0,
             child: None,
@@ -106,7 +113,7 @@ pub(crate) fn entry_places(
 
 pub(crate) fn places_of_turn_entry(entry: &TurnEntry, index: usize) -> Declared {
     entry_places(
-        entry.kind(),
+        Class::Entry(entry.kind()),
         entry.id().as_uuid(),
         body_of_entry(entry),
         index,
@@ -115,10 +122,19 @@ pub(crate) fn places_of_turn_entry(entry: &TurnEntry, index: usize) -> Declared 
 
 pub(crate) fn places_of_incoming(entry: &IncomingEntry, index: usize) -> Declared {
     entry_places(
-        entry.kind(),
+        entry.kind().map_or(Class::Output, Class::Entry),
         entry.id().as_uuid(),
         body_of_incoming(entry),
         index,
+    )
+}
+
+pub(crate) fn places_of_response(response: &ModelResponse) -> Declared {
+    entry_places(
+        Class::Entry(TurnEntryKind::ModelResponse),
+        response.id().as_uuid(),
+        Body::Response(response.blocks()),
+        0,
     )
 }
 
@@ -154,7 +170,7 @@ fn plain_places(
             out.push((
                 citation.id().as_uuid(),
                 Place {
-                    class: Class::Citation,
+                    class: Class::Citation(block.id().as_uuid()),
                     entry,
                     root,
                     child,
@@ -171,7 +187,7 @@ fn content_places(block: &ContentBlock, entry: usize, root: usize, out: &mut Dec
             out.push((
                 citation.id().as_uuid(),
                 Place {
-                    class: Class::Citation,
+                    class: Class::Citation(block.id().as_uuid()),
                     entry,
                     root,
                     child: None,

@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 
 use br_llm_messages::{
     BlockMetadataUpdate, DeltaOp, ErrorCode, Finalization, InterruptionReason, ReplayFormat,
-    ResponseDelta, ResponseEnding, ResponseMetadata, ResponseMetadataUpdate, Usage,
+    ResponseDelta, ResponseEnding, ResponseMetadata,
 };
 use common::{bid, call, envelope, png, result, signature, text_block};
 use stream_support::{
@@ -104,12 +104,6 @@ fn refusals() -> Vec<(DeltaOp, ErrorCode)> {
             ErrorCode::InconsistentFinalization,
         ),
         (finalize(12), ErrorCode::MalformedJson),
-        (
-            DeltaOp::response_metadata_updated(
-                ResponseMetadataUpdate::new().with_usage(Usage::new()),
-            ),
-            ErrorCode::InvalidContent,
-        ),
         (finish(), ErrorCode::InconsistentFinalization),
     ]
 }
@@ -131,7 +125,7 @@ fn given_any_refused_delta_when_applied_then_the_draft_equals_its_previous_clone
         assert_eq!(error.object_id(), Some(target));
         codes.insert(expected.as_str());
     }
-    assert!(codes.len() >= 7);
+    assert!(codes.len() >= 6);
 }
 
 #[test]

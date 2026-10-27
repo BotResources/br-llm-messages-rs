@@ -18,7 +18,7 @@ fn given_a_rich_conversation_when_looked_up_by_identity_then_each_kind_is_return
 
     assert_eq!(conversation.turn(&tid(10)).unwrap().id(), tid(10));
     let input = conversation.entry(&eid(2)).unwrap();
-    assert!(matches!(input, EntryRef::Incoming(_)));
+    assert!(matches!(input, EntryRef::Incoming { .. }));
     assert_eq!(input.kind(), TurnEntryKind::HumanMessage);
     let response = conversation.entry(&eid(12)).unwrap();
     assert!(matches!(response, EntryRef::Turn(_)));
@@ -131,7 +131,7 @@ fn given_cross_conversation_references_when_pushed_then_they_are_kept_and_never_
     let Turn::InputTurn(input) = conversation.turn(&tid(40)).unwrap() else {
         panic!("input turn expected");
     };
-    let br_llm_messages::IncomingEntry::AgentRequest(request) = input.entry() else {
+    let br_llm_messages::IncomingEntry::AgentRequest(request) = &input.entries()[0] else {
         panic!("request expected");
     };
     assert_eq!(request.source_conversation(), cvid(2));
@@ -199,7 +199,7 @@ fn given_references_equal_to_own_ids_when_pushed_then_they_are_accepted_and_not_
         vec![common::plain_text(71, "again")],
     )
     .unwrap();
-    let turn = br_llm_messages::InputTurn::new(tid(72), request).unwrap();
+    let turn = br_llm_messages::InputTurn::new(tid(72), vec![request.into()]).unwrap();
     let before = conversation.block(&bid(15)).unwrap().id();
 
     conversation.push_turn(turn.into()).unwrap();
@@ -210,4 +210,26 @@ fn given_references_equal_to_own_ids_when_pushed_then_they_are_accepted_and_not_
         TurnEntryKind::AgentRequest
     );
     assert_eq!(conversation.turns().len(), 6);
+}
+
+#[test]
+fn given_every_entry_of_a_multi_entry_input_turn_when_looked_up_then_its_recorded_kind_is_total() {
+    let entries: Vec<br_llm_messages::IncomingEntry> = vec![
+        common::turns::human_message(2).into(),
+        br_llm_messages::RequestAccepted::new(eid(3), common::rid(1)).into(),
+    ];
+    let turn = br_llm_messages::InputTurn::new(tid(1), entries).unwrap();
+    let conversation = Conversation::from_parts(cvid(900), vec![turn.into()]).unwrap();
+
+    let human = conversation.entry(&eid(2)).unwrap();
+    let accepted = conversation.entry(&eid(3)).unwrap();
+
+    assert!(matches!(
+        human,
+        EntryRef::Incoming {
+            kind: TurnEntryKind::HumanMessage,
+            ..
+        }
+    ));
+    assert_eq!(accepted.kind(), TurnEntryKind::RequestAccepted);
 }

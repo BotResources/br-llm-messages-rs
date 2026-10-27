@@ -1,0 +1,142 @@
+{
+  "agent": "ab000000-0000-7000-8000-000000000001",
+  "conversation": "ab000000-0000-7000-8000-000000000384",
+  "schema": "br-llm-messages-projected-thread/1",
+  "turns": [
+    {
+      "entries": [
+        {
+          "content": [
+            {
+              "id": "ab000000-0000-7000-8000-00000000138a",
+              "text": "hello",
+              "type": "text"
+            }
+          ],
+          "human": "ab000000-0000-7000-8000-000000000001",
+          "id": "ab000000-0000-7000-8000-000000000002",
+          "type": "human_message"
+        }
+      ],
+      "id": "ab000000-0000-7000-8000-000000000001",
+      "type": "input_turn"
+    },
+    {
+      "agent": "ab000000-0000-7000-8000-000000000001",
+      "author": "Codex",
+      "entries": [
+        {
+          "content": [
+            {
+              "id": "ab000000-0000-7000-8000-00000000000c",
+              "text": "mine",
+              "type": "text"
+            }
+          ],
+          "ending": {
+            "type": "finished"
+          },
+          "id": "ab000000-0000-7000-8000-00000000000b",
+          "type": "model_response"
+        }
+      ],
+      "id": "ab000000-0000-7000-8000-00000000000a",
+      "type": "ai_turn"
+    },
+    {
+      "entries": [
+        {
+          "agent": "ab000000-0000-7000-8000-000000000002",
+          "author": "Claude",
+          "content": [
+            {
+              "id": "ab000000-0000-7000-8000-000000000016",
+              "text": "done",
+              "type": "text"
+            },
+            {
+              "id": "ab000000-0000-7000-8000-000000000017",
+              "source": {
+                "data": "QUJD",
+                "media_type": "image/png",
+                "type": "inline"
+              },
+              "type": "image"
+            },
+            {
+              "id": "ab000000-0000-7000-8000-000000000018",
+              "type": "structured_content",
+              "value": {
+                "rows": [
+                  1,
+                  2
+                ]
+              }
+            }
+          ],
+          "id": "ab000000-0000-7000-8000-000000000015",
+          "type": "agent_output"
+        },
+        {
+          "content": [
+            {
+              "id": "ab000000-0000-7000-8000-0000000013a1",
+              "text": "hello",
+              "type": "text"
+            }
+          ],
+          "human": "ab000000-0000-7000-8000-000000000001",
+          "id": "ab000000-0000-7000-8000-000000000019",
+          "type": "human_message"
+        },
+        {
+          "agent": "ab000000-0000-7000-8000-000000000002",
+          "author": "Claude",
+          "content": [
+            {
+              "id": "ab000000-0000-7000-8000-00000000001b",
+              "text": "more",
+              "type": "text"
+            }
+          ],
+          "id": "ab000000-0000-7000-8000-00000000001a",
+          "type": "agent_output"
+        }
+      ],
+      "id": "ab000000-0000-7000-8000-000000000014",
+      "type": "input_turn"
+    },
+    {
+      "entries": [
+        {
+          "agent": "ab000000-0000-7000-8000-000000000003",
+          "author": "Gemini",
+          "content": [
+            {
+              "id": "ab000000-0000-7000-8000-000000000020",
+              "text": "so far",
+              "type": "text"
+            }
+          ],
+          "id": "ab000000-0000-7000-8000-00000000001f",
+          "type": "partial_agent_output"
+        },
+        {
+          "agent": "ab000000-0000-7000-8000-000000000003",
+          "author": "Gemini",
+          "content": [
+            {
+              "id": "ab000000-0000-7000-8000-000000000022",
+              "text": "then",
+              "type": "text"
+            }
+          ],
+          "id": "ab000000-0000-7000-8000-000000000021",
+          "type": "partial_agent_output"
+        }
+      ],
+      "id": "ab000000-0000-7000-8000-00000000001e",
+      "type": "input_turn"
+    }
+  ]
+}

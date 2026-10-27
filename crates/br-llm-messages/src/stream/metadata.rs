@@ -65,23 +65,10 @@ impl ResponseMetadataUpdate {
     }
 
     pub(crate) fn replacing(&self, base: &ResponseMetadata) -> ResponseMetadata {
-        let mut merged = ResponseMetadata::new();
-        if let Some(observed_at) = base.observed_at() {
-            merged = merged.with_observed_at(observed_at.clone());
-        }
-        if let Some(usage) = self.usage.clone().or_else(|| base.usage().cloned()) {
-            merged = merged.with_usage(usage);
-        }
-        if let Some(model) = self.model.clone().or_else(|| base.model().cloned()) {
-            merged = merged.with_model(model);
-        }
-        if let Some(id) = self
-            .provider_response_id
-            .clone()
-            .or_else(|| base.provider_response_id().cloned())
-        {
-            merged = merged.with_provider_response_id(id);
-        }
-        merged
+        base.clone().overlaid(
+            self.usage.clone(),
+            self.model.clone(),
+            self.provider_response_id.clone(),
+        )
     }
 }

@@ -40,6 +40,14 @@ impl PlainBlock {
         }
     }
 
+    pub(crate) fn bare(&self) -> PlainBlock {
+        match self {
+            PlainBlock::Text(block) => PlainBlock::Text(block.text_only()),
+            PlainBlock::Image(block) => PlainBlock::Image(block.bare()),
+            PlainBlock::StructuredContent(block) => PlainBlock::StructuredContent(block.bare()),
+        }
+    }
+
     pub fn id(&self) -> BlockId {
         match self {
             PlainBlock::Text(block) => block.id(),

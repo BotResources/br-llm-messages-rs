@@ -16,10 +16,11 @@ const RECORD_SET: &str = include_str!("golden/record_set.json");
 const RECORD_SET_RICH: &str = include_str!("golden/record_set_rich.json");
 const RICH_CONVERSATION: &str = include_str!("golden/rich_conversation.json");
 
-const FROZEN_FILES: [&str; 6] = [
+const FROZEN_FILES: [&str; 7] = [
     "delta_stream.json",
     "draft_interrupted.json",
     "draft_open.json",
+    "projected_thread.json",
     "record_set.json",
     "record_set_rich.json",
     "rich_conversation.json",

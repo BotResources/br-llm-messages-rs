@@ -1,12 +1,13 @@
 use std::fmt;
 use std::str::FromStr;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+use serde_json::Value;
 
 use crate::error::{Error, ErrorCode};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TurnEntryKind {
     HumanMessage,
@@ -54,17 +55,19 @@ impl TurnEntryKind {
     }
 
     pub fn is_incoming(self) -> bool {
-        matches!(
-            self,
+        match self {
             TurnEntryKind::HumanMessage
-                | TurnEntryKind::AgentRequest
-                | TurnEntryKind::AgentMail
-                | TurnEntryKind::RequestAccepted
-                | TurnEntryKind::QueuePosition
-                | TurnEntryKind::TaskStarted
-                | TurnEntryKind::TaskCompleted
-                | TurnEntryKind::TaskFailed
-        )
+            | TurnEntryKind::AgentRequest
+            | TurnEntryKind::AgentMail
+            | TurnEntryKind::RequestAccepted
+            | TurnEntryKind::QueuePosition
+            | TurnEntryKind::TaskStarted
+            | TurnEntryKind::TaskCompleted
+            | TurnEntryKind::TaskFailed => true,
+            TurnEntryKind::ModelResponse
+            | TurnEntryKind::RuntimeToolResults
+            | TurnEntryKind::TurnClosure => false,
+        }
     }
 }
 
@@ -77,6 +80,40 @@ impl FromStr for TurnEntryKind {
             .copied()
             .find(|kind| kind.as_str() == value)
             .ok_or_else(|| Error::new(ErrorCode::VariantMismatch))
+    }
+}
+
+const PROJECTED: [&str; 2] = ["agent_output", "partial_agent_output"];
+
+pub(crate) fn refuse_type(value: &Value) -> Result<(), Error> {
+    let Some(name) = value.get("type").and_then(Value::as_str) else {
+        return Ok(());
+    };
+    if !PROJECTED.contains(&name) {
+        return Ok(());
+    }
+    let refused = Error::new(ErrorCode::DisallowedKind);
+    Err(
+        match value
+            .get("id")
+            .and_then(Value::as_str)
+            .and_then(|id| uuid::Uuid::try_parse(id).ok())
+        {
+            Some(id) => refused.with_id(id),
+            None => refused.at("type"),
+        },
+    )
+}
+
+impl<'de> Deserialize<'de> for TurnEntryKind {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let name = String::deserialize(deserializer)?;
+        if PROJECTED.contains(&name.as_str()) {
+            return Err(serde::de::Error::custom(Error::new(
+                ErrorCode::DisallowedKind,
+            )));
+        }
+        name.parse().map_err(serde::de::Error::custom)
     }
 }
 

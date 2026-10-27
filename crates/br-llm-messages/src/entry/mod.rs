@@ -4,7 +4,9 @@ mod closure;
 mod human;
 mod incoming;
 mod kind;
+mod metadata;
 mod notice;
+mod output;
 mod request_origin;
 mod response;
 mod results;
@@ -16,9 +18,11 @@ pub use closure::{ClosureReason, TurnClosure};
 pub use human::HumanMessage;
 pub use incoming::IncomingEntry;
 pub use kind::TurnEntryKind;
+pub use metadata::ResponseMetadata;
 pub use notice::{QueuePosition, RequestAccepted};
+pub use output::{AgentOutput, PartialAgentOutput};
 pub use request_origin::RequestOrigin;
-pub use response::{ModelResponse, ResponseMetadata};
+pub use response::ModelResponse;
 pub use results::RuntimeToolResults;
 pub use task::{TaskCompleted, TaskFailed, TaskStarted};
 
@@ -75,7 +79,7 @@ pub(crate) fn check_content(entry: EntryId, content: &[PlainBlock]) -> Result<()
 tagged_enum! {
     #[non_exhaustive]
     #[derive(Debug, Clone, PartialEq)]
-    pub enum TurnEntry, TurnEntryWire, remote = "TurnEntry", [tag = "type", rename_all = "snake_case"] {
+    pub enum TurnEntry, TurnEntryWire, remote = "TurnEntry", check = crate::entry::kind::refuse_type, [tag = "type", rename_all = "snake_case"] {
         HumanMessage(HumanMessage),
         AgentRequest(AgentRequest),
         AgentMail(AgentMail),

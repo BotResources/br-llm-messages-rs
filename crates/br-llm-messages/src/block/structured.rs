@@ -36,6 +36,14 @@ impl StructuredBlock {
         self
     }
 
+    pub(crate) fn bare(&self) -> StructuredBlock {
+        StructuredBlock {
+            id: self.id,
+            value: self.value.clone(),
+            observed_at: None,
+        }
+    }
+
     pub fn id(&self) -> BlockId {
         self.id
     }
