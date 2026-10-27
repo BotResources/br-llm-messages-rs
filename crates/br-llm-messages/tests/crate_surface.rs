@@ -124,7 +124,7 @@ fn given_the_value_types_when_checked_statically_then_snapshots_records_and_proj
 #[test]
 fn given_the_public_kind_enums_when_listed_then_each_is_reachable_from_the_crate_root() {
     assert_eq!(TurnKind::ALL.len(), 2);
-    assert_eq!(TurnEntryKind::ALL.len(), 11);
+    assert_eq!(TurnEntryKind::ALL.len(), 12);
     assert_eq!(ContentBlockKind::ALL.len(), 10);
     assert_eq!(ResponseDeltaKind::ALL.len(), 13);
     assert_eq!(RepresentationState::ALL.len(), 3);

@@ -123,7 +123,8 @@ impl Tracker {
             | TurnEntry::QueuePosition(_)
             | TurnEntry::TaskStarted(_)
             | TurnEntry::TaskCompleted(_)
-            | TurnEntry::TaskFailed(_) => {}
+            | TurnEntry::TaskFailed(_)
+            | TurnEntry::RuntimeNotice(_) => {}
         }
     }
 }

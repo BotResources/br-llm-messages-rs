@@ -26,8 +26,8 @@ pub use conversation::{
 pub use entry::{
     AgentMail, AgentOutput, AgentRequest, ClosureReason, HumanMessage, IncomingEntry,
     ModelResponse, PartialAgentOutput, QueuePosition, RequestAccepted, RequestOrigin,
-    ResponseMetadata, RuntimeToolResults, TaskCompleted, TaskFailed, TaskStarted, TurnClosure,
-    TurnEntry, TurnEntryKind,
+    ResponseMetadata, RuntimeNotice, RuntimeToolResults, TaskCompleted, TaskFailed, TaskStarted,
+    TurnClosure, TurnEntry, TurnEntryKind,
 };
 pub use error::{Error, ErrorCode};
 pub use id::{
@@ -36,7 +36,8 @@ pub use id::{
 pub use opaque_json::OpaqueJson;
 pub use projection::{PROJECTED_THREAD_SCHEMA, PendingResponse, Perspective, ProjectedThread};
 pub use record::{
-    ActorRef, BlockRecord, EntryRecord, RECORD_SCHEMA, RecordSet, RepresentationState, TurnRecord,
+    ActorRef, BlockRecord, EntryRecord, RECORD_SCHEMA, RecordSet, Recovered, RepresentationState,
+    TurnRecord, Unfinished,
 };
 pub use stream::{
     BlockMetadataUpdate, BlockStart, DELTA_SCHEMA, DRAFT_SCHEMA, DeltaOp, DeltaOutcome,

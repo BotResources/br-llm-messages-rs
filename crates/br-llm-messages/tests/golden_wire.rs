@@ -187,8 +187,10 @@ fn given_the_frozen_record_set_when_inspected_then_every_row_kind_and_state_is_p
     assert!(
         TurnEntryKind::ALL
             .iter()
+            .filter(|kind| **kind != TurnEntryKind::RuntimeNotice)
             .all(|kind| entry_kinds.contains(kind))
     );
+    assert!(!entry_kinds.contains(&TurnEntryKind::RuntimeNotice));
     assert!(
         ContentBlockKind::ALL
             .iter()

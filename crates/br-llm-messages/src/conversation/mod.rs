@@ -1,5 +1,6 @@
 mod cut;
 mod dry_run;
+mod identity;
 mod incoming;
 mod index;
 mod json;

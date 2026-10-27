@@ -95,6 +95,7 @@ pub(super) fn entry_fields(kind: TurnEntryKind) -> Vec<Field> {
             required("task", typed::<TaskId>),
             required("reason", typed::<PlainText>),
         ],
+        TurnEntryKind::RuntimeNotice => vec![required("text", typed::<PlainText>)],
         TurnEntryKind::ModelResponse => vec![
             required("ending", typed::<ResponseEnding>),
             optional("usage", typed::<Usage>),

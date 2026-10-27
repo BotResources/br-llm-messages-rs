@@ -18,6 +18,7 @@ pub enum TurnEntryKind {
     TaskStarted,
     TaskCompleted,
     TaskFailed,
+    RuntimeNotice,
     ModelResponse,
     RuntimeToolResults,
     TurnClosure,
@@ -33,6 +34,7 @@ impl TurnEntryKind {
         TurnEntryKind::TaskStarted,
         TurnEntryKind::TaskCompleted,
         TurnEntryKind::TaskFailed,
+        TurnEntryKind::RuntimeNotice,
         TurnEntryKind::ModelResponse,
         TurnEntryKind::RuntimeToolResults,
         TurnEntryKind::TurnClosure,
@@ -48,6 +50,7 @@ impl TurnEntryKind {
             TurnEntryKind::TaskStarted => "task_started",
             TurnEntryKind::TaskCompleted => "task_completed",
             TurnEntryKind::TaskFailed => "task_failed",
+            TurnEntryKind::RuntimeNotice => "runtime_notice",
             TurnEntryKind::ModelResponse => "model_response",
             TurnEntryKind::RuntimeToolResults => "runtime_tool_results",
             TurnEntryKind::TurnClosure => "turn_closure",
@@ -63,7 +66,8 @@ impl TurnEntryKind {
             | TurnEntryKind::QueuePosition
             | TurnEntryKind::TaskStarted
             | TurnEntryKind::TaskCompleted
-            | TurnEntryKind::TaskFailed => true,
+            | TurnEntryKind::TaskFailed
+            | TurnEntryKind::RuntimeNotice => true,
             TurnEntryKind::ModelResponse
             | TurnEntryKind::RuntimeToolResults
             | TurnEntryKind::TurnClosure => false,

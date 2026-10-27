@@ -113,6 +113,7 @@ pub(crate) fn split_entry(entry: &TurnEntry) -> Result<EntryParts, Error> {
         | TurnEntry::TaskStarted(_)
         | TurnEntry::TaskCompleted(_)
         | TurnEntry::TaskFailed(_)
+        | TurnEntry::RuntimeNotice(_)
         | TurnEntry::ModelResponse(_)
         | TurnEntry::RuntimeToolResults(_)
         | TurnEntry::TurnClosure(_) => (None, None),
@@ -135,6 +136,7 @@ fn sender_key(kind: TurnEntryKind) -> Option<&'static str> {
         | TurnEntryKind::TaskStarted
         | TurnEntryKind::TaskCompleted
         | TurnEntryKind::TaskFailed
+        | TurnEntryKind::RuntimeNotice
         | TurnEntryKind::ModelResponse
         | TurnEntryKind::RuntimeToolResults
         | TurnEntryKind::TurnClosure => None,
@@ -153,6 +155,7 @@ fn block_key(kind: TurnEntryKind) -> Option<&'static str> {
         | TurnEntryKind::TaskStarted
         | TurnEntryKind::TaskCompleted
         | TurnEntryKind::TaskFailed
+        | TurnEntryKind::RuntimeNotice
         | TurnEntryKind::TurnClosure => None,
     }
 }

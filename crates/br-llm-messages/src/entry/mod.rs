@@ -10,6 +10,7 @@ mod output;
 mod request_origin;
 mod response;
 mod results;
+mod runtime_notice;
 mod task;
 
 pub use agent_mail::AgentMail;
@@ -24,6 +25,7 @@ pub use output::{AgentOutput, PartialAgentOutput};
 pub use request_origin::RequestOrigin;
 pub use response::ModelResponse;
 pub use results::RuntimeToolResults;
+pub use runtime_notice::RuntimeNotice;
 pub use task::{TaskCompleted, TaskFailed, TaskStarted};
 
 use serde::de::IgnoredAny;
@@ -88,6 +90,7 @@ tagged_enum! {
         TaskStarted(TaskStarted),
         TaskCompleted(TaskCompleted),
         TaskFailed(TaskFailed),
+        RuntimeNotice(RuntimeNotice),
         ModelResponse(ModelResponse),
         RuntimeToolResults(RuntimeToolResults),
         TurnClosure(TurnClosure),
@@ -135,6 +138,7 @@ entry_variants!(
     TaskStarted(TaskStarted),
     TaskCompleted(TaskCompleted),
     TaskFailed(TaskFailed),
+    RuntimeNotice(RuntimeNotice),
     ModelResponse(ModelResponse),
     RuntimeToolResults(RuntimeToolResults),
     TurnClosure(TurnClosure),
