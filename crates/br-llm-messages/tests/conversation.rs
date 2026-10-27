@@ -116,6 +116,7 @@ fn given_an_input_turn_entry_reusing_a_whole_conversation_identity_when_pushed_t
     for reused in [11, 21, 10, 20] {
         let error = refused(conversation.push_entry(&tid(10), human(reused)));
         assert_eq!(error.code(), ErrorCode::ReusedIdentity, "{reused}");
+        assert_eq!(error.location(), Some("entries[1]"), "{reused}");
         assert_eq!(conversation, before);
     }
 }

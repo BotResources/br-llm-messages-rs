@@ -84,7 +84,13 @@ impl Conversation {
             _ => return Err(reference(ErrorCode::UnknownReference)),
         };
         if let Some((id, _)) = self.index.clash(&declared) {
-            return Err(Error::new(ErrorCode::ReusedIdentity).with_id(id));
+            let clash = Error::new(ErrorCode::ReusedIdentity).with_id(id);
+            return Err(match (&prepared, self.turns.get(position)) {
+                (Prepared::Input(_), Some(Turn::InputTurn(target))) => {
+                    clash.at(format!("entries[{}]", target.entries().len()))
+                }
+                _ => clash,
+            });
         }
         match (self.turns.get_mut(position), prepared) {
             (Some(Turn::AITurn(target)), Prepared::Ai(entry)) => {
