@@ -84,10 +84,18 @@ fn given_text_with_odd_spacing_and_composed_forms_when_built_then_kept_byte_for_
 
 #[test]
 fn given_the_tool_name_grammar_when_names_are_checked_then_only_valid_ones_pass() {
-    for valid in ["a", "_", "_x", "Get-Weather_2", &"a".repeat(64)] {
+    for valid in [
+        "a",
+        "_",
+        "_x",
+        "Get-Weather_2",
+        &"a".repeat(64),
+        &"a".repeat(65),
+        &"a".repeat(256),
+    ] {
         assert_eq!(ToolName::new(valid).unwrap().as_str(), valid);
     }
-    let too_long = "a".repeat(65);
+    let too_long = "a".repeat(257);
     for invalid in [
         "", &too_long, "1abc", "-a", "a b", "a.b", "a/b", "é", "tëst", "a\n",
     ] {

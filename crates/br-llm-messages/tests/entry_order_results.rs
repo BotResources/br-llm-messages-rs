@@ -6,18 +6,18 @@ use common::order::{NOTHING, accepts, after, judge_row, runtime_call_response};
 use common::turns::{calling, close, delivery, hosted_record, response};
 
 #[test]
-fn given_results_with_a_call_still_outstanding_when_entries_are_pushed_then_results_or_abnormal_closure()
+fn given_results_with_a_call_still_outstanding_when_entries_are_pushed_then_everything_is_accepted_but_a_completed_closure()
  {
     let turn = after(vec![
         calling(10, &[(13, "z"), (11, "a")]),
         delivery(20, &[(21, 13, "z")]),
     ]);
 
-    judge_row("row 7", &turn, accepts(false, false, true, false, true));
+    judge_row("row 7", &turn, accepts(true, true, true, false, true));
 }
 
 #[test]
-fn given_answered_results_after_a_provider_continuation_when_entries_are_pushed_then_response_or_abnormal_closure()
+fn given_answered_results_after_a_provider_continuation_when_entries_are_pushed_then_everything_is_accepted_but_results_and_a_completed_closure()
  {
     let turn = after(vec![
         runtime_call_response(ResponseEnding::provider_continuation()),
@@ -27,12 +27,12 @@ fn given_answered_results_after_a_provider_continuation_when_entries_are_pushed_
     judge_row(
         "row 8, continuation",
         &turn,
-        accepts(false, true, false, false, true),
+        accepts(true, true, false, false, true),
     );
 }
 
 #[test]
-fn given_answered_results_after_a_pending_execution_when_entries_are_pushed_then_response_or_abnormal_closure()
+fn given_answered_results_after_a_pending_execution_when_entries_are_pushed_then_everything_is_accepted_but_results_and_a_completed_closure()
  {
     let turn = after(vec![
         response(
@@ -49,7 +49,7 @@ fn given_answered_results_after_a_pending_execution_when_entries_are_pushed_then
     judge_row(
         "row 8, pending",
         &turn,
-        accepts(false, true, false, false, true),
+        accepts(true, true, false, false, true),
     );
 }
 

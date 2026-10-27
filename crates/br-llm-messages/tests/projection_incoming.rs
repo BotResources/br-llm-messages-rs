@@ -53,12 +53,13 @@ fn given_incoming_entries_of_every_kind_in_another_agents_turn_when_projected_by
     let thread = Perspective::of(aid(1)).project(&turns_conversation(&turns));
 
     let found = recorded_kinds(&thread.turns()[0]);
-    assert_eq!(found.len(), 9);
-    assert_eq!(found[8], None);
+    assert_eq!(found.len(), 10);
+    assert_eq!(found[9], None);
     assert_eq!(
-        &found[..8],
-        TurnEntryKind::ALL[..8]
+        &found[..9],
+        TurnEntryKind::ALL
             .iter()
+            .filter(|k| k.is_incoming())
             .map(|k| Some(*k))
             .collect::<Vec<_>>()
     );

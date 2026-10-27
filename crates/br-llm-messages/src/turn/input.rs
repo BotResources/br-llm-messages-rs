@@ -7,7 +7,7 @@ use crate::opaque_json::OpaqueJson;
 
 use std::collections::HashSet;
 
-use super::declared::{places_of_incoming, turn_place};
+use super::declared::{Declared, places_of_incoming, turn_place};
 use super::kind::TurnKind;
 use crate::entry::IncomingEntry;
 use crate::error::{Error, ErrorCode};
@@ -23,6 +23,20 @@ pub struct InputTurn {
 
 impl Serialize for InputTurn {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        if self.projected_entries().next().is_some() {
+            return Err(serde::ser::Error::custom(
+                ErrorCode::DisallowedKind.as_str(),
+            ));
+        }
+        self.serialize_projected(serializer)
+    }
+}
+
+impl InputTurn {
+    pub(crate) fn serialize_projected<S: Serializer>(
+        &self,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
         let mut turn = serializer
             .serialize_struct("InputTurn", 3 + usize::from(self.observed_at.is_some()))?;
         turn.serialize_field("type", TurnKind::InputTurn.as_str())?;
@@ -33,11 +47,19 @@ impl Serialize for InputTurn {
         }
         turn.end()
     }
-}
 
-impl InputTurn {
+    fn projected_entries(&self) -> impl Iterator<Item = &IncomingEntry> {
+        self.entries
+            .iter()
+            .filter(|entry| entry.projected().is_some())
+    }
+
     pub fn new(id: TurnId, entries: Vec<IncomingEntry>) -> Result<Self, Error> {
         refuse_agent_output(&entries)?;
+        InputTurn::projected(id, entries)
+    }
+
+    pub fn new_projected(id: TurnId, entries: Vec<IncomingEntry>) -> Result<Self, Error> {
         InputTurn::projected(id, entries)
     }
 
@@ -49,19 +71,48 @@ impl InputTurn {
         }
         let mut seen: HashSet<Uuid> = HashSet::from([id.as_uuid()]);
         for (index, entry) in entries.iter().enumerate() {
-            for (declared, _) in places_of_incoming(entry, index) {
-                if !seen.insert(declared) {
-                    return Err(Error::new(ErrorCode::ReusedIdentity)
-                        .with_id(declared)
-                        .at(format!("entries[{index}]")));
-                }
-            }
+            refuse_repeated(&mut seen, &places_of_incoming(entry, index), index)?;
         }
         Ok(InputTurn {
             id,
             entries,
             observed_at: None,
         })
+    }
+
+    pub fn push_entry(&mut self, entry: IncomingEntry) -> Result<(), Error> {
+        self.checked_push(&entry)?;
+        self.commit_push(entry);
+        Ok(())
+    }
+
+    pub fn would_refuse(&self, entry: &IncomingEntry) -> Option<Error> {
+        self.checked_push(entry).err()
+    }
+
+    pub(crate) fn checked_push(&self, entry: &IncomingEntry) -> Result<Declared, Error> {
+        self.admit(entry, false)
+    }
+
+    pub(crate) fn checked_push_projected(&self, entry: &IncomingEntry) -> Result<Declared, Error> {
+        self.admit(entry, true)
+    }
+
+    fn admit(&self, entry: &IncomingEntry, projected: bool) -> Result<Declared, Error> {
+        let index = self.entries.len();
+        if !projected && entry.projected().is_some() {
+            return Err(Error::new(ErrorCode::DisallowedKind)
+                .with_id(entry.id().as_uuid())
+                .at(format!("entries[{index}]")));
+        }
+        let declared = places_of_incoming(entry, index);
+        let mut seen: HashSet<Uuid> = self.declared().into_iter().map(|(id, _)| id).collect();
+        refuse_repeated(&mut seen, &declared, index)?;
+        Ok(declared)
+    }
+
+    pub(crate) fn commit_push(&mut self, entry: IncomingEntry) {
+        self.entries.push(entry);
     }
 
     pub(crate) fn translated(id: TurnId, entries: Vec<IncomingEntry>) -> Option<Self> {
@@ -112,6 +163,7 @@ impl InputTurn {
     }
 
     pub fn to_json(&self) -> Result<String, Error> {
+        refuse_agent_output(&self.entries)?;
         crate::json::encode(self)
     }
 
@@ -120,6 +172,7 @@ impl InputTurn {
     }
 
     pub fn to_value(&self) -> Result<OpaqueJson, Error> {
+        refuse_agent_output(&self.entries)?;
         crate::json::encode_value(self).map(OpaqueJson::from_inner)
     }
 
@@ -134,6 +187,21 @@ pub(crate) fn refuse_agent_output(entries: &[IncomingEntry]) -> Result<(), Error
         if entry.projected().is_some() {
             return Err(Error::new(ErrorCode::DisallowedKind)
                 .with_id(entry.id().as_uuid())
+                .at(format!("entries[{index}]")));
+        }
+    }
+    Ok(())
+}
+
+fn refuse_repeated(
+    seen: &mut HashSet<Uuid>,
+    declared: &Declared,
+    index: usize,
+) -> Result<(), Error> {
+    for (id, _) in declared {
+        if !seen.insert(*id) {
+            return Err(Error::new(ErrorCode::ReusedIdentity)
+                .with_id(*id)
                 .at(format!("entries[{index}]")));
         }
     }

@@ -6,7 +6,8 @@ use uuid::Uuid;
 
 use super::{
     AgentMail, AgentOutput, AgentRequest, HumanMessage, PartialAgentOutput, QueuePosition,
-    RequestAccepted, TaskCompleted, TaskFailed, TaskStarted, TurnEntry, TurnEntryKind,
+    RequestAccepted, RuntimeNotice, TaskCompleted, TaskFailed, TaskStarted, TurnEntry,
+    TurnEntryKind,
 };
 use crate::error::{Error, ErrorCode};
 use crate::id::{AgentId, EntryId};
@@ -24,6 +25,7 @@ pub enum IncomingEntry {
     TaskStarted(TaskStarted),
     TaskCompleted(TaskCompleted),
     TaskFailed(TaskFailed),
+    RuntimeNotice(RuntimeNotice),
     AgentOutput(AgentOutput),
     PartialAgentOutput(PartialAgentOutput),
 }
@@ -143,6 +145,7 @@ incoming_variants!(
     TaskStarted(TaskStarted),
     TaskCompleted(TaskCompleted),
     TaskFailed(TaskFailed),
+    RuntimeNotice(RuntimeNotice),
 );
 
 impl TryFrom<&TurnEntry> for IncomingEntry {

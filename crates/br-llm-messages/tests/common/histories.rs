@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use br_llm_messages::{
     AITurn, AgentMail, Citation, CitationSource, Conversation, EntryId, EntryRecord, ImageBlock,
-    InputTurn, ItemRef, RecordSet, ResponseEnding, StructuredBlock, TextBlock, TextRange,
-    ThinkingBlock, TurnEntryKind, TurnId, TurnKind,
+    IncomingEntry, InputTurn, ItemRef, RecordSet, ResponseEnding, RuntimeNotice, StructuredBlock,
+    TextBlock, TextRange, ThinkingBlock, TurnEntryKind, TurnId, TurnKind,
 };
 use serde_json::json;
 
@@ -86,6 +86,11 @@ fn ai_turn(rng: &mut Lcg, id: &mut impl FnMut() -> u64) -> AITurn {
     for _ in 0..(1 + rng.next(3)) {
         let incoming = human_message(id());
         turn.push_entry(incoming.into()).unwrap();
+        let notice_id = id();
+        if notice_id.is_multiple_of(3) {
+            let notice = RuntimeNotice::new(eid(notice_id), "the runtime says so").unwrap();
+            turn.push_entry(notice.into()).unwrap();
+        }
         if rng.next(3) == 0 {
             let mail = AgentMail::new(
                 eid(id()),
@@ -126,9 +131,17 @@ pub fn history(seed: u64) -> Conversation {
     for _ in 0..(2 + rng.next(5)) {
         if rng.next(3) == 0 {
             let turn = tid(id());
-            let entries = (0..(1 + rng.next(3)))
+            let mut entries: Vec<IncomingEntry> = (0..(1 + rng.next(3)))
                 .map(|_| human_message(id()).into())
                 .collect();
+            let notice_id = id();
+            if notice_id.is_multiple_of(2) {
+                entries.push(
+                    RuntimeNotice::new(eid(notice_id), "the runtime says so")
+                        .unwrap()
+                        .into(),
+                );
+            }
             conversation
                 .push_turn(InputTurn::new(turn, entries).unwrap().into())
                 .unwrap();

@@ -42,6 +42,7 @@ pub(crate) fn body_of_entry(entry: &TurnEntry) -> Body<'_> {
         | TurnEntry::TaskStarted(_)
         | TurnEntry::TaskCompleted(_)
         | TurnEntry::TaskFailed(_)
+        | TurnEntry::RuntimeNotice(_)
         | TurnEntry::TurnClosure(_) => Body::Bare,
     }
 }
@@ -57,7 +58,8 @@ pub(crate) fn body_of_incoming(entry: &IncomingEntry) -> Body<'_> {
         | IncomingEntry::QueuePosition(_)
         | IncomingEntry::TaskStarted(_)
         | IncomingEntry::TaskCompleted(_)
-        | IncomingEntry::TaskFailed(_) => Body::Bare,
+        | IncomingEntry::TaskFailed(_)
+        | IncomingEntry::RuntimeNotice(_) => Body::Bare,
     }
 }
 

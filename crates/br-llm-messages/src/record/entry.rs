@@ -199,6 +199,7 @@ impl EntryRecord {
             | TurnEntryKind::TaskStarted
             | TurnEntryKind::TaskCompleted
             | TurnEntryKind::TaskFailed
+            | TurnEntryKind::RuntimeNotice
             | TurnEntryKind::ModelResponse
             | TurnEntryKind::RuntimeToolResults
             | TurnEntryKind::TurnClosure => (self.sender.is_none(), false),

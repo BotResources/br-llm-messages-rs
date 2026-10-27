@@ -4,22 +4,22 @@ use br_llm_messages::{ClosureReason, ErrorCode, ResponseEnding};
 use common::turns::{
     calling, close, delivery, finished, hosted_call, hosted_result, open_turn, pushed, response,
 };
-use common::{bid, call, eid, refused, text_block};
+use common::{bid, call, refused, text_block};
 
 #[test]
-fn given_outstanding_calls_when_a_response_is_pushed_then_entry_out_of_order() {
+fn given_outstanding_calls_when_a_response_is_pushed_then_it_is_accepted_and_the_calls_stay_outstanding()
+ {
     let mut turn = open_turn(1);
     pushed(&mut turn, vec![calling(10, &[(11, "a"), (12, "b")])]);
 
-    let error = refused(turn.push_entry(finished(13)));
+    turn.push_entry(finished(13)).unwrap();
 
-    assert_eq!(error.code(), ErrorCode::EntryOutOfOrder);
-    assert_eq!(error.object_id(), Some(eid(13).as_uuid()));
-    assert_eq!(turn.entries().len(), 1);
+    assert_eq!(turn.entries().len(), 2);
+    assert_eq!(turn.state().outstanding_runtime_calls().len(), 2);
 }
 
 #[test]
-fn given_results_over_several_deliveries_when_all_collected_then_the_next_response_is_accepted() {
+fn given_results_over_several_deliveries_when_all_collected_then_no_call_stays_outstanding() {
     let mut turn = open_turn(1);
     pushed(
         &mut turn,
@@ -27,17 +27,14 @@ fn given_results_over_several_deliveries_when_all_collected_then_the_next_respon
     );
 
     pushed(&mut turn, vec![delivery(20, &[(21, 11, "a")])]);
-    assert_eq!(
-        refused(turn.push_entry(finished(30))).code(),
-        ErrorCode::EntryOutOfOrder
-    );
+    turn.push_entry(finished(30)).unwrap();
     pushed(
         &mut turn,
         vec![delivery(22, &[(23, 13, "c"), (24, 12, "b")])],
     );
     turn.push_entry(finished(31)).unwrap();
 
-    assert_eq!(turn.entries().len(), 4);
+    assert_eq!(turn.entries().len(), 5);
     assert!(turn.state().outstanding_runtime_calls().is_empty());
 }
 

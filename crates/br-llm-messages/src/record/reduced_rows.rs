@@ -1,11 +1,13 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use uuid::Uuid;
 
 use super::block::BlockRecord;
 use super::entry::EntryRecord;
 use super::kinds::RepresentationState;
+use super::recovery::Unfinished;
 use super::set::RecordSet;
+use super::turn::TurnRecord;
 use crate::entry::TurnEntryKind;
 use crate::error::{Error, ErrorCode};
 use crate::id::{AgentId, EntryId, TurnId};
@@ -45,7 +47,11 @@ fn unattached(id: Uuid, location: String) -> Error {
 }
 
 impl<'a> Rows<'a> {
-    pub(super) fn read(set: &'a RecordSet, agent: AgentId) -> Result<Self, Error> {
+    pub(super) fn read(
+        set: &'a RecordSet,
+        agent: AgentId,
+        unfinished: Option<Unfinished>,
+    ) -> Result<Self, Error> {
         for (index, row) in set.turns().iter().enumerate() {
             row.check_local()
                 .map_err(|error| error.at(format!("turns[{index}]")))?;
@@ -66,13 +72,27 @@ impl<'a> Rows<'a> {
                 Some((row.id(), Owner { agent, author }))
             })
             .collect();
+        let own: HashSet<TurnId> = set
+            .turns()
+            .iter()
+            .filter(|row| row.kind() == TurnKind::AITurn && row.agent() == Some(agent))
+            .map(TurnRecord::id)
+            .collect();
         let mut ignored: HashMap<EntryId, Vec<(usize, &'a BlockRecord)>> = set
             .entries()
             .iter()
+            .filter(|row| row.kind() == TurnEntryKind::ModelResponse)
             .filter(|row| {
-                row.state() == RepresentationState::Interrupted
-                    && row.kind() == TurnEntryKind::ModelResponse
-                    && foreign.contains_key(&row.turn())
+                let state = row.state();
+                if foreign.contains_key(&row.turn()) {
+                    state == RepresentationState::Interrupted
+                        || (state == RepresentationState::Producing
+                            && unfinished == Some(Unfinished::Drop))
+                } else {
+                    own.contains(&row.turn())
+                        && unfinished.is_some()
+                        && state != RepresentationState::Complete
+                }
             })
             .map(|row| (row.id(), Vec::new()))
             .collect();
@@ -89,12 +109,35 @@ impl<'a> Rows<'a> {
             block_rows,
         };
         rows.check_parents(&turn_rows)?;
+        rows.check_own_unfinished()?;
         rows.check_rows()?;
         rows.check_states()?;
         Ok(rows)
     }
 
-    fn is_ignored(&self, entry: EntryId) -> bool {
+    fn check_own_unfinished(&self) -> Result<(), Error> {
+        for (index, row) in self.set.entries().iter().enumerate() {
+            if self.is_ignored(row.id()) && !self.foreign.contains_key(&row.turn()) {
+                row.check_local()
+                    .map_err(|error| error.at(format!("entries[{index}]")))?;
+            }
+        }
+        for (index, row) in self.set.blocks().iter().enumerate() {
+            let owner = self
+                .entry_rows
+                .get(&row.entry().as_uuid())
+                .map(|position| &self.set.entries()[*position]);
+            if self.is_ignored(row.entry())
+                && owner.is_some_and(|entry| !self.foreign.contains_key(&entry.turn()))
+            {
+                row.check_local()
+                    .map_err(|error| error.at(format!("blocks[{index}]")))?;
+            }
+        }
+        Ok(())
+    }
+
+    pub(super) fn is_ignored(&self, entry: EntryId) -> bool {
         self.ignored.contains_key(&entry)
     }
 

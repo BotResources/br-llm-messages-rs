@@ -35,6 +35,7 @@ fn goldens() -> Vec<Value> {
             {"type": "runtime_tool_result", "id": s(bid(600)), "call": s(bid(601)), "tool_name": "t",
              "is_error": false, "content": []}]}),
         json!({"type": "turn_closure", "id": s(eid(11)), "reason": {"type": "completed"}}),
+        json!({"type": "runtime_notice", "id": s(eid(12)), "text": "restarting in 5 minutes"}),
     ]
 }
 

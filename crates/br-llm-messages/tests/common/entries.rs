@@ -1,7 +1,7 @@
 use br_llm_messages::{
     AgentMail, AgentRequest, ClosureReason, HumanMessage, ModelResponse, QueuePosition,
-    RequestAccepted, RequestOrigin, ResponseEnding, ResponseMetadata, RuntimeToolResults,
-    TaskCompleted, TaskFailed, TaskStarted, TurnClosure, TurnEntry,
+    RequestAccepted, RequestOrigin, ResponseEnding, ResponseMetadata, RuntimeNotice,
+    RuntimeToolResults, TaskCompleted, TaskFailed, TaskStarted, TurnClosure, TurnEntry,
 };
 
 use super::{aid, author, cvid, eid, hid, kid, plain_text, result, rid};
@@ -44,5 +44,8 @@ pub fn all_entries() -> Vec<TurnEntry> {
             .unwrap()
             .into(),
         TurnClosure::new(eid(11), ClosureReason::completed()).into(),
+        RuntimeNotice::new(eid(12), "restarting in 5 minutes")
+            .unwrap()
+            .into(),
     ]
 }

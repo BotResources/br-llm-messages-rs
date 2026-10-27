@@ -80,7 +80,15 @@ impl Turn {
     }
 
     pub fn to_json(&self) -> Result<String, Error> {
+        self.refuse_outputs()?;
         crate::json::encode(self)
+    }
+
+    fn refuse_outputs(&self) -> Result<(), Error> {
+        match self {
+            Turn::InputTurn(input) => refuse_agent_output(input.entries()),
+            Turn::AITurn(_) => Ok(()),
+        }
     }
 
     pub fn from_json(text: &str) -> Result<Self, Error> {
@@ -88,6 +96,7 @@ impl Turn {
     }
 
     pub fn to_value(&self) -> Result<OpaqueJson, Error> {
+        self.refuse_outputs()?;
         crate::json::encode_value(self).map(OpaqueJson::from_inner)
     }
 

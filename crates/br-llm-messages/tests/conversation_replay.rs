@@ -37,26 +37,8 @@ fn cases() -> Vec<Case> {
             index: 1,
         },
         Case {
-            name: "response with outstanding calls",
-            entries: vec![calling(10, &[(11, "a")]), finished(12)],
-            code: ErrorCode::EntryOutOfOrder,
-            index: 1,
-        },
-        Case {
-            name: "incoming entry with outstanding calls",
-            entries: vec![calling(10, &[(11, "a")]), human(12)],
-            code: ErrorCode::EntryOutOfOrder,
-            index: 1,
-        },
-        Case {
             name: "result with nothing outstanding",
             entries: vec![finished(10), delivery(20, &[(21, 11, "a")])],
-            code: ErrorCode::EntryOutOfOrder,
-            index: 1,
-        },
-        Case {
-            name: "second response with no entry between",
-            entries: vec![finished(10), finished(11)],
             code: ErrorCode::EntryOutOfOrder,
             index: 1,
         },

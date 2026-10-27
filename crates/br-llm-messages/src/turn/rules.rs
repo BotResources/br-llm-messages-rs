@@ -11,14 +11,10 @@ use crate::id::EntryId;
 use crate::value::ResponseEnding;
 
 pub(crate) fn check(tracker: &Tracker, entry: &TurnEntry, index: usize) -> Result<Declared, Error> {
-    let id = entry.id();
-    if tracker.closure.is_some() {
-        return Err(Error::new(ErrorCode::ClosedTurn).with_id(id.as_uuid()));
-    }
+    super::order::check(tracker, entry)?;
     if let TurnEntry::TurnClosure(closure) = entry {
         check_closure(tracker, closure.id(), closure.reason())?;
     }
-    super::order::check(tracker, entry)?;
     let declared = places_of_turn_entry(entry, index);
     check_fresh(tracker, &declared)?;
     match entry {

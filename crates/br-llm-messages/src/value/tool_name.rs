@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, ErrorCode};
 
-const MAX_LEN: usize = 64;
+const MAX_LEN: usize = 256;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(try_from = "String")]

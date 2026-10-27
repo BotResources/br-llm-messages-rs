@@ -108,13 +108,41 @@ impl RecordSet {
         Ok(())
     }
 
+    pub fn check(&self) -> Result<(), Error> {
+        rebuild(self).map(drop)
+    }
+
+    pub fn to_turns(&self) -> Result<Vec<Turn>, Error> {
+        rebuild(self)
+    }
+
+    pub fn to_conversation(&self, id: ConversationId) -> Result<Conversation, Error> {
+        Conversation::from_parts(id, rebuild(self)?)
+    }
+
+    pub fn to_projected_thread(
+        &self,
+        conversation: ConversationId,
+        agent: AgentId,
+    ) -> Result<ProjectedThread, Error> {
+        rebuild_thread(self, conversation, agent, &[])
+    }
+
+    pub fn to_projected_thread_pending(
+        &self,
+        conversation: ConversationId,
+        agent: AgentId,
+        pending: &[PendingResponse<'_>],
+    ) -> Result<ProjectedThread, Error> {
+        rebuild_thread(self, conversation, agent, pending)
+    }
+
     pub fn into_turns(self) -> Result<Vec<Turn>, Error> {
-        rebuild(&self)
+        self.to_turns()
     }
 
     pub fn into_conversation(self, id: ConversationId) -> Result<Conversation, Error> {
-        let turns = rebuild(&self)?;
-        Conversation::from_parts(id, turns)
+        self.to_conversation(id)
     }
 
     pub fn into_projected_thread(
@@ -122,7 +150,7 @@ impl RecordSet {
         conversation: ConversationId,
         agent: AgentId,
     ) -> Result<ProjectedThread, Error> {
-        rebuild_thread(&self, conversation, agent, &[])
+        self.to_projected_thread(conversation, agent)
     }
 
     pub fn into_projected_thread_pending(
@@ -131,7 +159,7 @@ impl RecordSet {
         agent: AgentId,
         pending: &[PendingResponse<'_>],
     ) -> Result<ProjectedThread, Error> {
-        rebuild_thread(&self, conversation, agent, pending)
+        self.to_projected_thread_pending(conversation, agent, pending)
     }
 
     pub fn to_json(&self) -> Result<String, Error> {
