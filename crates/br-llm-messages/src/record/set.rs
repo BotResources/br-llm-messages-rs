@@ -125,7 +125,7 @@ impl RecordSet {
         conversation: ConversationId,
         agent: AgentId,
     ) -> Result<ProjectedThread, Error> {
-        rebuild_thread(self, conversation, agent, &[], None)
+        rebuild_thread(self, conversation, agent, &[])
     }
 
     pub fn to_projected_thread_pending(
@@ -134,7 +134,7 @@ impl RecordSet {
         agent: AgentId,
         pending: &[PendingResponse<'_>],
     ) -> Result<ProjectedThread, Error> {
-        rebuild_thread(self, conversation, agent, pending, None)
+        rebuild_thread(self, conversation, agent, pending)
     }
 
     pub fn into_turns(self) -> Result<Vec<Turn>, Error> {

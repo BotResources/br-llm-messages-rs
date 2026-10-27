@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use super::kinds::RepresentationState;
 use super::reconstruct::rebuild_without;
-use super::reduced::rebuild_thread;
+use super::reduced::rebuild_thread_keeping;
 use super::set::RecordSet;
 use crate::conversation::Conversation;
 use crate::entry::TurnEntryKind;
@@ -56,16 +56,13 @@ impl<History> Recovered<History> {
     }
 }
 
-fn own_turns(set: &RecordSet, agent: Option<AgentId>) -> HashSet<TurnId> {
-    set.turns()
+fn unfinished_entries(set: &RecordSet) -> HashSet<EntryId> {
+    let turns: HashSet<TurnId> = set
+        .turns()
         .iter()
         .filter(|row| row.kind() == TurnKind::AITurn)
-        .filter(|row| agent.is_none() || row.agent() == agent)
         .map(|row| row.id())
-        .collect()
-}
-
-fn unfinished_entries(set: &RecordSet, turns: &HashSet<TurnId>) -> HashSet<EntryId> {
+        .collect();
     set.entries()
         .iter()
         .filter(|row| {
@@ -105,7 +102,7 @@ impl RecordSet {
         id: ConversationId,
         unfinished: Unfinished,
     ) -> Result<Recovered<Conversation>, Error> {
-        let skipped = unfinished_entries(self, &own_turns(self, None));
+        let skipped = unfinished_entries(self);
         let turns = rebuild_without(self, &skipped)?;
         let history = Conversation::from_parts(id, turns)?;
         let snapshots = match unfinished {
@@ -124,12 +121,10 @@ impl RecordSet {
         agent: AgentId,
         unfinished: Unfinished,
     ) -> Result<Recovered<ProjectedThread>, Error> {
-        let history = rebuild_thread(self, conversation, agent, &[], Some(unfinished))?;
+        let (history, own_unfinished) =
+            rebuild_thread_keeping(self, conversation, agent, &[], Some(unfinished))?;
         let snapshots = match unfinished {
-            Unfinished::Restore => snapshots_of(
-                self,
-                &unfinished_entries(self, &own_turns(self, Some(agent))),
-            )?,
+            Unfinished::Restore => snapshots_of(self, &own_unfinished)?,
             Unfinished::Drop => Vec::new(),
         };
         Ok(Recovered::separate(history, snapshots))

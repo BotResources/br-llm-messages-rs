@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use uuid::Uuid;
 
@@ -15,7 +15,7 @@ use super::turn::TurnRecord;
 use crate::block::{ContentBlock, ContentBlockKind, PlainBlock};
 use crate::entry::IncomingEntry;
 use crate::error::Error;
-use crate::id::{AgentId, ConversationId, TurnId};
+use crate::id::{AgentId, ConversationId, EntryId, TurnId};
 use crate::projection::{
     Foreign, Item, Output, Owner, PendingResponse, Progress, ProjectedThread, Source, Sources,
     accumulated_text, usable,
@@ -176,8 +176,17 @@ pub(super) fn rebuild_thread(
     conversation: ConversationId,
     agent: AgentId,
     pending: &[PendingResponse<'_>],
-    unfinished: Option<Unfinished>,
 ) -> Result<ProjectedThread, Error> {
+    rebuild_thread_keeping(set, conversation, agent, pending, None).map(|(thread, _)| thread)
+}
+
+pub(super) fn rebuild_thread_keeping(
+    set: &RecordSet,
+    conversation: ConversationId,
+    agent: AgentId,
+    pending: &[PendingResponse<'_>],
+    unfinished: Option<Unfinished>,
+) -> Result<(ProjectedThread, HashSet<EntryId>), Error> {
     let rows = Rows::read(set, agent, unfinished)?;
     let tree = BlockTree::build(rows.blocks().map(|(_, row)| row)).map_err(|error| match error
         .object_id()
@@ -191,6 +200,7 @@ pub(super) fn rebuild_thread(
         tree,
         sources: Sources::default(),
     };
+    let mut own_unfinished: HashSet<EntryId> = HashSet::new();
     let mut by_turn: HashMap<TurnId, Vec<(usize, &EntryRecord)>> = HashMap::new();
     for (index, row) in set.entries().iter().enumerate() {
         by_turn.entry(row.turn()).or_default().push((index, row));
@@ -207,6 +217,7 @@ pub(super) fn rebuild_thread(
             for (index, row) in &entries {
                 if door.rows.is_ignored(row.id()) {
                     door.ignored(*index, row);
+                    own_unfinished.insert(row.id());
                 } else {
                     rows.push(*row);
                 }
@@ -217,8 +228,9 @@ pub(super) fn rebuild_thread(
             door.sources.push(Source::Kept(rebuilt));
         }
     }
-    Ok(door
+    let thread = door
         .sources
         .check(conversation, pending)?
-        .project(conversation, agent))
+        .project(conversation, agent);
+    Ok((thread, own_unfinished))
 }
