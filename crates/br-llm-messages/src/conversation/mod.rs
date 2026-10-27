@@ -7,7 +7,7 @@ pub use lookup::{BlockRef, EntryRef};
 
 use index::Index;
 
-use crate::entry::TurnEntry;
+use crate::entry::{IncomingEntry, TurnEntry};
 use crate::error::{Error, ErrorCode};
 use crate::id::{ConversationId, TurnId};
 use crate::turn::{Class, Turn, refuse_agent_output};
@@ -71,15 +71,39 @@ impl Conversation {
             Some(slot) if slot.place.class == Class::Turn => slot.turn,
             Some(_) => return Err(reference(ErrorCode::UnknownReference)),
         };
-        let Some(Turn::AITurn(target)) = self.turns.get_mut(position) else {
-            return Err(reference(ErrorCode::UnknownReference));
+        let prepared = match self.turns.get(position) {
+            Some(Turn::AITurn(_)) => Prepared::Ai(entry),
+            Some(Turn::InputTurn(_)) => Prepared::Input(incoming_of(entry)?),
+            None => return Err(reference(ErrorCode::UnknownReference)),
         };
-        let declared = target.check_push(&entry)?;
+        let declared = match (self.turns.get(position), &prepared) {
+            (Some(Turn::AITurn(target)), Prepared::Ai(entry)) => target.checked_push(entry)?,
+            (Some(Turn::InputTurn(target)), Prepared::Input(entry)) => {
+                target.checked_push(entry)?
+            }
+            _ => return Err(reference(ErrorCode::UnknownReference)),
+        };
         if let Some((id, _)) = self.index.clash(&declared) {
             return Err(Error::new(ErrorCode::ReusedIdentity).with_id(id));
         }
-        target.commit_push(entry, declared.clone());
+        match (self.turns.get_mut(position), prepared) {
+            (Some(Turn::AITurn(target)), Prepared::Ai(entry)) => {
+                target.commit_push(entry, declared.clone());
+            }
+            (Some(Turn::InputTurn(target)), Prepared::Input(entry)) => target.commit_push(entry),
+            _ => return Err(reference(ErrorCode::UnknownReference)),
+        }
         self.index.insert(position, declared);
         Ok(())
     }
+}
+
+enum Prepared {
+    Ai(TurnEntry),
+    Input(IncomingEntry),
+}
+
+fn incoming_of(entry: TurnEntry) -> Result<IncomingEntry, Error> {
+    IncomingEntry::recorded(&entry)
+        .ok_or_else(|| Error::new(ErrorCode::DisallowedKind).with_id(entry.id().as_uuid()))
 }

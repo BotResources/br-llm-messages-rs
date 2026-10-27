@@ -98,12 +98,16 @@ impl AITurn {
     }
 
     pub fn push_entry(&mut self, entry: TurnEntry) -> Result<(), Error> {
-        let declared = self.check_push(&entry)?;
+        let declared = self.checked_push(&entry)?;
         self.commit_push(entry, declared);
         Ok(())
     }
 
-    pub(crate) fn check_push(&self, entry: &TurnEntry) -> Result<Declared, Error> {
+    pub fn check_push(&self, entry: &TurnEntry) -> Result<(), Error> {
+        self.checked_push(entry).map(|_| ())
+    }
+
+    pub(crate) fn checked_push(&self, entry: &TurnEntry) -> Result<Declared, Error> {
         rules::check(&self.tracker, entry, self.entries.len())
     }
 

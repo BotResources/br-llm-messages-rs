@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use super::declared::{Declared, Place, turn_place};
 use crate::block::ContentBlock;
-use crate::entry::{ClosureReason, TurnEntry, TurnEntryKind};
+use crate::entry::{ClosureReason, TurnEntry};
 use crate::id::{BlockId, TurnId};
 use crate::value::{ExecutionStatus, ResponseEnding, ToolName};
 
@@ -49,7 +49,6 @@ pub(crate) struct Tracker {
     pub(crate) closure: Option<ClosureReason>,
     pub(crate) last_ending: Option<ResponseEnding>,
     pub(crate) pending: Vec<BlockId>,
-    pub(crate) last_entry: Option<TurnEntryKind>,
 }
 
 impl Tracker {
@@ -63,7 +62,6 @@ impl Tracker {
             closure: None,
             last_ending: None,
             pending: Vec::new(),
-            last_entry: None,
         }
     }
 
@@ -127,6 +125,5 @@ impl Tracker {
             | TurnEntry::TaskCompleted(_)
             | TurnEntry::TaskFailed(_) => {}
         }
-        self.last_entry = Some(entry.kind());
     }
 }

@@ -4,7 +4,7 @@ use br_llm_messages::{ErrorCode, ExecutionStatus, ResponseEnding};
 use common::order::{accepts, after, judge_row, runtime_call_response};
 use common::refused;
 use common::turns::{
-    calling, finished, hosted_record, human, incoming_batch, open_turn, pushed, response,
+    calling, delivery, finished, hosted_record, human, incoming_batch, open_turn, response,
 };
 
 #[test]
@@ -39,12 +39,12 @@ fn given_every_incoming_kind_last_when_entries_are_pushed_then_the_row_2_outcome
 }
 
 #[test]
-fn given_a_response_with_an_outstanding_call_when_entries_are_pushed_then_only_results_or_abnormal_closure()
+fn given_a_response_with_an_outstanding_call_when_entries_are_pushed_then_everything_is_accepted_but_a_completed_closure()
  {
     judge_row(
         "row 3",
         &after(vec![calling(10, &[(11, "a")])]),
-        accepts(false, false, true, false, true),
+        accepts(true, true, true, false, true),
     );
 }
 
@@ -67,13 +67,13 @@ fn given_a_runtime_call_under_any_ending_when_entries_are_pushed_then_the_call_i
         judge_row(
             "row 3, any ending",
             &turn,
-            accepts(false, false, true, false, true),
+            accepts(true, true, true, false, true),
         );
     }
 }
 
 #[test]
-fn given_a_provider_continuation_without_outstanding_call_when_entries_are_pushed_then_response_or_abnormal_closure()
+fn given_a_provider_continuation_without_outstanding_call_when_entries_are_pushed_then_everything_is_accepted_but_results_and_a_completed_closure()
  {
     judge_row(
         "row 4, continuation",
@@ -82,12 +82,12 @@ fn given_a_provider_continuation_without_outstanding_call_when_entries_are_pushe
             vec![],
             ResponseEnding::provider_continuation(),
         )]),
-        accepts(false, true, false, false, true),
+        accepts(true, true, false, false, true),
     );
 }
 
 #[test]
-fn given_a_pending_provider_execution_without_outstanding_call_when_entries_are_pushed_then_response_or_abnormal_closure()
+fn given_a_pending_provider_execution_without_outstanding_call_when_entries_are_pushed_then_everything_is_accepted_but_results_and_a_completed_closure()
  {
     for status in [ExecutionStatus::Pending, ExecutionStatus::Running] {
         let turn = after(vec![response(
@@ -99,13 +99,13 @@ fn given_a_pending_provider_execution_without_outstanding_call_when_entries_are_
         judge_row(
             "row 4, pending",
             &turn,
-            accepts(false, true, false, false, true),
+            accepts(true, true, false, false, true),
         );
     }
 }
 
 #[test]
-fn given_a_pending_execution_under_output_exhaustion_when_entries_are_pushed_then_the_continuation_row_applies()
+fn given_a_pending_execution_under_output_exhaustion_when_entries_are_pushed_then_the_continuation_rule_applies()
  {
     let turn = after(vec![response(
         10,
@@ -116,7 +116,7 @@ fn given_a_pending_execution_under_output_exhaustion_when_entries_are_pushed_the
     judge_row(
         "row 4 before row 5",
         &turn,
-        accepts(false, true, false, false, true),
+        accepts(true, true, false, false, true),
     );
 }
 
@@ -131,7 +131,7 @@ fn given_an_execution_that_is_not_pending_when_entries_are_pushed_then_it_does_n
     judge_row(
         "finished record",
         &turn,
-        accepts(true, false, false, true, true),
+        accepts(true, true, false, true, true),
     );
 }
 
@@ -150,7 +150,7 @@ fn given_output_exhaustion_without_outstanding_call_when_entries_are_pushed_then
 }
 
 #[test]
-fn given_any_other_response_when_entries_are_pushed_then_incoming_or_closure_and_no_second_response()
+fn given_any_other_response_when_entries_are_pushed_then_incoming_response_and_closure_are_accepted()
  {
     let endings = [
         ResponseEnding::finished(),
@@ -164,21 +164,36 @@ fn given_any_other_response_when_entries_are_pushed_then_incoming_or_closure_and
         judge_row(
             "row 6",
             &after(vec![response(10, vec![], ending)]),
-            accepts(true, false, false, true, true),
+            accepts(true, true, false, true, true),
         );
     }
 }
 
 #[test]
-fn given_an_incoming_entry_after_a_response_when_a_response_follows_then_the_second_response_rule_is_reset()
+fn given_a_response_last_when_another_response_follows_then_it_is_accepted_whatever_the_ending() {
+    let mut turn = after(vec![finished(10)]);
+
+    turn.push_entry(finished(11)).unwrap();
+    turn.push_entry(response(
+        12,
+        vec![],
+        ResponseEnding::provider_continuation(),
+    ))
+    .unwrap();
+    turn.push_entry(finished(13)).unwrap();
+
+    assert_eq!(turn.entries().len(), 4);
+}
+
+#[test]
+fn given_a_results_probe_when_no_call_is_outstanding_then_entry_out_of_order_with_the_entry_identity()
  {
     let mut turn = after(vec![finished(10)]);
-    assert_eq!(
-        refused(turn.push_entry(finished(11))).code(),
-        ErrorCode::EntryOutOfOrder
-    );
+    let probe = delivery(20, &[(21, 11, "a")]);
 
-    pushed(&mut turn, vec![human(12), finished(13)]);
+    let error = refused(turn.push_entry(probe.clone()));
 
-    assert_eq!(turn.entries().len(), 3);
+    assert_eq!(error.code(), ErrorCode::EntryOutOfOrder);
+    assert_eq!(error.object_id(), Some(probe.id().as_uuid()));
+    assert_eq!(turn.entries().len(), 1);
 }

@@ -7,7 +7,7 @@ use crate::opaque_json::OpaqueJson;
 
 use std::collections::HashSet;
 
-use super::declared::{places_of_incoming, turn_place};
+use super::declared::{Declared, places_of_incoming, turn_place};
 use super::kind::TurnKind;
 use crate::entry::IncomingEntry;
 use crate::error::{Error, ErrorCode};
@@ -62,6 +62,39 @@ impl InputTurn {
             entries,
             observed_at: None,
         })
+    }
+
+    pub fn push_entry(&mut self, entry: IncomingEntry) -> Result<(), Error> {
+        self.checked_push(&entry)?;
+        self.commit_push(entry);
+        Ok(())
+    }
+
+    pub fn check_push(&self, entry: &IncomingEntry) -> Result<(), Error> {
+        self.checked_push(entry).map(|_| ())
+    }
+
+    pub(crate) fn checked_push(&self, entry: &IncomingEntry) -> Result<Declared, Error> {
+        let index = self.entries.len();
+        let located = |error: Error| error.at(format!("entries[{index}]"));
+        if entry.projected().is_some() {
+            return Err(located(
+                Error::new(ErrorCode::DisallowedKind).with_id(entry.id().as_uuid()),
+            ));
+        }
+        let declared = places_of_incoming(entry, index);
+        let taken: HashSet<Uuid> = self.declared().into_iter().map(|(id, _)| id).collect();
+        let mut fresh = HashSet::new();
+        for (id, _) in &declared {
+            if taken.contains(id) || !fresh.insert(*id) {
+                return Err(located(Error::new(ErrorCode::ReusedIdentity).with_id(*id)));
+            }
+        }
+        Ok(declared)
+    }
+
+    pub(crate) fn commit_push(&mut self, entry: IncomingEntry) {
+        self.entries.push(entry);
     }
 
     pub(crate) fn translated(id: TurnId, entries: Vec<IncomingEntry>) -> Option<Self> {
