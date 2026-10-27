@@ -1,10 +1,11 @@
 mod common;
 
 use br_llm_messages::{
-    AgentOutput, ClosureReason, Conversation, ErrorCode, IncomingEntry, InputTurn, Turn,
+    AgentOutput, Citation, CitationSource, ClosureReason, Conversation, ErrorCode, HumanMessage,
+    IncomingEntry, InputTurn, PlainBlock, TextBlock, Turn,
 };
 use common::turns::{close, finished, human_message, input_turn, open_turn, tid};
-use common::{aid, at, author, cvid, eid, plain_text, refused};
+use common::{aid, at, author, bid, cid, cvid, eid, hid, plain_text, refused};
 
 fn empty() -> Conversation {
     Conversation::new(cvid(1))
@@ -182,4 +183,56 @@ fn given_an_open_ai_turn_when_an_output_is_pushed_then_disallowed_kind() {
             .entries()
             .is_empty()
     );
+}
+
+fn cited_message(entry: u64, block: u64, citation: u64) -> HumanMessage {
+    let citation = Citation::new(cid(citation), CitationSource::new("doc").unwrap());
+    let block = PlainBlock::try_from(
+        TextBlock::new(bid(block), "cited")
+            .unwrap()
+            .with_citations(vec![citation])
+            .unwrap(),
+    )
+    .unwrap();
+    HumanMessage::new(eid(entry), hid(1), vec![block]).unwrap()
+}
+
+fn two_inputs_around_a_closed_ai_turn() -> Conversation {
+    let mut conversation = empty();
+    let first = InputTurn::new(tid(10), vec![cited_message(11, 12, 13).into()]).unwrap();
+    conversation.push_turn(first.into()).unwrap();
+    conversation.push_turn(open_turn(20).into()).unwrap();
+    conversation
+        .push_entry(&tid(20), close(21, ClosureReason::completed()))
+        .unwrap();
+    conversation.push_turn(input_turn(30, 31).into()).unwrap();
+    conversation
+}
+
+#[test]
+fn given_a_last_input_turn_when_an_incoming_entry_reuses_an_identity_of_an_earlier_turn_then_reused_identity_and_nothing_changes()
+ {
+    let mut conversation = two_inputs_around_a_closed_ai_turn();
+    let before = conversation.clone();
+    let cases = [
+        (human_message_with_ids(11, 41), eid(11).as_uuid()),
+        (cited_message(40, 12, 42), bid(12).as_uuid()),
+        (cited_message(40, 41, 13), cid(13).as_uuid()),
+        (cited_message(21, 41, 42), eid(21).as_uuid()),
+        (cited_message(40, 41, 10), tid(10).as_uuid()),
+    ];
+
+    for (entry, reused) in cases {
+        let dry = conversation.would_refuse_incoming(&entry.clone().into(), tid(50));
+        let error = refused(conversation.push_incoming(entry, tid(50)));
+
+        assert_eq!(error.code(), ErrorCode::ReusedIdentity);
+        assert_eq!(error.object_id(), Some(reused));
+        assert_eq!(dry.unwrap().code(), ErrorCode::ReusedIdentity);
+        assert_eq!(conversation, before);
+    }
+}
+
+fn human_message_with_ids(entry: u64, block: u64) -> HumanMessage {
+    HumanMessage::new(eid(entry), hid(1), vec![plain_text(block, "x")]).unwrap()
 }
