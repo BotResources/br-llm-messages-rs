@@ -12,7 +12,6 @@ pub use json::CONVERSATION_SCHEMA;
 pub use lookup::{BlockRef, EntryRef};
 pub use view::{EntryView, PlacedEntry};
 
-pub(crate) use incoming::extended_input;
 pub(crate) use index::Index;
 pub(crate) use lookup::Lookup;
 pub(crate) use view::placed_entries;
@@ -20,7 +19,7 @@ pub(crate) use view::placed_entries;
 use crate::entry::{IncomingEntry, TurnEntry};
 use crate::error::{Error, ErrorCode};
 use crate::id::{ConversationId, TurnId};
-use crate::turn::{Class, Declared, Turn, refuse_agent_output};
+use crate::turn::{Class, Declared, InputTurn, Turn, refuse_agent_output};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Conversation {
@@ -100,21 +99,46 @@ impl Conversation {
             Some(slot) if slot.place.class == Class::Turn => slot.turn,
             Some(_) => return Err(reference(ErrorCode::UnknownReference)),
         };
-        let declared = match self.turns.get(position) {
-            Some(Turn::AITurn(target)) => target.checked_push(entry)?,
-            Some(Turn::InputTurn(target)) => target.checked_push(&incoming_of(entry)?)?,
-            None => return Err(reference(ErrorCode::UnknownReference)),
-        };
-        if let Some((id, _)) = self.index.clash(&declared) {
-            let clash = Error::new(ErrorCode::ReusedIdentity).with_id(id);
-            return Err(match self.turns.get(position) {
-                Some(Turn::InputTurn(target)) => {
-                    clash.at(format!("entries[{}]", target.entries().len()))
+        match self.turns.get(position) {
+            Some(Turn::AITurn(target)) => {
+                let declared = target.checked_push(entry)?;
+                match self.index.clash(&declared) {
+                    Some((id, _)) => Err(Error::new(ErrorCode::ReusedIdentity).with_id(id)),
+                    None => Ok((position, declared)),
                 }
-                _ => clash,
-            });
+            }
+            Some(Turn::InputTurn(target)) => {
+                let declared = self.admit_to_input(target, &incoming_of(entry)?)?;
+                Ok((position, declared))
+            }
+            None => Err(reference(ErrorCode::UnknownReference)),
         }
-        Ok((position, declared))
+    }
+
+    pub(crate) fn admit_to_input(
+        &self,
+        target: &InputTurn,
+        entry: &IncomingEntry,
+    ) -> Result<Declared, Error> {
+        let declared = target.checked_push(entry)?;
+        match self.index.clash(&declared) {
+            Some((id, _)) => Err(Error::new(ErrorCode::ReusedIdentity)
+                .with_id(id)
+                .at(format!("entries[{}]", target.entries().len()))),
+            None => Ok(declared),
+        }
+    }
+
+    pub(crate) fn commit_incoming(
+        &mut self,
+        position: usize,
+        entry: IncomingEntry,
+        declared: Declared,
+    ) {
+        if let Some(Turn::InputTurn(target)) = self.turns.get_mut(position) {
+            target.commit_push(entry);
+            self.index.insert(position, declared);
+        }
     }
 
     pub(crate) fn commit_entry(&mut self, position: usize, entry: TurnEntry, declared: Declared) {

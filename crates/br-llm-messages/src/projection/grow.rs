@@ -1,6 +1,5 @@
 use super::ProjectedThread;
 use super::validate::check_input;
-use crate::conversation::extended_input;
 use crate::entry::{IncomingEntry, TurnEntry};
 use crate::error::{Error, ErrorCode};
 use crate::id::TurnId;
@@ -107,7 +106,9 @@ impl ProjectedThread {
         entry: IncomingEntry,
     ) -> Result<Prepared, Error> {
         let at = input.entries().len();
-        let (turn, declared) = extended_input(input, entry, true)?;
+        let declared = input.checked_push_projected(&entry)?;
+        let mut turn = input.clone();
+        turn.commit_push(entry);
         check_input(self.agent, &turn)?;
         self.refuse_clash(&declared, at)?;
         Ok(Prepared::Input {

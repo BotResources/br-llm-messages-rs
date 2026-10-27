@@ -53,13 +53,7 @@ impl InputTurn {
         }
         let mut seen: HashSet<Uuid> = HashSet::from([id.as_uuid()]);
         for (index, entry) in entries.iter().enumerate() {
-            for (declared, _) in places_of_incoming(entry, index) {
-                if !seen.insert(declared) {
-                    return Err(Error::new(ErrorCode::ReusedIdentity)
-                        .with_id(declared)
-                        .at(format!("entries[{index}]")));
-                }
-            }
+            refuse_repeated(&mut seen, &places_of_incoming(entry, index), index)?;
         }
         Ok(InputTurn {
             id,
@@ -79,21 +73,23 @@ impl InputTurn {
     }
 
     pub(crate) fn checked_push(&self, entry: &IncomingEntry) -> Result<Declared, Error> {
+        self.admit(entry, false)
+    }
+
+    pub(crate) fn checked_push_projected(&self, entry: &IncomingEntry) -> Result<Declared, Error> {
+        self.admit(entry, true)
+    }
+
+    fn admit(&self, entry: &IncomingEntry, projected: bool) -> Result<Declared, Error> {
         let index = self.entries.len();
-        let located = |error: Error| error.at(format!("entries[{index}]"));
-        if entry.projected().is_some() {
-            return Err(located(
-                Error::new(ErrorCode::DisallowedKind).with_id(entry.id().as_uuid()),
-            ));
+        if !projected && entry.projected().is_some() {
+            return Err(Error::new(ErrorCode::DisallowedKind)
+                .with_id(entry.id().as_uuid())
+                .at(format!("entries[{index}]")));
         }
         let declared = places_of_incoming(entry, index);
-        let taken: HashSet<Uuid> = self.declared().into_iter().map(|(id, _)| id).collect();
-        let mut fresh = HashSet::new();
-        for (id, _) in &declared {
-            if taken.contains(id) || !fresh.insert(*id) {
-                return Err(located(Error::new(ErrorCode::ReusedIdentity).with_id(*id)));
-            }
-        }
+        let mut seen: HashSet<Uuid> = self.declared().into_iter().map(|(id, _)| id).collect();
+        refuse_repeated(&mut seen, &declared, index)?;
         Ok(declared)
     }
 
@@ -171,6 +167,21 @@ pub(crate) fn refuse_agent_output(entries: &[IncomingEntry]) -> Result<(), Error
         if entry.projected().is_some() {
             return Err(Error::new(ErrorCode::DisallowedKind)
                 .with_id(entry.id().as_uuid())
+                .at(format!("entries[{index}]")));
+        }
+    }
+    Ok(())
+}
+
+fn refuse_repeated(
+    seen: &mut HashSet<Uuid>,
+    declared: &Declared,
+    index: usize,
+) -> Result<(), Error> {
+    for (id, _) in declared {
+        if !seen.insert(*id) {
+            return Err(Error::new(ErrorCode::ReusedIdentity)
+                .with_id(*id)
                 .at(format!("entries[{index}]")));
         }
     }
