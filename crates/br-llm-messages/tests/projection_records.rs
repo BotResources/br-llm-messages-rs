@@ -146,6 +146,7 @@ fn given_a_nested_block_row_under_another_agents_turn_when_door_used_then_disall
     )
     .with_parent(text.0);
     let mut blocks = rows.blocks().to_vec();
+    let index = blocks.len();
     blocks.push(nested);
 
     let error = refused(
@@ -153,10 +154,9 @@ fn given_a_nested_block_row_under_another_agents_turn_when_door_used_then_disall
             .into_projected_thread(cvid(900), aid(1)),
     );
 
-    assert!(matches!(
-        error.code(),
-        ErrorCode::DisallowedKind | ErrorCode::InvalidRecordStructure
-    ));
+    assert_eq!(error.code(), ErrorCode::DisallowedKind);
+    assert_eq!(error.object_id(), Some(common::bid(7003).as_uuid()));
+    assert_eq!(error.location(), Some(format!("blocks[{index}]").as_str()));
 }
 
 #[test]
