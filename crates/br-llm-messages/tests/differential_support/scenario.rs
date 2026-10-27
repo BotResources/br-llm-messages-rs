@@ -1,48 +1,15 @@
 use br_llm_messages::{
-    AITurn, BlockId, Conversation, EntryId, HumanMessage, InputTurn, ModelResponse,
-    PendingResponse, ResponseDraft, ResponseEnding, ResponseMetadata, TextBlock, ThinkingBlock,
-    Turn, TurnId, Uuid,
+    AITurn, BlockId, Conversation, EntryId, HumanMessage, InputTurn, ModelResponse, ResponseDraft,
+    ResponseEnding, ResponseMetadata, TextBlock, ThinkingBlock, Turn, TurnId, Uuid,
 };
 use serde_json::Value;
 
-use super::drafts::{draft, finished, stopped};
+use super::drafts::{Extras, draft, enriched, finished, stopped};
+use super::pending::Pending;
 
 use crate::common::histories::{Lcg, history};
 use crate::common::turns::tid;
-use crate::common::{aid, author, bid, eid, hid};
-
-pub enum Pending {
-    Draft(Box<ResponseDraft>),
-    Response(TurnId, Box<ModelResponse>),
-}
-
-impl Pending {
-    pub fn as_pending(&self) -> PendingResponse<'_> {
-        match self {
-            Pending::Draft(draft) => PendingResponse::from(draft.as_ref()),
-            Pending::Response(turn, response) => {
-                PendingResponse::response(*turn, response.as_ref())
-            }
-        }
-    }
-
-    pub fn document(&self) -> String {
-        match self {
-            Pending::Draft(draft) => draft_document(draft),
-            Pending::Response(_, response) => serde_json::to_string(response).unwrap(),
-        }
-    }
-}
-
-pub fn draft_document(draft: &ResponseDraft) -> String {
-    let slots: Vec<String> = draft
-        .view()
-        .slots()
-        .iter()
-        .map(|slot| slot.block().as_uuid().to_string())
-        .collect();
-    format!("{} {}", draft.entry().as_uuid(), slots.join(" "))
-}
+use crate::common::{aid, author, bid, cid, eid, hid};
 
 pub struct Scenario {
     pub turns: Vec<Turn>,
@@ -63,9 +30,10 @@ pub enum Hostile {
     PendingBlock,
     InterruptedEntry,
     InterruptedBlock,
+    InterruptedChild,
 }
 
-pub const HOSTILE: [Hostile; 9] = [
+pub const HOSTILE: [Hostile; 10] = [
     Hostile::Clean,
     Hostile::InputEntry,
     Hostile::InputBlock,
@@ -75,6 +43,7 @@ pub const HOSTILE: [Hostile; 9] = [
     Hostile::PendingBlock,
     Hostile::InterruptedEntry,
     Hostile::InterruptedBlock,
+    Hostile::InterruptedChild,
 ];
 
 fn identities(value: &Value, out: &mut Vec<Uuid>) {
@@ -131,6 +100,16 @@ fn ai_turns(turns: &[Turn]) -> Vec<(TurnId, u64)> {
         .collect()
 }
 
+fn extras(fresh: &mut Fresh) -> Extras {
+    Extras {
+        call: bid(fresh.next()),
+        result: bid(fresh.next()),
+        child: bid(fresh.next()),
+        cited: bid(fresh.next()),
+        citation: cid(fresh.next()),
+    }
+}
+
 fn pending_of(rng: &mut Lcg, fresh: &mut Fresh, turns: &[Turn]) -> Vec<Pending> {
     let mut targets: Vec<TurnId> = ai_turns(turns).into_iter().map(|(id, _)| id).collect();
     targets.extend(
@@ -144,7 +123,7 @@ fn pending_of(rng: &mut Lcg, fresh: &mut Fresh, turns: &[Turn]) -> Vec<Pending> 
     for _ in 0..rng.next(3) {
         let turn = targets[rng.next(targets.len() as u64) as usize];
         let (entry, thinking, text) = (eid(fresh.next()), bid(fresh.next()), bid(fresh.next()));
-        pending.push(match rng.next(6) {
+        pending.push(match rng.next(8) {
             0 => Pending::Draft(Box::new(draft(turn, entry, thinking, text, "so far"))),
             1 => Pending::Draft(Box::new(draft(turn, entry, thinking, text, "  "))),
             2 => Pending::Draft(Box::new(finished(
@@ -153,6 +132,14 @@ fn pending_of(rng: &mut Lcg, fresh: &mut Fresh, turns: &[Turn]) -> Vec<Pending> 
             ))),
             3 => Pending::Draft(Box::new(stopped(draft(turn, entry, thinking, text, "cut")))),
             4 => Pending::Draft(Box::new(ResponseDraft::new(turn, entry))),
+            5 => Pending::Draft(Box::new(finished(
+                enriched(draft(turn, entry, thinking, text, "done"), extras(fresh)),
+                text,
+            ))),
+            6 => Pending::Draft(Box::new(enriched(
+                draft(turn, entry, thinking, text, "so far"),
+                extras(fresh),
+            ))),
             _ => Pending::Response(turn, Box::new(spoken(entry, thinking, text))),
         });
     }
@@ -241,6 +228,28 @@ pub fn scenario(seed: u64, hostile: Hostile) -> Scenario {
                 scenario
                     .interrupted
                     .push(stopped(draft(turn, e, thinking, b, "cut")));
+                scenario.interrupted_owner = first_ai.map(|(_, agent)| agent);
+            }
+        }
+        Hostile::InterruptedChild => {
+            if let Some(turn) = foreign {
+                let held = extras(&mut fresh);
+                let citation = BlockId::from_uuid(held.citation.as_uuid()).unwrap();
+                let reused = [held.call, held.result, held.child, held.cited, citation]
+                    [rng.next(5) as usize];
+                let (e, thinking, retry) =
+                    (eid(fresh.next()), bid(fresh.next()), eid(fresh.next()));
+                scenario.interrupted.push(stopped(enriched(
+                    draft(turn, e, thinking, bid(fresh.next()), "cut"),
+                    held,
+                )));
+                scenario.pending.push(Pending::Draft(Box::new(draft(
+                    turn,
+                    retry,
+                    bid(fresh.next()),
+                    reused,
+                    "again",
+                ))));
                 scenario.interrupted_owner = first_ai.map(|(_, agent)| agent);
             }
         }

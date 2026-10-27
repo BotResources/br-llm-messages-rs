@@ -65,3 +65,12 @@ fn given_an_identity_reused_by_an_input_or_foreign_turn_when_projected_then_some
         assert!(accepted > 0, "{hostile:?} must also hit a hidden identity");
     }
 }
+
+#[test]
+fn given_an_interrupted_draft_holding_children_and_citations_when_a_retry_reuses_one_then_both_paths_refuse_it()
+ {
+    let (accepted, refused) = run(Hostile::InterruptedChild);
+
+    assert!(refused > 0, "the reused child or citation must be refused");
+    assert!(accepted + refused > 0);
+}

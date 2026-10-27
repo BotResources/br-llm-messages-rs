@@ -10,7 +10,7 @@ pub use json::PROJECTED_THREAD_SCHEMA;
 pub use pending::PendingResponse;
 pub use perspective::Perspective;
 
-pub(crate) use output::{Output, Owner, Progress, accumulated_text, usable_block};
+pub(crate) use output::{Output, Owner, Progress, accumulated_text, usable};
 pub(crate) use source::{Foreign, Item, Source, Sources};
 
 use crate::id::{AgentId, ConversationId};

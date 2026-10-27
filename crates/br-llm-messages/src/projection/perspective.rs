@@ -68,7 +68,7 @@ impl Perspective {
     }
 
     pub fn project(&self, conversation: &Conversation) -> ProjectedThread {
-        Checked::unique(self.sources(conversation.turns())).project(conversation.id(), self.agent)
+        Checked::trusted(self.sources(conversation.turns())).project(conversation.id(), self.agent)
     }
 
     pub fn project_turns(

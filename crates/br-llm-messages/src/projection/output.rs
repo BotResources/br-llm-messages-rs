@@ -1,5 +1,6 @@
 use crate::block::{ContentBlock, PlainBlock, TextBlock};
 use crate::entry::{AgentOutput, IncomingEntry, ModelResponse, PartialAgentOutput};
+use crate::error::{Error, ErrorCode};
 use crate::id::{AgentId, BlockId, EntryId};
 use crate::value::Author;
 
@@ -54,17 +55,24 @@ impl Output {
     }
 }
 
-pub(crate) fn accumulated_text(id: BlockId, text: &str) -> Option<TextBlock> {
-    TextBlock::new(id, text).ok()
+pub(crate) fn accumulated_text(id: BlockId, text: &str) -> Result<Option<TextBlock>, Error> {
+    if text.chars().all(char::is_whitespace) {
+        return Ok(None);
+    }
+    TextBlock::new(id, text).map(Some)
+}
+
+pub(crate) fn usable(block: &ContentBlock) -> Result<PlainBlock, Error> {
+    match block {
+        ContentBlock::Text(text) => Ok(PlainBlock::Text(text.clone())),
+        ContentBlock::Image(image) => Ok(PlainBlock::Image(image.clone())),
+        ContentBlock::StructuredContent(structured) => {
+            Ok(PlainBlock::StructuredContent(structured.clone()))
+        }
+        other => Err(Error::new(ErrorCode::DisallowedKind).with_id(other.id().as_uuid())),
+    }
 }
 
 pub(crate) fn usable_block(block: &ContentBlock) -> Option<PlainBlock> {
-    match block {
-        ContentBlock::Text(text) => Some(PlainBlock::Text(text.clone())),
-        ContentBlock::Image(image) => Some(PlainBlock::Image(image.clone())),
-        ContentBlock::StructuredContent(structured) => {
-            Some(PlainBlock::StructuredContent(structured.clone()))
-        }
-        _ => None,
-    }
+    usable(block).ok()
 }

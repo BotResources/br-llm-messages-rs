@@ -48,7 +48,8 @@ impl Sources {
                     return Err(Error::new(ErrorCode::ReusedIdentity).with_id(id).at(&at));
                 }
             }
-            if let Some(entry) = item.output().and_then(|output| output.entry_for(owner)) {
+            let output = item.output().map_err(|error| error.at(&at))?;
+            if let Some(entry) = output.and_then(|output| output.entry_for(owner)) {
                 placed.entry(item.turn()).or_default().push(entry);
             }
         }
@@ -60,7 +61,7 @@ impl Sources {
 }
 
 impl Checked {
-    pub(crate) fn unique(sources: Sources) -> Self {
+    pub(crate) fn trusted(sources: Sources) -> Self {
         Checked {
             sources: sources.sources,
             pending: HashMap::new(),

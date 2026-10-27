@@ -14,6 +14,12 @@ enum Ending {
     Optional,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ReducedRole {
+    Incoming,
+    Response(RepresentationState),
+}
+
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "EntryRecordWire")]
@@ -151,16 +157,23 @@ impl EntryRecord {
         checked.map_err(|error| error.at("payload"))
     }
 
-    pub(super) fn check_reduced(&self) -> Result<(), Error> {
+    pub(super) fn reduced_role(&self) -> Result<ReducedRole, Error> {
         if self.kind.is_incoming() {
-            return self.check_local();
-        }
-        if self.kind != TurnEntryKind::ModelResponse {
-            return Err(Error::new(ErrorCode::DisallowedKind)
+            Ok(ReducedRole::Incoming)
+        } else if self.kind == TurnEntryKind::ModelResponse {
+            Ok(ReducedRole::Response(self.state))
+        } else {
+            Err(Error::new(ErrorCode::DisallowedKind)
                 .with_id(self.id.as_uuid())
-                .at("kind"));
+                .at("kind"))
         }
-        self.check_with(Ending::Optional)
+    }
+
+    pub(super) fn check_reduced(&self) -> Result<(), Error> {
+        match self.reduced_role()? {
+            ReducedRole::Incoming => self.check_local(),
+            ReducedRole::Response(_) => self.check_with(Ending::Optional),
+        }
     }
 
     fn check_columns(&self) -> Result<(), Error> {

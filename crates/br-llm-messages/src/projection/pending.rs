@@ -3,6 +3,7 @@ use uuid::Uuid;
 use super::output::{Output, Progress, accumulated_text, usable_block};
 use crate::block::{ContentBlockKind, PlainBlock};
 use crate::entry::ModelResponse;
+use crate::error::Error;
 use crate::id::{EntryId, TurnId};
 use crate::stream::{DraftPhase, ResponseDraft};
 use crate::turn::places_of_response;
@@ -40,15 +41,7 @@ impl<'a> PendingResponse<'a> {
 
     pub(crate) fn identities(&self) -> Vec<Uuid> {
         match self.0 {
-            Pending::Draft(draft) => std::iter::once(draft.entry().as_uuid())
-                .chain(
-                    draft
-                        .view()
-                        .slots()
-                        .iter()
-                        .map(|slot| slot.block().as_uuid()),
-                )
-                .collect(),
+            Pending::Draft(draft) => draft.identities(),
             Pending::Response { response, .. } => places_of_response(response)
                 .into_iter()
                 .map(|(id, _)| id)
@@ -56,17 +49,17 @@ impl<'a> PendingResponse<'a> {
         }
     }
 
-    pub(crate) fn output(&self) -> Option<Output> {
+    pub(crate) fn output(&self) -> Result<Option<Output>, Error> {
         match self.0 {
-            Pending::Response { response, .. } => Some(Output::of_response(response)),
+            Pending::Response { response, .. } => Ok(Some(Output::of_response(response))),
             Pending::Draft(draft) => match draft.phase() {
-                DraftPhase::Completed { .. } => draft.response().map(Output::of_response),
-                DraftPhase::Producing { .. } => Some(Output::new(
+                DraftPhase::Completed { .. } => Ok(draft.response().map(Output::of_response)),
+                DraftPhase::Producing { .. } => Ok(Some(Output::new(
                     draft.entry(),
                     Progress::Producing,
-                    producing_blocks(draft),
-                )),
-                DraftPhase::Unstarted { .. } | DraftPhase::Interrupted { .. } => None,
+                    producing_blocks(draft)?,
+                ))),
+                DraftPhase::Unstarted { .. } | DraftPhase::Interrupted { .. } => Ok(None),
             },
         }
     }
@@ -78,17 +71,16 @@ impl<'a> From<&'a ResponseDraft> for PendingResponse<'a> {
     }
 }
 
-fn producing_blocks(draft: &ResponseDraft) -> Vec<PlainBlock> {
-    draft
-        .view()
-        .slots()
-        .iter()
-        .filter_map(|slot| match slot.finalized() {
-            Some(block) => usable_block(block),
-            None if slot.kind() == ContentBlockKind::Text => {
-                accumulated_text(slot.block(), slot.text()?).map(PlainBlock::Text)
+fn producing_blocks(draft: &ResponseDraft) -> Result<Vec<PlainBlock>, Error> {
+    let mut blocks = Vec::new();
+    for slot in draft.view().slots() {
+        match (slot.finalized(), slot.kind(), slot.text()) {
+            (Some(block), _, _) => blocks.extend(usable_block(block)),
+            (None, ContentBlockKind::Text, Some(text)) => {
+                blocks.extend(accumulated_text(slot.block(), text)?.map(PlainBlock::Text));
             }
-            None => None,
-        })
-        .collect()
+            (None, _, _) => {}
+        }
+    }
+    Ok(blocks)
 }

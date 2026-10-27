@@ -10,7 +10,7 @@ pub(crate) enum Class {
     Entry(TurnEntryKind),
     Output,
     Block(ContentBlockKind),
-    Citation,
+    Citation(Uuid),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -170,7 +170,7 @@ fn plain_places(
             out.push((
                 citation.id().as_uuid(),
                 Place {
-                    class: Class::Citation,
+                    class: Class::Citation(block.id().as_uuid()),
                     entry,
                     root,
                     child,
@@ -187,7 +187,7 @@ fn content_places(block: &ContentBlock, entry: usize, root: usize, out: &mut Dec
             out.push((
                 citation.id().as_uuid(),
                 Place {
-                    class: Class::Citation,
+                    class: Class::Citation(block.id().as_uuid()),
                     entry,
                     root,
                     child: None,

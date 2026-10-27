@@ -1,21 +1,23 @@
 use std::collections::HashMap;
 
+use uuid::Uuid;
+
 use super::block::BlockRecord;
-use super::entry::EntryRecord;
+use super::entry::{EntryRecord, ReducedRole};
 use super::kinds::RepresentationState;
 use super::partial::{TextPartial, decode as decode_partial};
-use super::reconstruct::{build_entry, build_turn};
+use super::reconstruct::{build_incoming, build_turn, citation_ids};
 use super::reduced_rows::Rows;
 use super::set::RecordSet;
 use super::tree::BlockTree;
 use super::turn::TurnRecord;
 use crate::block::{ContentBlock, ContentBlockKind, PlainBlock};
-use crate::entry::{IncomingEntry, TurnEntryKind};
-use crate::error::{Error, ErrorCode};
+use crate::entry::IncomingEntry;
+use crate::error::Error;
 use crate::id::{AgentId, ConversationId, TurnId};
 use crate::projection::{
     Foreign, Item, Output, Owner, PendingResponse, Progress, ProjectedThread, Source, Sources,
-    accumulated_text, usable_block,
+    accumulated_text, usable,
 };
 use crate::turn::{Class, Declared, places_of_incoming};
 
@@ -31,15 +33,15 @@ fn block_of(row: &BlockRecord, tree: &BlockTree<'_>) -> Result<Option<PlainBlock
         return match row.kind() {
             ContentBlockKind::Text => {
                 let partial: TextPartial = decode_partial(row.payload()).map_err(located)?;
-                Ok(accumulated_text(row.id(), &partial.text).map(PlainBlock::Text))
+                Ok(accumulated_text(row.id(), &partial.text)
+                    .map_err(located)?
+                    .map(PlainBlock::Text))
             }
             _ => Ok(None),
         };
     }
     let block: ContentBlock = crate::json::decode_value(tree.value_of(row)?).map_err(located)?;
-    usable_block(&block)
-        .map(Some)
-        .ok_or_else(|| located(Error::new(ErrorCode::DisallowedKind)))
+    usable(&block).map(Some).map_err(located)
 }
 
 impl Door<'_> {
@@ -50,22 +52,25 @@ impl Door<'_> {
             .map_or_else(|| "blocks".to_owned(), |row| format!("blocks[{row}]"))
     }
 
+    fn block_location(&self, block: Uuid, turn: usize) -> String {
+        self.rows
+            .block_rows
+            .get(&block)
+            .map_or_else(|| format!("turns[{turn}]"), |row| format!("blocks[{row}]"))
+    }
+
     fn declare_rows(&mut self, declared: Declared, turn: usize) {
-        let mut block = format!("turns[{turn}]");
         for (id, place) in declared {
             let at = match place.class {
                 Class::Turn => format!("turns[{turn}]"),
-                Class::Block(_) => {
-                    if let Some(row) = self.rows.block_rows.get(&id) {
-                        block = format!("blocks[{row}]");
+                Class::Block(_) => self.block_location(id, turn),
+                Class::Citation(block) => self.block_location(block, turn),
+                Class::Conversation | Class::Entry(_) | Class::Output => {
+                    match self.rows.entry_rows.get(&id) {
+                        Some(row) => format!("entries[{row}]"),
+                        None => format!("turns[{turn}]"),
                     }
-                    block.clone()
                 }
-                Class::Citation => block.clone(),
-                _ => match self.rows.entry_rows.get(&id) {
-                    Some(row) => format!("entries[{row}]"),
-                    None => format!("turns[{turn}]"),
-                },
             };
             self.sources.declare(id, at);
         }
@@ -91,10 +96,18 @@ impl Door<'_> {
     fn ignored(&mut self, index: usize, entry: &EntryRecord) {
         self.sources
             .declare(entry.id().as_uuid(), format!("entries[{index}]"));
-        let blocks: Vec<(usize, &BlockRecord)> = self.rows.ignored_blocks(entry.id()).collect();
+        let blocks = self
+            .rows
+            .ignored
+            .get(&entry.id())
+            .cloned()
+            .unwrap_or_default();
         for (row, block) in blocks {
-            self.sources
-                .declare(block.id().as_uuid(), format!("blocks[{row}]"));
+            let at = format!("blocks[{row}]");
+            self.sources.declare(block.id().as_uuid(), at.clone());
+            for citation in citation_ids(block) {
+                self.sources.declare(citation, at.clone());
+            }
         }
     }
 
@@ -102,39 +115,36 @@ impl Door<'_> {
         &mut self,
         position: usize,
         turn: &TurnRecord,
+        owner: Owner,
         entries: &[(usize, &EntryRecord)],
     ) -> Result<Foreign, Error> {
-        let owner = match (turn.agent(), turn.author()) {
-            (Some(agent), Some(author)) => Owner {
-                agent,
-                author: author.clone(),
-            },
-            _ => {
-                return Err(Error::new(ErrorCode::InvalidContent)
-                    .with_id(turn.id().as_uuid())
-                    .at(format!("turns[{position}]")));
-            }
-        };
         let mut items = Vec::new();
         for (ordinal, (index, entry)) in entries.iter().enumerate() {
-            let progress = match (entry.kind(), entry.state()) {
-                (TurnEntryKind::ModelResponse, RepresentationState::Interrupted) => None,
-                (TurnEntryKind::ModelResponse, RepresentationState::Complete) => {
-                    Some(Progress::Completed)
+            let role = entry
+                .reduced_role()
+                .map_err(|error| error.at(format!("entries[{index}]")))?;
+            match role {
+                ReducedRole::Incoming => {
+                    let incoming = self.incoming(position, ordinal, entry)?;
+                    items.push(Item::Incoming(incoming));
                 }
-                (TurnEntryKind::ModelResponse, RepresentationState::Producing) => {
-                    Some(Progress::Producing)
+                ReducedRole::Response(RepresentationState::Interrupted) => {
+                    self.ignored(*index, entry);
                 }
-                _ => {
-                    items.push(Item::Incoming(
-                        self.incoming(position, ordinal, *index, entry)?,
-                    ));
-                    continue;
+                ReducedRole::Response(RepresentationState::Complete) => {
+                    items.push(Item::Output(self.output(
+                        *index,
+                        entry,
+                        Progress::Completed,
+                    )?));
                 }
-            };
-            match progress {
-                None => self.ignored(*index, entry),
-                Some(progress) => items.push(Item::Output(self.output(*index, entry, progress)?)),
+                ReducedRole::Response(RepresentationState::Producing) => {
+                    items.push(Item::Output(self.output(
+                        *index,
+                        entry,
+                        Progress::Producing,
+                    )?));
+                }
             }
         }
         Ok(Foreign {
@@ -148,16 +158,10 @@ impl Door<'_> {
         &mut self,
         position: usize,
         ordinal: usize,
-        index: usize,
         entry: &EntryRecord,
     ) -> Result<IncomingEntry, Error> {
-        let located = |error: Error| error.at(format!("turns[{position}].entries[{ordinal}]"));
-        let built = build_entry(entry, &self.tree).map_err(located)?;
-        let incoming = IncomingEntry::recorded(&built).ok_or_else(|| {
-            Error::new(ErrorCode::DisallowedKind)
-                .with_id(entry.id().as_uuid())
-                .at(format!("entries[{index}].kind"))
-        })?;
+        let incoming = build_incoming(entry, &self.tree)
+            .map_err(|error| error.at(format!("turns[{position}].entries[{ordinal}]")))?;
         self.declare_rows(places_of_incoming(&incoming, ordinal), position);
         Ok(incoming)
     }
@@ -188,10 +192,10 @@ pub(super) fn rebuild_thread(
     }
     for (position, turn) in set.turns().iter().enumerate() {
         let entries = by_turn.remove(&turn.id()).unwrap_or_default();
-        if door.rows.foreign.contains(&turn.id()) {
+        if let Some(owner) = door.rows.foreign.get(&turn.id()).cloned() {
             door.sources
                 .declare(turn.id().as_uuid(), format!("turns[{position}]"));
-            let foreign = door.foreign(position, turn, &entries)?;
+            let foreign = door.foreign(position, turn, owner, &entries)?;
             door.sources.push(Source::Foreign(foreign));
         } else {
             let rows = entries.iter().map(|(_, row)| *row).collect();

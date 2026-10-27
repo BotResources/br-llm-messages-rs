@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use uuid::Uuid;
 
@@ -9,12 +9,13 @@ use super::set::RecordSet;
 use crate::entry::TurnEntryKind;
 use crate::error::{Error, ErrorCode};
 use crate::id::{AgentId, EntryId, TurnId};
+use crate::projection::Owner;
 use crate::turn::TurnKind;
 
 pub(super) struct Rows<'a> {
     pub(super) set: &'a RecordSet,
-    pub(super) foreign: HashSet<TurnId>,
-    ignored: HashSet<EntryId>,
+    pub(super) foreign: HashMap<TurnId, Owner>,
+    pub(super) ignored: HashMap<EntryId, Vec<(usize, &'a BlockRecord)>>,
     pub(super) entry_rows: HashMap<Uuid, usize>,
     pub(super) block_rows: HashMap<Uuid, usize>,
 }
@@ -55,24 +56,31 @@ impl<'a> Rows<'a> {
             "entries",
         )?;
         let block_rows = unique(set.blocks().iter().map(|row| row.id().as_uuid()), "blocks")?;
-        let foreign: HashSet<TurnId> = set
+        let foreign: HashMap<TurnId, Owner> = set
             .turns()
             .iter()
-            .filter(|row| {
-                row.kind() == TurnKind::AITurn && row.agent().is_some_and(|owner| owner != agent)
+            .filter(|row| row.kind() == TurnKind::AITurn)
+            .filter_map(|row| {
+                let agent = row.agent().filter(|owner| *owner != agent)?;
+                let author = row.author()?.clone();
+                Some((row.id(), Owner { agent, author }))
             })
-            .map(|row| row.id())
             .collect();
-        let ignored = set
+        let mut ignored: HashMap<EntryId, Vec<(usize, &'a BlockRecord)>> = set
             .entries()
             .iter()
             .filter(|row| {
                 row.state() == RepresentationState::Interrupted
                     && row.kind() == TurnEntryKind::ModelResponse
-                    && foreign.contains(&row.turn())
+                    && foreign.contains_key(&row.turn())
             })
-            .map(EntryRecord::id)
+            .map(|row| (row.id(), Vec::new()))
             .collect();
+        for (index, row) in set.blocks().iter().enumerate() {
+            if let Some(rows) = ignored.get_mut(&row.entry()) {
+                rows.push((index, row));
+            }
+        }
         let rows = Rows {
             set,
             foreign,
@@ -87,7 +95,7 @@ impl<'a> Rows<'a> {
     }
 
     fn is_ignored(&self, entry: EntryId) -> bool {
-        self.ignored.contains(&entry)
+        self.ignored.contains_key(&entry)
     }
 
     pub(super) fn entries(&self) -> impl Iterator<Item = (usize, &'a EntryRecord)> + '_ {
@@ -104,17 +112,6 @@ impl<'a> Rows<'a> {
             .iter()
             .enumerate()
             .filter(|(_, row)| !self.is_ignored(row.entry()))
-    }
-
-    pub(super) fn ignored_blocks(
-        &self,
-        entry: EntryId,
-    ) -> impl Iterator<Item = (usize, &'a BlockRecord)> + '_ {
-        let set = self.set;
-        set.blocks()
-            .iter()
-            .enumerate()
-            .filter(move |(_, row)| row.entry() == entry)
     }
 
     fn check_parents(&self, turns: &HashMap<Uuid, usize>) -> Result<(), Error> {
@@ -139,7 +136,7 @@ impl<'a> Rows<'a> {
 
     fn check_rows(&self) -> Result<(), Error> {
         for (index, row) in self.entries() {
-            let checked = if self.foreign.contains(&row.turn()) {
+            let checked = if self.foreign.contains_key(&row.turn()) {
                 row.check_reduced()
             } else {
                 row.check_local()
@@ -156,7 +153,7 @@ impl<'a> Rows<'a> {
     fn check_states(&self) -> Result<(), Error> {
         let mut reduced: HashMap<EntryId, RepresentationState> = HashMap::new();
         for (index, row) in self.entries() {
-            let foreign = self.foreign.contains(&row.turn());
+            let foreign = self.foreign.contains_key(&row.turn());
             if foreign {
                 reduced.insert(row.id(), row.state());
             }

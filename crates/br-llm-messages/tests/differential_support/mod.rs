@@ -4,9 +4,11 @@
 )]
 
 mod drafts;
+mod pending;
 mod scenario;
 
-pub use scenario::{HOSTILE, Hostile, Pending, Scenario, draft_document, scenario};
+pub use pending::{Pending, draft_document};
+pub use scenario::{HOSTILE, Hostile, Scenario, scenario};
 
 use std::collections::HashSet;
 

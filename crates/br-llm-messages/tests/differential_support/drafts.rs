@@ -1,7 +1,39 @@
 use br_llm_messages::{
-    BlockId, BlockStart, DeltaOp, EntryId, Finalization, InterruptionReason, ResponseDelta,
-    ResponseDraft, ResponseEnding, ResponseMetadata, TurnId,
+    BlockId, BlockStart, Citation, CitationId, CitationSource, DeltaOp, EntryId, Finalization,
+    InterruptionReason, PlainBlock, ProviderToolCall, ProviderToolResult, ResponseDelta,
+    ResponseDraft, ResponseEnding, ResponseMetadata, TextBlock, TurnId,
 };
+
+#[derive(Clone, Copy)]
+pub struct Extras {
+    pub call: BlockId,
+    pub result: BlockId,
+    pub child: BlockId,
+    pub cited: BlockId,
+    pub citation: CitationId,
+}
+
+pub fn enriched(mut draft: ResponseDraft, extras: Extras) -> ResponseDraft {
+    let child = PlainBlock::Text(TextBlock::new(extras.child, "found").unwrap());
+    let cited = TextBlock::new(extras.cited, "sourced")
+        .unwrap()
+        .with_citations(vec![Citation::new(
+            extras.citation,
+            CitationSource::new("doc").unwrap(),
+        )])
+        .unwrap();
+    feed(
+        &mut draft,
+        vec![
+            DeltaOp::block_inserted(ProviderToolCall::new(extras.call)),
+            DeltaOp::block_inserted(
+                ProviderToolResult::new(extras.result, extras.call, vec![child]).unwrap(),
+            ),
+            DeltaOp::block_inserted(cited),
+        ],
+    );
+    draft
+}
 
 fn feed(draft: &mut ResponseDraft, ops: Vec<DeltaOp>) {
     for op in ops {

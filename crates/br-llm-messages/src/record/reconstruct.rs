@@ -16,7 +16,7 @@ use crate::error::{Error, ErrorCode};
 use crate::id::{CitationId, EntryId, TurnId};
 use crate::turn::{AITurn, InputTurn, Turn, TurnKind};
 
-fn citation_ids(row: &BlockRecord) -> Vec<Uuid> {
+pub(super) fn citation_ids(row: &BlockRecord) -> Vec<Uuid> {
     if row.kind() != ContentBlockKind::Text {
         return Vec::new();
     }
@@ -100,6 +100,18 @@ pub(super) fn build_entry(row: &EntryRecord, tree: &BlockTree<'_>) -> Result<Tur
     }
     let value = entry_value(row, blocks)?;
     crate::json::decode_value(value)
+}
+
+pub(super) fn build_incoming(
+    row: &EntryRecord,
+    tree: &BlockTree<'_>,
+) -> Result<IncomingEntry, Error> {
+    let built = build_entry(row, tree)?;
+    IncomingEntry::recorded(&built).ok_or_else(|| {
+        Error::new(ErrorCode::DisallowedKind)
+            .with_id(row.id().as_uuid())
+            .at("kind")
+    })
 }
 
 pub(super) fn build_turn(

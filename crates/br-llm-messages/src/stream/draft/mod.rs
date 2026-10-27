@@ -117,6 +117,12 @@ impl ResponseDraft {
         DraftView::new(self)
     }
 
+    pub(crate) fn identities(&self) -> Vec<Uuid> {
+        let mut ids: Vec<Uuid> = self.ids.iter().copied().collect();
+        ids.sort_unstable();
+        ids
+    }
+
     fn dispatch(&mut self, delta: &ResponseDelta) -> Result<DeltaOutcome, Error> {
         if delta.turn() != self.turn || delta.entry() != self.entry {
             return Err(target_error());
