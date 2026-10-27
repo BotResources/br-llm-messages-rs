@@ -86,9 +86,10 @@ fn given_any_addition_when_asked_as_a_dry_run_then_the_answer_is_the_refusal_of_
             .code(),
         ErrorCode::ReusedIdentity
     );
+    assert_eq!(conversation.would_refuse_entry(&tid(10), &human(42)), None);
     assert_eq!(
         conversation
-            .would_refuse_entry(&tid(10), &human(42))
+            .would_refuse_entry(&tid(99), &human(43))
             .unwrap()
             .code(),
         ErrorCode::UnknownReference
