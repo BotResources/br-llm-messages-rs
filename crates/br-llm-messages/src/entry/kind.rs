@@ -18,10 +18,10 @@ pub enum TurnEntryKind {
     TaskStarted,
     TaskCompleted,
     TaskFailed,
-    RuntimeNotice,
     ModelResponse,
     RuntimeToolResults,
     TurnClosure,
+    RuntimeNotice,
 }
 
 impl TurnEntryKind {
@@ -34,10 +34,10 @@ impl TurnEntryKind {
         TurnEntryKind::TaskStarted,
         TurnEntryKind::TaskCompleted,
         TurnEntryKind::TaskFailed,
-        TurnEntryKind::RuntimeNotice,
         TurnEntryKind::ModelResponse,
         TurnEntryKind::RuntimeToolResults,
         TurnEntryKind::TurnClosure,
+        TurnEntryKind::RuntimeNotice,
     ];
 
     pub fn as_str(self) -> &'static str {

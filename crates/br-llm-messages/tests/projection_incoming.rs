@@ -57,8 +57,9 @@ fn given_incoming_entries_of_every_kind_in_another_agents_turn_when_projected_by
     assert_eq!(found[9], None);
     assert_eq!(
         &found[..9],
-        TurnEntryKind::ALL[..9]
+        TurnEntryKind::ALL
             .iter()
+            .filter(|k| k.is_incoming())
             .map(|k| Some(*k))
             .collect::<Vec<_>>()
     );

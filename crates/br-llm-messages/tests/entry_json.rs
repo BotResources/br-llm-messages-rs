@@ -30,12 +30,12 @@ fn goldens() -> Vec<Value> {
         json!({"type": "task_started", "id": s(eid(6)), "request": s(rid(1)), "task": s(kid(1))}),
         json!({"type": "task_completed", "id": s(eid(7)), "task": s(kid(1))}),
         json!({"type": "task_failed", "id": s(eid(8)), "task": s(kid(1)), "reason": "boom"}),
-        json!({"type": "runtime_notice", "id": s(eid(12)), "text": "restarting in 5 minutes"}),
         json!({"type": "model_response", "id": s(eid(9)), "ending": {"type": "finished"}, "content": []}),
         json!({"type": "runtime_tool_results", "id": s(eid(10)), "results": [
             {"type": "runtime_tool_result", "id": s(bid(600)), "call": s(bid(601)), "tool_name": "t",
              "is_error": false, "content": []}]}),
         json!({"type": "turn_closure", "id": s(eid(11)), "reason": {"type": "completed"}}),
+        json!({"type": "runtime_notice", "id": s(eid(12)), "text": "restarting in 5 minutes"}),
     ]
 }
 

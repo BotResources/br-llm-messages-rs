@@ -18,10 +18,10 @@ fn given_the_twelve_kinds_when_named_then_snake_case_discriminants_are_golden() 
         "task_started",
         "task_completed",
         "task_failed",
-        "runtime_notice",
         "model_response",
         "runtime_tool_results",
         "turn_closure",
+        "runtime_notice",
     ];
 
     let actual: Vec<&str> = TurnEntryKind::ALL.iter().map(|k| k.as_str()).collect();
@@ -46,7 +46,7 @@ fn given_every_entry_when_inspected_then_each_has_its_own_id_and_matching_kind()
     assert_eq!(ids.len(), 12);
     assert_eq!(
         ids,
-        (1..=8).chain([12, 9, 10, 11]).map(eid).collect::<Vec<_>>()
+        (1..=8).chain([9, 10, 11, 12]).map(eid).collect::<Vec<_>>()
     );
     assert_eq!(kinds, TurnEntryKind::ALL.to_vec());
 }

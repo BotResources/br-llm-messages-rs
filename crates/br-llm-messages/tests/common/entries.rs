@@ -32,9 +32,6 @@ pub fn all_entries() -> Vec<TurnEntry> {
         TaskStarted::new(eid(6), rid(1), kid(1)).into(),
         TaskCompleted::new(eid(7), kid(1)).into(),
         TaskFailed::new(eid(8), kid(1), "boom").unwrap().into(),
-        RuntimeNotice::new(eid(12), "restarting in 5 minutes")
-            .unwrap()
-            .into(),
         ModelResponse::new(
             eid(9),
             vec![],
@@ -47,5 +44,8 @@ pub fn all_entries() -> Vec<TurnEntry> {
             .unwrap()
             .into(),
         TurnClosure::new(eid(11), ClosureReason::completed()).into(),
+        RuntimeNotice::new(eid(12), "restarting in 5 minutes")
+            .unwrap()
+            .into(),
     ]
 }
