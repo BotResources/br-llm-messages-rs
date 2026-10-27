@@ -7,6 +7,46 @@ released under the tag `v{version}`. Format follows
 Release headings are plain `## X.Y.Z` — the release pipeline greps that exact
 form to decide whether a version ships.
 
+## 2.1.0 - 2026-10-27
+
+Additive: 2.1 changes no signature and removes nothing. Every 2.0 call keeps its meaning and every document valid in 2.0 stays valid with the same meaning. A 2.0 reader refuses a 2.1 document that uses a `runtime_notice` entry, an order of entries that 2.0 refused, an entry after a closure or a tool name longer than 64 characters: upgrade readers before writers. The schema identifiers are unchanged.
+
+### Two modes
+
+- The package works with an owner such as Threads (records, projection per agent) and standalone, where a `Conversation` is an in-memory list of messages that the caller appends to freely. The system prompt is part of neither.
+
+### ProjectedThread
+
+- `ProjectedThread::from_turns(conversation, agent, turns)` builds a view from its turns with the validation of a JSON reload; `push_turn`, `push_incoming` and `push_entry` grow it, each atomic.
+- `ProjectedThread::turn`, `entry`, `block` look up by identity; `entries()` is the flat read-only view (`PlacedEntry`, `EntryView`).
+- `AgentOutput::new`, `PartialAgentOutput::new` and `InputTurn::new_projected` are public.
+
+### Conversation
+
+- `Conversation::push_incoming`, `project_for`, `entries`, `cut_before`, `fork_before` (`Position`).
+- `Conversation::push_entry` accepts an input turn as its target.
+- Opt-in cargo feature `mint`: `ConversationId`, `TurnId`, `EntryId`, `BlockId` and `CitationId` get `mint()`, a UUIDv7.
+
+### Turns
+
+- The entry-order table is replaced by rules: an incoming entry, a `ModelResponse` and a `TurnClosure` are accepted at any point of an open turn; a `RuntimeToolResults` entry must name outstanding runtime calls (`entry_out_of_order` otherwise); after a closure only a `RuntimeToolResults` entry for a call the closure left outstanding is accepted (`closed_turn` otherwise). A `Completed` closure is still refused with an outstanding call, pending provider execution or a trailing provider continuation (`unresolved_execution`).
+- `InputTurn::push_entry` extends an input turn after it is built.
+- Tool names are 1 to 256 ASCII characters (was 64).
+
+### Entries
+
+- New `RuntimeNotice` entry (`runtime_notice`): non-blank text, no author, in an input turn or an AI turn. `TurnEntryKind::RuntimeNotice` is the last variant of the enum, so the discriminants of the 2.0 variants are unchanged.
+
+### Checks
+
+- Dry runs that change nothing: `AITurn::check_push` (now public), `InputTurn::check_push`, `Conversation::would_refuse_turn`, `would_refuse_entry`, `would_refuse_incoming`, and the same on `ProjectedThread`.
+- Whole checks: `Conversation::check`, `ProjectedThread::check`, `RecordSet::check`.
+
+### Records
+
+- `RecordSet::to_turns`, `to_conversation`, `to_projected_thread` and `to_projected_thread_pending` work by shared reference; the consuming `into_*` methods remain.
+- Crash recovery: `RecordSet::recover_conversation` and `recover_projected_thread` with `Unfinished::{Restore, Drop}` return a `Recovered` value: the history built from the complete rows, the draft snapshots of producing rows and the interrupted snapshots.
+
 ## 2.0.0 - 2026-10-26
 
 Breaking: an input turn holds one or more incoming entries, in order, instead of exactly one; perspective projection returns a `ProjectedThread` of the same two turn kinds as a stored history.

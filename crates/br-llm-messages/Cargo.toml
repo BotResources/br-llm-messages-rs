@@ -1,6 +1,6 @@
 [package]
 name = "br-llm-messages"
-version = "2.0.0"
+version = "2.1.0"
 description = "Provider-neutral Rust model of an LLM conversation: turns, entries, content blocks, streaming drafts, storage records and perspective projection"
 edition.workspace = true
 rust-version.workspace = true
