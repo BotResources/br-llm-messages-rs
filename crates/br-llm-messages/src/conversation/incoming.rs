@@ -5,9 +5,20 @@ use crate::id::TurnId;
 use crate::turn::{Declared, InputTurn, Turn, places_of_incoming};
 
 pub(crate) enum Prepared {
-    NewTurn { turn: Turn, declared: Declared },
-    Extend { position: usize, turn: InputTurn, declared: Declared },
-    Open { position: usize, entry: TurnEntry, declared: Declared },
+    NewTurn {
+        turn: Turn,
+        declared: Declared,
+    },
+    Extend {
+        position: usize,
+        turn: InputTurn,
+        declared: Declared,
+    },
+    Open {
+        position: usize,
+        entry: TurnEntry,
+        declared: Declared,
+    },
 }
 
 pub(crate) fn extended_input(
